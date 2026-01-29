@@ -419,7 +419,7 @@
                                     @endif
 
                                     {{-- STEMPEL --}}
-                                    @if (file_exists($stampPath))
+                                    @if ($penawaran->approval && $penawaran->approval->status === 'disetujui' && file_exists($stampPath))
                                         <img src="{{ $stampPath }}"
                                             style="
                 position:absolute;

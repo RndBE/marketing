@@ -89,4 +89,9 @@ class Penawaran extends Model
     {
         return $this->hasMany(PenawaranAttachment::class, 'penawaran_id')->orderBy('urutan');
     }
+
+    public function penghapusan()
+    {
+        return $this->hasMany(PenghapusanPenawaran::class);
+    }
 }

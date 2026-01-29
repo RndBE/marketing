@@ -28,12 +28,15 @@
                         <th class="px-4 py-3 text-left font-semibold">Judul</th>
                         <th class="px-4 py-3 text-left font-semibold">PIC</th>
                         <th class="px-4 py-3 text-left font-semibold">Updated</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-right font-semibold">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($data as $row)
-                        @php $docNo = $row->docNumber?->doc_no ?? ('PNW-' . str_pad((string)$row->id, 6, '0', STR_PAD_LEFT)); @endphp
+                        @php
+                            $docNo = $row->docNumber?->doc_no ?? ('PNW-' . str_pad((string)$row->id, 6, '0', STR_PAD_LEFT));
+                        @endphp
                         <tr class="hover:bg-slate-50">
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <div class="font-semibold">{{ $docNo }}</div>
@@ -48,6 +51,31 @@
                             </td>
                             <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
                                 {{ $row->updated_at?->format('d M Y H:i') }}
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $status = $row->approval->status ?? 'draft';
+                                @endphp
+
+                                @if ($status === 'menunggu')
+                                    <span
+                                        class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        Menunggu Approval
+                                        Step {{ $row->approval->current_step }}
+                                    </span>
+                                @elseif ($status === 'disetujui')
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        Disetujui
+                                    </span>
+                                @elseif ($status === 'ditolak')
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                        Ditolak
+                                    </span>
+                                @else
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                                        Draft
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <div class="inline-flex gap-2">

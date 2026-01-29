@@ -6,6 +6,8 @@ use App\Http\Controllers\PenawaranTermTemplateController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PicController;
+use App\Http\Controllers\AlurPenawaranController;
+use App\Http\Controllers\ApprovalController;
 
 
 
@@ -48,6 +50,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{penawaran}/pdf', [PenawaranController::class, 'downloadPdf'])->name('pdf');
         Route::put('/{penawaran}/pricing', [PenawaranController::class, 'upsertPricing'])->name('pricing.upsert');
         Route::post('/{penawaran}/keterangan', [PenawaranController::class, 'upsertKeterangan'])->name('keterangan.upsert');
+
+        Route::get('/penawaran/deleted/list', [PenawaranController::class, 'deletedList'])->name('penawaran.deleted.list');
     });
 
     /*
@@ -90,6 +94,19 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{pic}', [PicController::class, 'update'])->name('update');
         Route::delete('/{pic}', [PicController::class, 'destroy'])->name('destroy');
     });
+
+    Route::prefix('alur-penawaran')->name('alurpenawaran.')->group(function () {
+        Route::get('/', [AlurPenawaranController::class, 'index'])->name('index');
+        Route::post('/', [AlurPenawaranController::class, 'store'])->name('store');
+        Route::put('/{id}', [AlurPenawaranController::class, 'update'])->name('update');
+        Route::delete('/{id}', [AlurPenawaranController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::post('/penawaran/{id}/submit-approval', [ApprovalController::class, 'submitPenawaran'])
+        ->name('penawaran.submitApproval');
+
+    Route::post('/approval/process', [ApprovalController::class, 'processStep'])
+        ->name('approval.process');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

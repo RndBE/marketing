@@ -15,6 +15,10 @@ use App\Models\PenawaranTermTemplate;
 use App\Models\PenawaranValidity;
 use App\Models\Pic;
 use App\Models\Product;
+use App\Models\Approval;
+use App\Models\ApprovalStep;
+use App\Models\AlurPenawaran;
+use App\Models\PenghapusanPenawaran;
 use App\Models\ProductDetail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -28,7 +32,7 @@ class PenawaranController extends Controller
         $q = trim((string) $request->query('q', ''));
 
         $data = Penawaran::query()
-            ->with(['docNumber'])
+            ->with(['docNumber', 'approval'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where('judul', 'like', "%{$q}%")
                     ->orWhere('instansi', 'like', "%{$q}%")
@@ -84,19 +88,89 @@ class PenawaranController extends Controller
                 'keterangan' => 'Penawaran berlaku 30 hari.'
             ]);
 
-            DB::transaction(function () use ($penawaran) {
-                $templates = PenawaranTermTemplate::query()
-                    ->whereNull('parent_id')
-                    ->orderBy('urutan')
-                    ->orderBy('id')
-                    ->with(['children'])
-                    ->get();
-                foreach ($templates as $t) {
-                    $this->cloneTemplateTerm($penawaran->id, $t, null);
-                }
-            });
+            // =========================
+            // 🔥 AUTO BUAT APPROVAL
+            // =========================
+            $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
+                ->where('status', 'aktif')
+                ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
+                ->first();
 
-            return redirect()->route('penawaran.show', $penawaran->id);
+            if (!$alur || $alur->langkah->isEmpty()) {
+                throw new \Exception('Alur penawaran aktif belum dibuat');
+            }
+
+            // Ambil nomor langkah pertama
+            $firstStep = $alur->langkah->first()->no_langkah;
+
+            // Buat approval TERHUBUNG ke penawaran
+            $approval = Approval::create([
+                'status'       => 'menunggu',
+                'current_step' => $firstStep,
+                'module'       => 'penawaran',        // 🔥 PENTING
+                'ref_id'       => $penawaran->id      // 🔥 PENTING
+            ]);
+
+            // Buat daftar step approval
+            foreach ($alur->langkah as $step) {
+                // Tentukan user approver berdasarkan data penawaran
+                $approverId = null;
+
+                // Contoh mapping sederhana (bisa dikembangkan nanti)
+                if ($step->user_id) {
+                    $approverId = $step->user_id; // kalau memang fix user
+                } else {
+                    $approverId = $penawaran->id_user; // fallback ke pembuat penawaran
+                }
+                ApprovalStep::create([
+                    'approval_id' => $approval->id,
+                    'step_order'  => $step->no_langkah,     // 1,2,3,4...
+                    'step_name'   => $step->nama_langkah,
+                    'user_id'     => $step->user_id,
+                    'harus_semua' => $step->harus_semua,
+                    'status'      => 'menunggu',
+                    // disesuaikan saja untuk kedepannya
+                    'akses_approve' => [
+                        'user_id' => (int) $approverId,
+                        'ref_penawaran' => (int) $penawaran->id
+                    ],
+                ]);
+            }
+
+            // Hubungkan approval ke penawaran
+            $penawaran->update([
+                'approval_id' => $approval->id,
+                'status'      => 'menunggu_approval'
+            ]);
+
+
+            // =========================
+            // 📄 Clone Term Template
+            // =========================
+            $templates = PenawaranTermTemplate::query()
+                ->whereNull('parent_id')
+                ->orderBy('urutan')
+                ->orderBy('id')
+                ->with(['children'])
+                ->get();
+
+            foreach ($templates as $t) {
+                $this->cloneTemplateTerm($penawaran->id, $t, null);
+            }
+
+            // DB::transaction(function () use ($penawaran) {
+            //     $templates = PenawaranTermTemplate::query()
+            //         ->whereNull('parent_id')
+            //         ->orderBy('urutan')
+            //         ->orderBy('id')
+            //         ->with(['children'])
+            //         ->get();
+            //     foreach ($templates as $t) {
+            //         $this->cloneTemplateTerm($penawaran->id, $t, null);
+            //     }
+            // });
+
+            return redirect()->route('penawaran.index', $penawaran->id);
         });
     }
 
@@ -128,7 +202,8 @@ class PenawaranController extends Controller
             },
             'signatures',
             'attachments',
-            'items.details'
+            'items.details',
+            'approval.steps'
         ]);
 
         $products = Product::query()
@@ -136,7 +211,25 @@ class PenawaranController extends Controller
             ->orderBy('nama')
             ->get(['id', 'kode', 'nama']);
 
-        return view('penawaran.show', compact('penawaran', 'products'));
+        $approval = $penawaran->approval;
+        $stepAktif = null;
+        $bolehApproveStep = false;
+
+        if ($approval && $approval->status === 'menunggu') {
+
+            $stepAktif = $approval->steps
+                ->where('step_order', $approval->current_step)
+                ->first();
+
+            if ($stepAktif && $stepAktif->status === 'menunggu') {
+                $akses = $stepAktif->akses_approve ?? [];
+                $userId = (int) ($akses['user_id'] ?? 0);
+
+                $bolehApproveStep = ($userId === (int) auth()->id());
+            }
+        }
+
+        return view('penawaran.show', compact('penawaran', 'products', 'approval', 'stepAktif', 'bolehApproveStep'));
     }
 
 
@@ -753,5 +846,42 @@ class PenawaranController extends Controller
         $penawaran->save();
 
         return back()->with('success', 'Diskon & pajak tersimpan');
+    }
+
+    public function submitApproval($id)
+    {
+        $penawaran = Penawaran::findOrFail($id);
+        $alur = AlurPenawaran::where('is_active', true)->first();
+
+        $approval = Approval::create([
+            'module' => 'penawaran',
+            'ref_id' => $penawaran->id,
+            'status' => 'menunggu',
+            'current_step' => 1
+        ]);
+
+        foreach ($alur->langkah()->orderBy('urutan')->get() as $step) {
+            ApprovalStep::create([
+                'approval_id' => $approval->id,
+                'step_order' => $step->urutan,
+                'step_name' => $step->nama_langkah,
+                'role_slug' => $step->role_slug
+            ]);
+        }
+
+        $penawaran->approval_id = $approval->id;
+        $penawaran->status = 'diajukan';
+        $penawaran->save();
+
+        return back();
+    }
+
+    public function deletedList()
+    {
+        $deleted = PenghapusanPenawaran::with(['penawaran', 'user'])
+            ->latest()
+            ->paginate(15);
+
+        return view('penawaran.deleted_list', compact('deleted'));
     }
 }

@@ -9,6 +9,12 @@
         <div>
             <div class="px-3 text-xs font-semibold text-slate-500 mb-2">Penawaran</div>
 
+            <a href="{{ route('alurpenawaran.index') }}"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                {{ request()->routeIs('alurpenawaran.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                <span>Alur Approval</span>
+            </a>
+
             <a href="{{ route('penawaran.index') }}"
                 class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                 {{ request()->routeIs('penawaran.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -25,7 +31,17 @@
                 {{ request()->routeIs('term_templates.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                 <span>Keterangan</span>
             </a>
-        </div>
+            {{-- <a href="{{ route('term_templates.index') }}"
+                class="mt-1 flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                {{ request()->routeIs('term_templates.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                <span>Ri</span>
+            </a>
+
+            <a href="{{ route('penawaran.deleted.list') }}"
+                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded">
+                Riwayat Penghapusan
+            </a>
+        </div> --}}
 
         <div>
             <div class="px-3 text-xs font-semibold text-slate-500 mb-2">Price List</div>

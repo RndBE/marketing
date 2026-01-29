@@ -21,7 +21,10 @@ return new class extends Migration
 
         Schema::create('approvals', function (Blueprint $table) {
             $table->id();
+            $table->string('module')->nullable();
+            $table->unsignedBigInteger('ref_id')->nullable();
             $table->string('status')->default('draft');
+            $table->unsignedInteger('current_step')->default(1);
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('approved_at')->nullable();
             $table->text('catatan')->nullable();
@@ -61,7 +64,7 @@ return new class extends Migration
 
         Schema::create('penawaran', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_pic')->constrained('pics')->cascadeOnDelete();
+            // $table->foreignId('id_pic')->constrained('pics')->cascadeOnDelete();
             $table->foreignId('id_user')->constrained('users')->cascadeOnDelete();
             $table->foreignId('doc_number_id')->nullable()->constrained('doc_numbers')->nullOnDelete();
             $table->foreignId('approval_id')->nullable()->constrained('approvals')->nullOnDelete();

@@ -51,12 +51,32 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            {{-- @if ($penawaran->approval && $penawaran->approval->status == 'menunggu')
-                <button onclick="openApprovalModal({{ $penawaran->approval->id }})"
+            @php
+                $approval = $penawaran->approval ?? null;
+                $stepAktif = $approval?->steps?->where('step_order', $approval->current_step)->first();
+
+                $akses = $stepAktif->akses_approve ?? [];
+            @endphp
+
+            {{-- <div style="background:#111;color:#0f0;padding:12px;font-size:12px;margin-bottom:12px">
+                <div><b>User Login</b> : {{ auth()->id() }}</div>
+                <div><b>Approval Status</b> : {{ $approval->status ?? 'NULL' }}</div>
+                <div><b>Current Step</b> : {{ $approval->current_step ?? 'NULL' }}</div>
+                <div><b>Step Found?</b> : {{ $stepAktif ? 'YES' : 'NO' }}</div>
+                <div><b>Step Name</b> : {{ $stepAktif->step_name ?? 'NULL' }}</div>
+                <div><b>Step Status</b> : {{ $stepAktif->status ?? 'NULL' }}</div>
+                <div><b>Akses Approve</b> : {{ json_encode($akses) }}</div>
+                <div><b>User Allowed?</b> :
+                    {{ (int) ($akses['user_id'] ?? 0) === (int) auth()->id() ? 'YES' : 'NO' }}
+                </div>
+            </div> --}}
+            @if ($bolehApproveStep)
+                <button
+                    onclick="openApprovalModal({{ $approval->id }},'{{ $approval->current_step }}','{{ $stepAktif->step_name }}')"
                     class="px-4 py-2 bg-green-600 text-white rounded-lg">
                     Persetujuan Penawaran
                 </button>
-            @endif --}}
+            @endif
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
@@ -633,31 +653,53 @@
             </div>
         </div>
     </div>
-    {{-- <div id="approvalModal" class=".hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div class="bg-white w-full max-w-md rounded-xl p-6">
-            <h2 class="text-lg font-semibold mb-4">Proses Approval</h2>
+    <div id="approvalModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        onclick="closeApprovalModal(event)">
+
+        <div class="bg-white w-full max-w-md rounded-xl p-6" onclick="event.stopPropagation()">
+            <h2 class="text-lg font-semibold mb-2">Proses Approval</h2>
+
+            <div class="mb-4 p-3 bg-slate-100 rounded-lg text-sm">
+                <div>Langkah Saat Ini :</div>
+                <div class="font-semibold text-slate-800">
+                    Step <span id="modal_step_order"></span> —
+                    <span id="modal_step_name"></span>
+                </div>
+            </div>
 
             <form method="POST" action="{{ route('approval.process') }}">
                 @csrf
                 <input type="hidden" name="approval_id" id="modal_approval_id">
 
-                <textarea name="catatan" class="w-full border rounded-lg p-2 mb-4" placeholder="Catatan"></textarea>
+                <textarea name="catatan" class="w-full border rounded-lg p-2 mb-4" placeholder="Catatan (opsional)"></textarea>
 
                 <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeApprovalModal()"
+                        class="px-4 py-2 rounded-lg border">Batal</button>
+
                     <button name="aksi" value="reject"
                         class="bg-red-500 text-white px-4 py-2 rounded-lg">Tolak</button>
+
                     <button name="aksi" value="approve"
                         class="bg-green-600 text-white px-4 py-2 rounded-lg">Setujui</button>
                 </div>
             </form>
         </div>
-    </div> --}}
-
-    {{-- <script>
-        function openApprovalModal(id) {
+    </div>
+    <script>
+        function openApprovalModal(id, stepOrder, stepName) {
             document.getElementById('modal_approval_id').value = id;
+            document.getElementById('modal_step_order').innerText = stepOrder;
+            document.getElementById('modal_step_name').innerText = stepName ?? '-';
             document.getElementById('approvalModal').classList.remove('hidden');
         }
-    </script> --}}
+
+        function closeApprovalModal(e) {
+            if (!e || e.target.id === 'approvalModal') {
+                document.getElementById('approvalModal').classList.add('hidden');
+            }
+        }
+    </script>
+
 
 @endsection

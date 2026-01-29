@@ -8,7 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Approval extends Model
 {
-    protected $fillable = ['status', 'approved_by', 'approved_at', 'notes'];
+    protected $fillable = [
+        'status',
+        'module',
+        'ref_id',
+        'current_step',
+        'approved_by',
+        'approved_at',
+        'catatan'
+        ];
 
     public function approver(): BelongsTo
     {
@@ -18,5 +26,10 @@ class Approval extends Model
     public function penawarans(): HasMany
     {
         return $this->hasMany(Penawaran::class, 'approval_id');
+    }
+
+    public function steps()
+    {
+        return $this->hasMany(ApprovalStep::class);
     }
 }
