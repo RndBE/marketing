@@ -51,6 +51,12 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
+            @if ($penawaran->approval && $penawaran->approval->status == 'menunggu')
+                <button onclick="openApprovalModal({{ $penawaran->approval->id }})"
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg">
+                    Persetujuan Penawaran
+                </button>
+            @endif
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
@@ -265,7 +271,6 @@
                                                             @method('PUT')
                                                             <input name="nama" value="{{ $d->nama }}"
                                                                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                            <textarea name="spesifikasi" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ $d->spesifikasi }}</textarea>
                                                             <div class="grid grid-cols-3 gap-2">
                                                                 <input name="qty" value="{{ $d->qty }}"
                                                                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
@@ -274,6 +279,7 @@
                                                                 <input name="harga" value="{{ $d->harga }}"
                                                                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                                                             </div>
+                                                            <textarea name="spesifikasi" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ $d->spesifikasi }}</textarea>
                                                             <div class="flex items-center justify-between">
                                                                 <form></form>
                                                                 <form method="POST"
@@ -627,4 +633,31 @@
             </div>
         </div>
     </div>
+    <div id="approvalModal" class=".hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div class="bg-white w-full max-w-md rounded-xl p-6">
+            <h2 class="text-lg font-semibold mb-4">Proses Approval</h2>
+
+            <form method="POST" action="{{ route('approval.process') }}">
+                @csrf
+                <input type="hidden" name="approval_id" id="modal_approval_id">
+
+                <textarea name="catatan" class="w-full border rounded-lg p-2 mb-4" placeholder="Catatan"></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button name="aksi" value="reject"
+                        class="bg-red-500 text-white px-4 py-2 rounded-lg">Tolak</button>
+                    <button name="aksi" value="approve"
+                        class="bg-green-600 text-white px-4 py-2 rounded-lg">Setujui</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openApprovalModal(id) {
+            document.getElementById('modal_approval_id').value = id;
+            document.getElementById('approvalModal').classList.remove('hidden');
+        }
+    </script>
+
 @endsection
