@@ -112,39 +112,6 @@
         $grandTotal = $dpp + $taxAmount;
     @endphp
 
-    <div class="h1">{{ $cover?->judul_cover ?? 'DOKUMEN PENAWARAN' }}</div>
-    <div class="muted">{{ $cover?->subjudul ?? ($penawaran->judul ?? '-') }}</div>
-    <div style="margin-top:8px;"><strong>Nomor:</strong> {{ $docNo }}</div>
-
-    <div style="margin-top:14px;">
-        <table>
-            <tr>
-                <td style="width:50%">
-                    <div class="h2">Ditujukan Kepada</div>
-                    <div><strong>{{ $penawaran->pic?->nama ?? '-' }}</strong></div>
-                    <div class="muted">{{ $penawaran->pic?->jabatan ?? '' }}</div>
-                    <div class="muted">{{ $penawaran->pic?->instansi ?? '' }}</div>
-                    <div class="muted">{{ $penawaran->pic?->alamat ?? '' }}</div>
-                </td>
-                <td style="width:50%">
-                    <div class="h2">Dari</div>
-                    <div><strong>{{ $cover?->perusahaan_nama ?? config('app.name') }}</strong></div>
-                    <div class="muted">{{ $cover?->perusahaan_alamat ?? '' }}</div>
-                    <div class="muted">{{ $cover?->perusahaan_email ?? '' }}</div>
-                    <div class="muted">{{ $cover?->perusahaan_telp ?? '' }}</div>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    @if ($cover?->intro_text)
-        <div style="margin-top:12px;">
-            <div class="h2">Pengantar</div>
-            <div style="white-space:pre-wrap">{{ $cover->intro_text }}</div>
-        </div>
-    @endif
-
-    <div class="page-break"></div>
     <table style="width:100%; border-collapse:collapse; border:0; margin:0;">
         <tr>
             <td style="width:180px; border:0 !important; padding:0 !important; vertical-align:middle;">
@@ -277,7 +244,7 @@
                 @endphp
 
                 <tr>
-                    <td class="right" style="text-align: center">{{ $i + 1 }}</td>
+                    <td class="right" style="text-align: center;margin-bottom:0px">{{ $i + 1 }}</td>
 
                     <td>
                         <div><strong>{{ $item->judul }}</strong></div>
@@ -289,9 +256,9 @@
                         @endif
 
                         @if ($detailCount)
-                            <ol style="margin:6px 0 0 18px;padding:0;" type="a">
+                            <ol style="margin:6px 0 0 10px;padding:0;" type="a">
                                 @foreach ($item->details as $d)
-                                    <li style="margin:0 0 6px 0;">
+                                    <li style="margin:0 0 0px 0;">
                                         <div class="tight">
                                             {{ $d->nama }}
                                             @if (!empty($d->spesifikasi))
@@ -364,13 +331,6 @@
 
     </table>
 
-
-    @if ($penawaran->catatan)
-        <div style="margin-top:12px;">
-            <div class="h2">Catatan</div>
-            <div style="white-space:pre-wrap">{{ $penawaran->catatan }}</div>
-        </div>
-    @endif
     @if ($penawaran->terms && $penawaran->terms->count())
         <table style="width:100%; border-collapse:collapse; border:0; margin-top:14px;">
             <tr>
@@ -378,20 +338,46 @@
                     <div style="margin:0; padding:0;">Keterangan :</div>
 
                     <ul style="margin:0; padding:0; list-style:none;">
-                        @foreach ($penawaran->terms as $t)
-                            <li style="margin:0; padding:0; line-height:1.35;">
-                                - {{ $t->isi }}
-                            </li>
-                        @endforeach
+                        @php
+                            $terms = $penawaran->terms;
+
+                            $termsByParent = $terms->groupBy('parent_id');
+
+                            $renderTerms = function ($parentId, $level = 0) use (&$renderTerms, $termsByParent) {
+                                $items = $termsByParent[$parentId] ?? collect();
+
+                                foreach ($items->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $term) {
+                                    echo '<div style="margin-left:' . $level * 8 . 'px;">';
+
+                                    if ($level == 0) {
+                                        echo '- ' . e($term->isi);
+                                    } else {
+                                        echo '> ' . e($term->isi);
+                                    }
+
+                                    echo '</div>';
+
+                                    $renderTerms($term->id, $level + 1);
+                                }
+                            };
+                        @endphp
+
+                        <div style="margin-top:4px; font-size:8pt; line-height:1.1;">
+                            {!! $renderTerms(null, 0) !!}
+                        </div>
                     </ul>
                 </td>
 
                 <td style="width:30%; vertical-align:top; border:0; padding:0; text-align:center;">
                     <div style="margin:0; padding:0; text-align:center;">
                         @foreach ($penawaran->signatures as $sg)
-                            <div style="font-size:10px;margin:0; padding:0;">Hormat kami,</div>
-                            <div style="font-size:10px; margin:2px 0 0 0;">
-                                {{ $sg->kota }}{{ $sg->tanggal ? ', ' . $sg->tanggal : '' }}</div>
+                            <div style="font-size:9pt;margin:0; padding:0;">Hormat kami,</div>
+                            <div style="font-size:9pt; margin:2px 0 0 0;">
+                                {{ $sg->kota }},
+                                {{ $penawaran->tanggal_penawaran
+                                    ? $penawaran->tanggal_penawaran->locale('id')->isoFormat('D MMMM YYYY')
+                                    : $penawaran->created_at->locale('id')->isoFormat('D MMMM YYYY') }}
+                            </div>
 
                             <div style="text-align:center; margin-top:4px;">
                                 @php
@@ -405,10 +391,10 @@
                                         style="width:80px;height:auto; display:block; margin:0 auto 0px auto;">
                                 @endif
 
-                                <div style="font-size:11px; font-weight:700; margin:0;text-decoration:underline">
+                                <div style="font-size:10pt; font-weight:700; margin:0;text-decoration:underline">
                                     {{ $sg->nama }}</div>
 
-                                <div style="font-size:10px; margin:2px 0 0 0;">
+                                <div style="font-size:9pt; margin:2px 0 0 0;">
                                     {{ $sg->jabatan }}</div>
                             </div>
                         @endforeach

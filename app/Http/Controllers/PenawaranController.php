@@ -28,10 +28,10 @@ class PenawaranController extends Controller
         $q = trim((string) $request->query('q', ''));
 
         $data = Penawaran::query()
-            ->with(['pic', 'docNumber'])
+            ->with(['docNumber'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where('judul', 'like', "%{$q}%")
-                    ->orWhereHas('pic', fn($qq) => $qq->where('nama', 'like', "%{$q}%")->orWhere('instansi', 'like', "%{$q}%"))
+                    ->orWhere('instansi', 'like', "%{$q}%")
                     ->orWhereHas('docNumber', fn($qq) => $qq->where('doc_no', 'like', "%{$q}%"));
             })
             ->orderByDesc('id')
@@ -50,7 +50,6 @@ class PenawaranController extends Controller
     public function store(Request $request)
     {
         $payload = $request->validate([
-            'id_pic' => ['required', 'exists:pics,id'],
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string']
         ]);
@@ -59,7 +58,6 @@ class PenawaranController extends Controller
             $docNumber = $this->createDocNumber(auth()->id());
 
             $penawaran = Penawaran::create([
-                'id_pic' => $payload['id_pic'],
                 'id_user' => auth()->id() ?? 1,
                 'doc_number_id' => $docNumber->id,
                 'approval_id' => null,
@@ -120,7 +118,6 @@ class PenawaranController extends Controller
     public function show(Penawaran $penawaran)
     {
         $penawaran->load([
-            'pic',
             'docNumber',
             'cover',
             'validity',
@@ -143,21 +140,18 @@ class PenawaranController extends Controller
 
     public function edit(Penawaran $penawaran)
     {
-        $penawaran->load(['pic', 'cover', 'validity']);
-        $pics = Pic::orderBy('nama')->get(['id', 'nama', 'instansi']);
-        return view('penawaran.edit', compact('penawaran', 'pics'));
+        $penawaran->load(['cover', 'validity']);
+        return view('penawaran.edit', compact('penawaran'));
     }
 
     public function update(Request $request, Penawaran $penawaran)
     {
         $payload = $request->validate([
-            'id_pic' => ['required', 'exists:pics,id'],
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string']
         ]);
 
         $penawaran->update([
-            'id_pic' => $payload['id_pic'],
             'judul' => $payload['judul'] ?? null,
             'catatan' => $payload['catatan'] ?? null,
             'date_updated' => now()->timestamp
@@ -550,11 +544,14 @@ class PenawaranController extends Controller
     public function downloadPdf(Penawaran $penawaran)
     {
         $penawaran->load([
-            'pic',
             'docNumber',
             'cover',
             'validity',
-            'terms',
+            'terms' => function ($q) {
+                $q->orderBy('parent_id')
+                    ->orderBy('urutan')
+                    ->orderBy('id');
+            },
             'signatures',
             'attachments',
             'items.details'
@@ -614,44 +611,50 @@ class PenawaranController extends Controller
     }
 
 
-    private function createDocNumber(int $userId): DocNumber
+
+
+    private function createDocNumber(): DocNumber
     {
-        $now = Carbon::now();
+        return DB::transaction(function () {
 
-        $docType = 'SPH02';        // bisa nanti dibuat dinamis
-        $userCode = 'AS';          // idealnya ambil dari tabel users
-        $month = $now->month;
-        $year = $now->year;
+            $now = Carbon::now();
+            $month = $now->month;
+            $year  = $now->year;
 
-        $last = DocNumber::where('year', $year)
-            ->where('month', $month)
-            ->orderByDesc('seq')
-            ->first();
+            $romawi = [
+                1 => 'I',
+                2 => 'II',
+                3 => 'III',
+                4 => 'IV',
+                5 => 'V',
+                6 => 'VI',
+                7 => 'VII',
+                8 => 'VIII',
+                9 => 'IX',
+                10 => 'X',
+                11 => 'XI',
+                12 => 'XII'
+            ];
 
-        $seq = $last ? $last->seq + 1 : 1;
+            // Ambil urutan terakhir TANPA filter user
+            $last = DocNumber::orderByDesc('seq')
+                ->first();
+            $seq = $last ? $last->seq + 1 : 1;
 
-        $romanMonth = $this->toRoman($month);
+            $userCode = 'SPH' . str_pad(auth()->id(), 2, '0', STR_PAD_LEFT);
 
-        $docNo = sprintf(
-            '%03d/%s/%s/%s/%d',
-            $seq,
-            $docType,
-            $userCode,
-            $romanMonth,
-            $year
-        );
+            $docNo = str_pad($seq, 3, '0', STR_PAD_LEFT)
+                . "/{$userCode}/AS/{$romawi[$month]}/{$year}";
 
-        return DocNumber::create([
-            'prefix' => 'PNW',
-            'seq' => $seq,
-            'doc_no' => $docNo,
-            'doc_type' => $docType,
-            'user_code' => $userCode,
-            'month' => $month,
-            'year' => $year,
-        ]);
+            return DocNumber::create([
+                'prefix' => $userCode,   // WAJIB ADA
+                'seq'    => $seq,
+                'month'  => $month,
+                'year'   => $year,
+                'doc_no' => $docNo
+            ]);
+        });
     }
-
 
     public function upsertKeterangan(Request $request, Penawaran $penawaran)
     {

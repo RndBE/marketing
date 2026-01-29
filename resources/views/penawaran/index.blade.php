@@ -74,8 +74,8 @@
             </table>
         </div>
 
-        <div class="px-4 py-3 border-t border-slate-200">
+        {{-- <div class="px-4 py-3 border-t border-slate-200">
             {{ $data->links() }}
-        </div>
+        </div> --}}
     </div>
 @endsection

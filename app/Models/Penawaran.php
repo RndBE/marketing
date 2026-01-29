@@ -9,7 +9,6 @@ class Penawaran extends Model
     protected $table = 'penawaran';
 
     protected $fillable = [
-        'id_pic',
         'id_user',
         'doc_number_id',
         'approval_id',
@@ -34,12 +33,6 @@ class Penawaran extends Model
         'tanggal_penawaran' => 'date',
         'tax_rate' => 'decimal:2',
     ];
-
-
-    public function pic()
-    {
-        return $this->belongsTo(Pic::class, 'id_pic');
-    }
 
     public function user()
     {

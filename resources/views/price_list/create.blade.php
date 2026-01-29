@@ -4,7 +4,6 @@
     <div class="max-w-2xl">
         <div class="mb-5">
             <h1 class="text-xl font-semibold">Tambah Bundle</h1>
-            <div class="text-sm text-slate-500">Buat product (bundle) dulu, nanti tambah list detailnya.</div>
         </div>
 
         <form method="POST" action="{{ route('price_list.store') }}" class="space-y-3">

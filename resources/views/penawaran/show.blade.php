@@ -41,12 +41,7 @@
             <div class="text-xs text-slate-500">Nomor Dokumen</div>
             <h1 class="text-xl font-semibold">{{ $docNo }}</h1>
             <div class="text-sm text-slate-600 mt-1">{{ $penawaran->judul ?? '-' }}</div>
-            <div class="text-sm text-slate-500 mt-1">
-                PIC: <span class="font-medium text-slate-700">{{ $penawaran->pic?->nama ?? '-' }}</span>
-                <span class="text-slate-400">•</span>
-                {{ $penawaran->pic?->instansi ?? '' }} •
 
-            </div>
             <div class="text-sm font-semibold text-slate-700 mt-3">
                 Total Penawaran sebelum pajak dan diskon : Rp {{ number_format((int) $total, 0, ',', '.') }}
             </div>
@@ -178,12 +173,12 @@
 
             <div class="space-y-4">
                 @forelse($penawaran->items as $item)
-                    <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div class="rounded-2xl border border-slate-200 bg-white px-5 pb-4 pt-3">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <div class="text-xs text-slate-500">
+                                {{-- <div class="text-xs text-slate-500">
                                     {{ $item->tipe }}{{ $item->product?->nama ? ' • ' . $item->product->nama : '' }}
-                                </div>
+                                </div> --}}
                                 <div class="text-lg font-semibold">{{ $item->judul }}</div>
                                 @if ($item->catatan)
                                     <div class="text-sm text-slate-600 mt-1">{{ $item->catatan }}</div>
