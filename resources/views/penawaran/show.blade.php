@@ -51,12 +51,12 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            @if ($penawaran->approval && $penawaran->approval->status == 'menunggu')
+            {{-- @if ($penawaran->approval && $penawaran->approval->status == 'menunggu')
                 <button onclick="openApprovalModal({{ $penawaran->approval->id }})"
                     class="px-4 py-2 bg-green-600 text-white rounded-lg">
                     Persetujuan Penawaran
                 </button>
-            @endif
+            @endif --}}
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
