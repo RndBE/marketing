@@ -8,15 +8,19 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('penawaran', function (Blueprint $table) {
-            $table->dropForeign(['id_pic']);
-            $table->dropColumn('id_pic');
+            $table->foreignId('id_pic')
+                ->nullable()
+                ->after('id') // boleh ubah posisi
+                ->constrained('pics')
+                ->nullOnDelete();
         });
     }
 
     public function down(): void
     {
         Schema::table('penawaran', function (Blueprint $table) {
-            $table->foreignId('id_pic')->after('id')->constrained('pics')->cascadeOnDelete();
+            $table->dropForeign(['id_pic']);
+            $table->dropColumn('id_pic');
         });
     }
 };

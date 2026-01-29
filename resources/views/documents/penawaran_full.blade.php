@@ -150,19 +150,26 @@
                         </td>
                     </tr>
                     <tr>
+                        <td style="width:90px; padding:0 8px 2px 0; border:0;">PIC</td>
+                        <td style="width:10px; padding:0 8px 2px 0; border:0;">:</td>
+                        <td style="padding:0 0 2px 0; border:0;">
+                            <strong>
+                                {{ $penawaran->pic?->nama ?? '-' }}
+                                @if ($penawaran->pic?->no_hp)
+                                    / {{ $penawaran->pic->no_hp }}
+                                @endif
+                            </strong>
+                        </td>
+                    </tr>
+
+                    <tr>
                         <td style="padding:0 8px 2px 0; border:0;">Pekerjaan</td>
                         <td style="padding:0 8px 2px 0; border:0;">:</td>
                         <td style="padding:0 0 2px 0; border:0;">
                             {{ $penawaran->nama_pekerjaan ?? '-' }}
                         </td>
                     </tr>
-                    <tr>
-                        <td style="padding:0 8px 0 0; border:0;">Lokasi</td>
-                        <td style="padding:0 8px 0 0; border:0;">:</td>
-                        <td style="padding:0; border:0;">
-                            {{ $penawaran->lokasi_pekerjaan ?? '-' }}
-                        </td>
-                    </tr>
+
                 </table>
             </td>
 
@@ -183,6 +190,13 @@
                                 ? $penawaran->tanggal_penawaran->locale('id')->isoFormat('dddd D MMMM YYYY')
                                 : $penawaran->created_at->locale('id')->isoFormat('dddd D MMMM YYYY') }}
 
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0 8px 0 0; text-align:right; border:0;">Lokasi</td>
+                        <td style="padding:0 8px 0 0; text-align:right; border:0;">:</td>
+                        <td style="padding:0; text-align:left; border:0;">
+                            {{ $penawaran->lokasi_pekerjaan ?? '-' }}
                         </td>
                     </tr>
                 </table>
@@ -318,14 +332,14 @@
                     </td>
                 </tr>
             @endif
-
-            <tr>
-                <td colspan="4" style="text-align:right"><strong>Total</strong></td>
-                <td class="right" style="white-space:nowrap">
-                    <strong>Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}</strong>
-                </td>
-            </tr>
-
+            @if ($penawaran->tax_enabled)
+                <tr>
+                    <td colspan="4" style="text-align:right"><strong>Total</strong></td>
+                    <td class="right" style="white-space:nowrap">
+                        <strong>Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}</strong>
+                    </td>
+                </tr>
+            @endif
         </tbody>
 
 
@@ -380,7 +394,7 @@
                             </div>
 
                             <div style="text-align:center; margin-top:4px;">
-                                <div style="position:relative; width:200px; height:100px; margin:0 auto;">
+                                <div style="position:relative; width:220px; height:100px; margin:0 auto;">
 
                                     @php
                                         $ttdPath = $sg->ttd_path
@@ -412,7 +426,7 @@
                 left:50%;
                 top:50%;
                 transform:translate(-50%, -50%);
-                width:200px;
+                width:220px;
                 opacity:0.65;
                 z-index:2;
             ">

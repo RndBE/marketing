@@ -5,6 +5,8 @@ use App\Http\Controllers\PenawaranController;
 use App\Http\Controllers\PenawaranTermTemplateController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PicController;
+
 
 
 Route::get('/', function () {
@@ -78,6 +80,17 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{template}', [PenawaranTermTemplateController::class, 'update'])->name('update');
         Route::delete('/{template}', [PenawaranTermTemplateController::class, 'destroy'])->name('destroy');
     });
+
+    Route::prefix('pics')->name('pics.')->group(function () {
+        Route::get('/', [PicController::class, 'index'])->name('index');
+        Route::get('/create', [PicController::class, 'create'])->name('create');
+        Route::post('/', [PicController::class, 'store'])->name('store');
+
+        Route::get('/{pic}/edit', [PicController::class, 'edit'])->name('edit');
+        Route::put('/{pic}', [PicController::class, 'update'])->name('update');
+        Route::delete('/{pic}', [PicController::class, 'destroy'])->name('destroy');
+    });
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

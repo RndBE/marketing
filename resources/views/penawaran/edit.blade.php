@@ -10,6 +10,19 @@
             @csrf
             @method('PUT')
             <div>
+                <label class="block text-sm font-semibold mb-1">PIC (Opsional)</label>
+                <select name="id_pic" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                    <option value="">Tanpa PIC</option>
+                    @foreach ($pics as $pic)
+                        <option value="{{ $pic->id }}"
+                            {{ old('id_pic', $penawaran->id_pic) == $pic->id ? 'selected' : '' }}>
+                            {{ $pic->nama }} {{ $pic->instansi ? ' - ' . $pic->instansi : '' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
                 <label class="block text-sm font-semibold mb-1">Judul</label>
                 <input name="judul" value="{{ old('judul', $penawaran->judul) }}"
                     class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm">

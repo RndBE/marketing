@@ -448,20 +448,20 @@
 
         <div class="space-y-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 relative">
-                <form method="POST" action="{{ route('penawaran.pricing.upsert', $penawaran->id) }}" class="space-y-4">
+                <form method="POST" action="{{ route('penawaran.pricing.upsert', $penawaran->id) }}" class="">
                     @csrf
                     @method('PUT')
 
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between mb-3">
                         <div class="font-semibold">Diskon & Pajak</div>
                         <button
-                            class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                            class="rounded-xl m-0 bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
                             Simpan
                         </button>
                     </div>
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 relative">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 relative">
                         <input id="discount_enabled" type="checkbox" name="discount_enabled" value="1"
-                            class="peer absolute left-4 top-5 h-4 w-4 rounded border-slate-300 accent-slate-900"
+                            class="peer absolute left-4 top-4 h-4 w-4 rounded border-slate-300 accent-slate-900"
                             {{ $penawaran->discount_enabled ? 'checked' : '' }}>
 
                         <div class="pl-7">
@@ -496,9 +496,9 @@
                     </div>
 
 
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 relative">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 relative mt-3">
                         <input id="tax_enabled" type="checkbox" name="tax_enabled" value="1"
-                            class="peer absolute left-4 top-5 h-4 w-4 rounded border-slate-300 accent-slate-900"
+                            class="peer absolute left-4 top-4 h-4 w-4 rounded border-slate-300 accent-slate-900"
                             {{ $penawaran->tax_enabled ? 'checked' : '' }}>
 
                         <div class="pl-7">

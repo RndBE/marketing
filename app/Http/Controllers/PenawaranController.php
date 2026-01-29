@@ -51,13 +51,15 @@ class PenawaranController extends Controller
     {
         $payload = $request->validate([
             'judul' => ['nullable', 'string', 'max:255'],
-            'catatan' => ['nullable', 'string']
+            'catatan' => ['nullable', 'string'],
+            'id_pic' => ['nullable', 'exists:pics,id'],
         ]);
 
         return DB::transaction(function () use ($payload) {
             $docNumber = $this->createDocNumber(auth()->id());
 
             $penawaran = Penawaran::create([
+                'id_pic' => $payload['id_pic'] ?? null,
                 'id_user' => auth()->id() ?? 1,
                 'doc_number_id' => $docNumber->id,
                 'approval_id' => null,
@@ -141,18 +143,21 @@ class PenawaranController extends Controller
     public function edit(Penawaran $penawaran)
     {
         $penawaran->load(['cover', 'validity']);
-        return view('penawaran.edit', compact('penawaran'));
+        $pics = Pic::orderBy('nama')->get();
+        return view('penawaran.edit', compact('penawaran', 'pics'));
     }
 
     public function update(Request $request, Penawaran $penawaran)
     {
         $payload = $request->validate([
             'judul' => ['nullable', 'string', 'max:255'],
-            'catatan' => ['nullable', 'string']
+            'catatan' => ['nullable', 'string'],
+            'id_pic' => ['nullable', 'exists:pics,id']
         ]);
 
         $penawaran->update([
             'judul' => $payload['judul'] ?? null,
+            'id_pic' => $payload['id_pic'] ?? null,
             'catatan' => $payload['catatan'] ?? null,
             'date_updated' => now()->timestamp
         ]);
@@ -636,7 +641,7 @@ class PenawaranController extends Controller
                 12 => 'XII'
             ];
 
-            // Ambil urutan terakhir TANPA filter user
+
             $last = DocNumber::orderByDesc('seq')
                 ->first();
             $seq = $last ? $last->seq + 1 : 1;
@@ -647,7 +652,7 @@ class PenawaranController extends Controller
                 . "/{$userCode}/AS/{$romawi[$month]}/{$year}";
 
             return DocNumber::create([
-                'prefix' => $userCode,   // WAJIB ADA
+                'prefix' => $userCode,
                 'seq'    => $seq,
                 'month'  => $month,
                 'year'   => $year,

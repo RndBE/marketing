@@ -8,16 +8,26 @@
     <div class="rounded-2xl border border-slate-200 bg-white px-5 pt-3 pb-4">
         <form method="POST" action="{{ route('penawaran.store') }}" class="space-y-1">
             @csrf
-
             <div>
-                <label class="block text-sm font-semibold mb-1">Judul</label>
+                <label class="block text-sm font-semibold mb-1">PIC (Opsional)</label>
+                <select name="id_pic" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                    <option value="">Tanpa PIC</option>
+                    @foreach ($pics as $pic)
+                        <option value="{{ $pic->id }}" {{ old('id_pic') == $pic->id ? 'selected' : '' }}>
+                            {{ $pic->nama }} {{ $pic->instansi ? ' - ' . $pic->instansi : '' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-1 mt-3">Judul</label>
                 <input name="judul" value="{{ old('judul') }}"
                     class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm">
             </div>
 
 
             <div>
-                <label class="block text-sm font-semibold mb-1">Catatan</label>
+                <label class="block text-sm font-semibold mb-1 mt-3">Catatan</label>
                 <textarea name="catatan" rows="4" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm">{{ old('catatan') }}</textarea>
             </div>
 
