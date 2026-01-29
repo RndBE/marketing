@@ -380,16 +380,46 @@
                             </div>
 
                             <div style="text-align:center; margin-top:4px;">
-                                @php
-                                    $ttdPath = $sg->ttd_path
-                                        ? public_path('storage/' . ltrim($sg->ttd_path, '/'))
-                                        : null;
-                                @endphp
+                                <div style="position:relative; width:200px; height:100px; margin:0 auto;">
 
-                                @if ($ttdPath && file_exists($ttdPath))
-                                    <img src="{{ $ttdPath }}"
-                                        style="width:80px;height:auto; display:block; margin:0 auto 0px auto;">
-                                @endif
+                                    @php
+                                        $ttdPath = $sg->ttd_path
+                                            ? public_path('storage/' . ltrim($sg->ttd_path, '/'))
+                                            : null;
+
+                                        $stampPath = public_path('images/cap_arsol.png');
+                                    @endphp
+
+                                    {{-- TTD --}}
+                                    @if ($ttdPath && file_exists($ttdPath))
+                                        <img src="{{ $ttdPath }}"
+                                            style="
+                position:absolute;
+                left:50%;
+                bottom:0;
+                transform:translateX(-50%);
+                width:100px;
+                height:auto;
+                z-index:1;
+            ">
+                                    @endif
+
+                                    {{-- STEMPEL --}}
+                                    @if (file_exists($stampPath))
+                                        <img src="{{ $stampPath }}"
+                                            style="
+                position:absolute;
+                left:50%;
+                top:50%;
+                transform:translate(-50%, -50%);
+                width:200px;
+                opacity:0.65;
+                z-index:2;
+            ">
+                                    @endif
+
+                                </div>
+
 
                                 <div style="font-size:10pt; font-weight:700; margin:0;text-decoration:underline">
                                     {{ $sg->nama }}</div>

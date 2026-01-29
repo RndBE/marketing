@@ -10,14 +10,9 @@
 
 <body class="bg-slate-100 text-slate-900">
     <div class="min-h-screen flex">
-
-        {{-- SIDEBAR --}}
         @include('layouts.partials.sidebar')
-
-        {{-- CONTENT --}}
         <div class="flex-1 flex flex-col md:ml-64">
 
-            {{-- TOPBAR --}}
             <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                 <div class="font-semibold text-slate-700">
                     {{ $title ?? 'Dashboard' }}
