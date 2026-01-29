@@ -633,7 +633,7 @@
             </div>
         </div>
     </div>
-    <div id="approvalModal" class=".hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    {{-- <div id="approvalModal" class=".hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
         <div class="bg-white w-full max-w-md rounded-xl p-6">
             <h2 class="text-lg font-semibold mb-4">Proses Approval</h2>
 
@@ -651,13 +651,13 @@
                 </div>
             </form>
         </div>
-    </div>
+    </div> --}}
 
-    <script>
+    {{-- <script>
         function openApprovalModal(id) {
             document.getElementById('modal_approval_id').value = id;
             document.getElementById('approvalModal').classList.remove('hidden');
         }
-    </script>
+    </script> --}}
 
 @endsection
