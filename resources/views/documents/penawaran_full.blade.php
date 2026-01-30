@@ -5,6 +5,10 @@
     <meta charset="utf-8">
     <title>{{ $docNo }}</title>
     <style>
+        @page {
+            margin: 10mm;
+        }
+
         body {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11px;

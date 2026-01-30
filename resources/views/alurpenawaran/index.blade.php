@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="w-full ">
 
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold">Alur Approval</h1>
+        <div class="flex items-center justify-between mb-3">
+            <h1 class="text-xl font-bold">Alur Approval</h1>
             <button onclick="openCreateModal()"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
                 Tambah Alur
@@ -35,13 +35,12 @@
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
                                 <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-ms"
-                                    data-id="{{ $alur->id }}" data-nama="{{ e($alur->nama) }}"
-                                    data-status="{{ $alur->status }}" data-steps='@json($alur->langkah->sortBy('no_langkah')->values())'
+                                    data-id="{{ $alur->id }}" data-nama="{{ e($alur->nama) }}" data-status="{{ $alur->status }}"
+                                    data-steps='@json($alur->langkah->sortBy('no_langkah')->values())'
                                     onclick="openEditModal(this)">
                                     Edit
                                 </button>
-                                <form action="{{ route('alurpenawaran.destroy', $alur->id) }}" method="POST"
-                                    class="inline">
+                                <form action="{{ route('alurpenawaran.destroy', $alur->id) }}" method="POST" class="inline">
                                     @csrf @method('DELETE')
                                     <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-ms">
                                         Hapus
@@ -166,35 +165,35 @@
             const isFirst = stepCount === 1
 
             document.getElementById('stepsWrapper').insertAdjacentHTML('beforeend', `
-        <div class="grid grid-cols-2 gap-2 border p-3 rounded-lg relative step-item">
+                        <div class="grid grid-cols-2 gap-2 border p-3 rounded-lg relative step-item">
 
-            ${!isFirst ? `
-                                            <button type="button"
-                                                onclick="removeStep(this)"
-                                                class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">
-                                                ✕
-                                            </button>
-                                            ` : ''}
+                            ${!isFirst ? `
+                                                            <button type="button"
+                                                                onclick="removeStep(this)"
+                                                                class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">
+                                                                ✕
+                                                            </button>
+                                                            ` : ''}
 
-            <input type="text" name="langkah[${stepCount}][nama_langkah]"
-                placeholder="Nama Langkah"
-                class="border rounded-lg p-2 col-span-2" required>
+                            <input type="text" name="langkah[${stepCount}][nama_langkah]"
+                                placeholder="Nama Langkah"
+                                class="border rounded-lg p-2 col-span-2" required>
 
-            <select name="langkah[${stepCount}][user_id]"
-                class="border rounded-lg p-2">
-                <option value="">-- Pilih Approver --</option>
-                @foreach ($users as $u)
-                    <option value="{{ $u->id }}">{{ $u->name }}</option>
-                @endforeach
-            </select>
+                            <select name="langkah[${stepCount}][user_id]"
+                                class="border rounded-lg p-2">
+                                <option value="">-- Pilih Approver --</option>
+                                @foreach ($users as $u)
+                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                @endforeach
+                            </select>
 
-            <select name="langkah[${stepCount}][harus_semua]"
-                class="border rounded-lg p-2">
-                <option value="0">Satu saja cukup</option>
-                <option value="1">Semua harus setuju</option>
-            </select>
-        </div>
-    `)
+                            <select name="langkah[${stepCount}][harus_semua]"
+                                class="border rounded-lg p-2">
+                                <option value="0">Satu saja cukup</option>
+                                <option value="1">Semua harus setuju</option>
+                            </select>
+                        </div>
+                    `)
         }
 
         function removeStep(btn) {
@@ -202,11 +201,11 @@
         }
 
         const userOptions = `
-    <option value="">-- Pilih Approver --</option>
-    @foreach ($users as $u)
-        <option value="{{ $u->id }}">{{ $u->name }}</option>
-    @endforeach
-`;
+                    <option value="">-- Pilih Approver --</option>
+                    @foreach ($users as $u)
+                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                    @endforeach
+                `;
 
         function closeEditModal(e) {
             if (!e || e.target.id === 'editModal') {
@@ -243,28 +242,28 @@
             const nama = (s.nama_langkah ?? '').replaceAll('"', '&quot;')
 
             return `
-        <div class="grid grid-cols-2 gap-2 border p-3 rounded-lg relative step-item">
-            ${removable ? `
-                    <button type="button" onclick="removeEditStep(this)"
-                        class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">✕</button>
-                ` : ''}
+                        <div class="grid grid-cols-2 gap-2 border p-3 rounded-lg relative step-item">
+                            ${removable ? `
+                                    <button type="button" onclick="removeEditStep(this)"
+                                        class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">✕</button>
+                                ` : ''}
 
-            <input type="hidden" name="steps[${index}][id]" value="${stepId}">
+                            <input type="hidden" name="steps[${index}][id]" value="${stepId}">
 
-            <input type="text" name="steps[${index}][nama_langkah]"
-                value="${nama}"
-                class="border rounded-lg p-2 col-span-2" required>
+                            <input type="text" name="steps[${index}][nama_langkah]"
+                                value="${nama}"
+                                class="border rounded-lg p-2 col-span-2" required>
 
-            <select name="steps[${index}][user_id]" class="border rounded-lg p-2 col-span-2">
-                ${userOptions}
-            </select>
+                            <select name="steps[${index}][user_id]" class="border rounded-lg p-2 col-span-2">
+                                ${userOptions}
+                            </select>
 
-            <select name="steps[${index}][harus_semua]" class="border rounded-lg p-2 col-span-2">
-                <option value="0">Satu saja cukup</option>
-                <option value="1">Semua harus setuju</option>
-            </select>
-        </div>
-    `
+                            <select name="steps[${index}][harus_semua]" class="border rounded-lg p-2 col-span-2">
+                                <option value="0">Satu saja cukup</option>
+                                <option value="1">Semua harus setuju</option>
+                            </select>
+                        </div>
+                    `
         }
 
         function addEditStep() {
