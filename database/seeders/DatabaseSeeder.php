@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             PicSeeder::class,
             AlurPenawaranSeeder::class,
             RbacSeeder::class,
+            UsulanPermissionSeeder::class,
             PenawaranTermTemplateSeeder::class,
             ProductSeeder::class,
             ProductDetailSeeder::class,

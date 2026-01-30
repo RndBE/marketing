@@ -18,17 +18,47 @@
                     {{ $title ?? 'Dashboard' }}
                 </div>
 
-                <div class="flex items-center gap-4">
-                    <div class="text-sm text-slate-600">
-                        {{ auth()->user()->name }}
-                    </div>
-
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button class="text-sm text-rose-600 hover:underline">
-                            Logout
+                <div class="flex items-center gap-4" x-data="{ open: false }">
+                    <div class="relative">
+                        <button @click="open = !open" class="flex items-center gap-3 focus:outline-none">
+                            <span
+                                class="text-sm font-medium text-slate-700 hidden md:block">{{ auth()->user()->name }}</span>
+                            <div
+                                class="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm overflow-hidden ring-2 ring-slate-100">
+                                {{ substr(auth()->user()->name, 0, 1) }}
+                            </div>
                         </button>
-                    </form>
+
+                        <div x-show="open" @click.away="open = false"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="transform opacity-0 scale-95"
+                            x-transition:enter-end="transform opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="transform opacity-100 scale-100"
+                            x-transition:leave-end="transform opacity-0 scale-95"
+                            class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50 origin-top-right">
+
+                            <div class="px-4 py-3 border-b border-slate-100 md:hidden">
+                                <p class="text-sm font-semibold text-slate-800">{{ auth()->user()->name }}</p>
+                                <p class="text-xs text-slate-500 truncate">{{ auth()->user()->email }}</p>
+                            </div>
+
+                            <a href="{{ route('profile.edit') }}"
+                                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                Edit Profile / Password
+                            </a>
+
+                            <div class="border-t border-slate-100 my-1"></div>
+
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit"
+                                    class="block w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                                    Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </header>
 

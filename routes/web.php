@@ -11,7 +11,9 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UserRoleController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\KomponenController;
+use App\Http\Controllers\UsulanPenawaranController;
 
 
 
@@ -66,6 +68,25 @@ Route::middleware(['auth'])->group(function () {
         // Deleted list dan request delete
         Route::get('/deleted/list', [PenawaranController::class, 'deletedList'])->name('deleted.list');
         Route::post('/{penawaran}/request-delete', [PenawaranController::class, 'requestDelete'])->name('request.delete');
+    });
+
+    /*
+    |---------------- USULAN PENAWARAN ------------|
+    */
+    /*
+    |---------------- USULAN PENAWARAN ------------|
+    */
+    Route::prefix('usulan')->name('usulan.')->group(function () {
+        Route::get('/', [UsulanPenawaranController::class, 'index'])->name('index')->middleware('permission:view-usulan');
+        Route::get('/create', [UsulanPenawaranController::class, 'create'])->name('create')->middleware('permission:create-usulan');
+        Route::post('/', [UsulanPenawaranController::class, 'store'])->name('store')->middleware('permission:create-usulan');
+        Route::get('/{usulan}', [UsulanPenawaranController::class, 'show'])->name('show')->middleware('permission:view-usulan');
+        Route::get('/{usulan}/edit', [UsulanPenawaranController::class, 'edit'])->name('edit')->middleware('permission:edit-usulan');
+        Route::put('/{usulan}', [UsulanPenawaranController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
+        Route::post('/{usulan}/tanggapi', [UsulanPenawaranController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/buat-penawaran', [UsulanPenawaranController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:respond-usulan');
+        Route::delete('/{usulan}', [UsulanPenawaranController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
+        Route::delete('/attachment/{attachment}', [UsulanPenawaranController::class, 'deleteAttachment'])->name('attachment.delete')->middleware('permission:edit-usulan');
     });
 
     /*
@@ -150,6 +171,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    /*
+    |---------------- USER MANAGEMENT -----------|
+    */
+    Route::middleware('permission:manage-users')->group(function () {
+        Route::resource('users', UserController::class);
+    });
 
     /*
     |---------------- RBAC ----------------------|
