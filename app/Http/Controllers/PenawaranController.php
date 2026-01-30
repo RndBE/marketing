@@ -88,9 +88,6 @@ class PenawaranController extends Controller
                 'keterangan' => 'Penawaran berlaku 30 hari.'
             ]);
 
-            // =========================
-            // 🔥 AUTO BUAT APPROVAL
-            // =========================
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
                 ->where('status', 'aktif')
                 ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
@@ -100,35 +97,35 @@ class PenawaranController extends Controller
                 throw new \Exception('Alur penawaran aktif belum dibuat');
             }
 
-            // Ambil nomor langkah pertama
+
             $firstStep = $alur->langkah->first()->no_langkah;
 
-            // Buat approval TERHUBUNG ke penawaran
+
             $approval = Approval::create([
-                'status'       => 'menunggu',
+                'status' => 'menunggu',
                 'current_step' => $firstStep,
-                'module'       => 'penawaran',        // 🔥 PENTING
-                'ref_id'       => $penawaran->id      // 🔥 PENTING
+                'module' => 'penawaran',
+                'ref_id' => $penawaran->id
             ]);
 
-            // Buat daftar step approval
+
             foreach ($alur->langkah as $step) {
-                // Tentukan user approver berdasarkan data penawaran
+
                 $approverId = null;
 
-                // Contoh mapping sederhana (bisa dikembangkan nanti)
+
                 if ($step->user_id) {
-                    $approverId = $step->user_id; // kalau memang fix user
+                    $approverId = $step->user_id;
                 } else {
-                    $approverId = $penawaran->id_user; // fallback ke pembuat penawaran
+                    $approverId = $penawaran->id_user;
                 }
                 ApprovalStep::create([
                     'approval_id' => $approval->id,
-                    'step_order'  => $step->no_langkah,     // 1,2,3,4...
-                    'step_name'   => $step->nama_langkah,
-                    'user_id'     => $step->user_id,
+                    'step_order' => $step->no_langkah,     // 1,2,3,4...
+                    'step_name' => $step->nama_langkah,
+                    'user_id' => $step->user_id,
                     'harus_semua' => $step->harus_semua,
-                    'status'      => 'menunggu',
+                    'status' => 'menunggu',
                     // disesuaikan saja untuk kedepannya
                     'akses_approve' => [
                         'user_id' => (int) $approverId,
@@ -137,16 +134,11 @@ class PenawaranController extends Controller
                 ]);
             }
 
-            // Hubungkan approval ke penawaran
             $penawaran->update([
                 'approval_id' => $approval->id,
-                'status'      => 'menunggu_approval'
+                'status' => 'menunggu_approval'
             ]);
 
-
-            // =========================
-            // 📄 Clone Term Template
-            // =========================
             $templates = PenawaranTermTemplate::query()
                 ->whereNull('parent_id')
                 ->orderBy('urutan')
@@ -158,17 +150,20 @@ class PenawaranController extends Controller
                 $this->cloneTemplateTerm($penawaran->id, $t, null);
             }
 
-            // DB::transaction(function () use ($penawaran) {
-            //     $templates = PenawaranTermTemplate::query()
-            //         ->whereNull('parent_id')
-            //         ->orderBy('urutan')
-            //         ->orderBy('id')
-            //         ->with(['children'])
-            //         ->get();
-            //     foreach ($templates as $t) {
-            //         $this->cloneTemplateTerm($penawaran->id, $t, null);
-            //     }
-            // });
+
+
+            $user = auth()->user();
+            $roleNames = $user->roles->pluck('name')->implode(', ');
+
+            PenawaranSignature::create([
+                'penawaran_id' => $penawaran->id,
+                'urutan' => 1,
+                'nama' => $user->name,
+                'jabatan' => $roleNames ?: 'Staff',
+                'kota' => 'Sleman',
+                'tanggal' => now()->toDateString(),
+                'ttd_path' => $user->ttd,
+            ]);
 
             return redirect()->route('penawaran.index', $penawaran->id);
         });
@@ -309,10 +304,10 @@ class PenawaranController extends Controller
                     'alasan' => 'Dihapus langsung saat masih tahap awal approval',
                     'dibuat_oleh' => auth()->id(),
                     'penawaran_id' => $penawaran->id,
-                    'approval_id'  => $approval?->id, // bisa null
-                    'deleted_by'   => auth()->id(),
-                    'deleted_at'   => now(),
-                    'keterangan'   => 'Dihapus langsung saat masih tahap awal approval'
+                    'approval_id' => $approval?->id, // bisa null
+                    'deleted_by' => auth()->id(),
+                    'deleted_at' => now(),
+                    'keterangan' => 'Dihapus langsung saat masih tahap awal approval'
                 ]);
 
                 // Soft delete penawaran
@@ -626,12 +621,10 @@ class PenawaranController extends Controller
             'ttd' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048']
         ]);
 
-        $urutan = (int) PenawaranSignature::where('penawaran_id', $penawaran->id)->max('urutan');
-        $urutan = $urutan > 0 ? $urutan + 1 : 1;
+        // Get existing signature or create with urutan 1
+        $signature = PenawaranSignature::where('penawaran_id', $penawaran->id)->first();
 
         $data = [
-            'penawaran_id' => $penawaran->id,
-            'urutan' => $urutan,
             'nama' => $payload['nama'],
             'jabatan' => $payload['jabatan'] ?? null,
             'kota' => $payload['kota'] ?? null,
@@ -639,11 +632,24 @@ class PenawaranController extends Controller
         ];
 
         if ($request->hasFile('ttd')) {
+            // Delete old TTD if exists
+            if ($signature && $signature->ttd_path) {
+                Storage::disk('public')->delete($signature->ttd_path);
+            }
             $path = $request->file('ttd')->store('penawaran/ttd', 'public');
             $data['ttd_path'] = $path;
         }
 
-        PenawaranSignature::create($data);
+        if ($signature) {
+            // Update existing signature
+            $signature->update($data);
+        } else {
+            // Create new signature
+            $data['penawaran_id'] = $penawaran->id;
+            $data['urutan'] = 1;
+            PenawaranSignature::create($data);
+        }
+
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return redirect()->route('penawaran.show', $penawaran->id);
@@ -784,7 +790,7 @@ class PenawaranController extends Controller
 
             $now = Carbon::now();
             $month = $now->month;
-            $year  = $now->year;
+            $year = $now->year;
 
             $romawi = [
                 1 => 'I',
@@ -813,9 +819,9 @@ class PenawaranController extends Controller
 
             return DocNumber::create([
                 'prefix' => $userCode,
-                'seq'    => $seq,
-                'month'  => $month,
-                'year'   => $year,
+                'seq' => $seq,
+                'month' => $month,
+                'year' => $year,
                 'doc_no' => $docNo
             ]);
         });
@@ -844,7 +850,8 @@ class PenawaranController extends Controller
             if ($harga <= 0) {
                 $qty = (float) ($d->qty ?? 1);
                 $sub = (int) ($d->subtotal ?? 0);
-                if ($sub > 0 && $qty > 0) $harga = (int) round($sub / $qty);
+                if ($sub > 0 && $qty > 0)
+                    $harga = (int) round($sub / $qty);
             }
             $unit += $harga;
         }
@@ -857,7 +864,8 @@ class PenawaranController extends Controller
         $item->loadMissing('details');
 
         $qtyBundle = (float) ($item->qty ?? 1);
-        if ($qtyBundle <= 0) $qtyBundle = 1;
+        if ($qtyBundle <= 0)
+            $qtyBundle = 1;
 
         if ($item->tipe === 'bundle') {
             $unit = $this->calcUnitPriceBundle($item);
@@ -973,18 +981,18 @@ class PenawaranController extends Controller
 
             // 🔥 Buat approval khusus penghapusan
             $approval = Approval::create([
-                'module'       => 'penghapusan',
-                'ref_id'       => $penawaran->id,
-                'status'       => 'menunggu',
+                'module' => 'penghapusan',
+                'ref_id' => $penawaran->id,
+                'status' => 'menunggu',
                 'current_step' => $firstStep
             ]);
 
             foreach ($alur->langkah as $step) {
                 ApprovalStep::create([
                     'approval_id' => $approval->id,
-                    'step_order'  => $step->no_langkah,
-                    'step_name'   => $step->nama_langkah,
-                    'status'      => 'menunggu',
+                    'step_order' => $step->no_langkah,
+                    'step_name' => $step->nama_langkah,
+                    'status' => 'menunggu',
                     'akses_approve' => [
                         'user_id' => (int) $step->user_id
                     ]
@@ -993,7 +1001,7 @@ class PenawaranController extends Controller
 
             // ⬇️ Status penawaran mengikuti jenis approval
             $penawaran->update([
-                'status'      => 'menunggu_penghapusan',
+                'status' => 'menunggu_penghapusan',
                 'approval_id' => $approval->id
             ]);
         });

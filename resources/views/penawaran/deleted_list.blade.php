@@ -1,7 +1,7 @@
 @extends('layouts.app', ['title' => 'Riwayat Penghapusan Penawaran'])
 
 @section('content')
-    <div class="bg-white rounded-xl shadow p-5">
+    <div class="bg-white rounded-xl shadow px-5 pb-2 pt-4">
 
         <h1 class="text-lg font-semibold mb-4">Riwayat Penawaran Dihapus</h1>
 

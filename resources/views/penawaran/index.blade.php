@@ -62,14 +62,12 @@
                                     @endphp
 
                                     @if ($status === 'menunggu' && $m === 'penawaran')
-                                        <span
-                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                             Menunggu Approval Disetujui
                                             Step {{ $row->approval->current_step }}
                                         </span>
                                     @elseif ($status === 'disetujui' && $m === 'penawaran')
-                                        <span
-                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                             Disetujui
                                         </span>
                                     @elseif ($status === 'ditolak' && $m === 'penawaran')
@@ -77,8 +75,7 @@
                                             Ditolak
                                         </span>
                                     @elseif ($status === 'menunggu' && $m === 'penghapusan')
-                                        <span
-                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                             Menunggu Approval Dihapus
                                             Step {{ $row->approval->current_step }}
                                         </span>
@@ -87,13 +84,11 @@
                                             Disetujui Dihapus
                                         </span>
                                     @elseif ($status === 'dihapus')
-                                        <span
-                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
                                             Dihapus
                                         </span>
                                     @else
-                                        <span
-                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
                                             Draft
                                         </span>
                                     @endif
@@ -104,13 +99,7 @@
                                             class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">Detail</a>
                                         <a href="{{ route('penawaran.edit', $row->id) }}"
                                             class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">Edit</a>
-                                        {{-- <form method="POST" action="{{ route('penawaran.destroy', $row->id) }}"
-                                        onsubmit="return confirm('Hapus penawaran ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button
-                                            class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
-                                    </form> --}}
+
                                         @php
                                             $status = $row->approval->status ?? '-';
                                             $m = $row->approval->module ?? '';
@@ -151,9 +140,5 @@
                 </tbody>
             </table>
         </div>
-
-        {{-- <div class="px-4 py-3 border-t border-slate-200">
-            {{ $data->links() }}
-        </div> --}}
     </div>
 @endsection

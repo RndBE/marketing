@@ -94,4 +94,9 @@ class Penawaran extends Model
     {
         return $this->hasMany(PenghapusanPenawaran::class);
     }
+
+    public function usulan()
+    {
+        return $this->hasOne(UsulanPenawaran::class, 'penawaran_id');
+    }
 }

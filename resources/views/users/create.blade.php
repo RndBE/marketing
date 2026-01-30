@@ -7,7 +7,7 @@
             <p class="text-sm text-slate-500">Buat akun pengguna baru</p>
         </div>
 
-        <form method="POST" action="{{ route('users.store') }}" class="space-y-4">
+        <form method="POST" action="{{ route('users.store') }}" class="space-y-4" enctype="multipart/form-data">
             @csrf
 
             <div class="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
@@ -43,6 +43,16 @@
                         <input type="password" name="password_confirmation"
                             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" required>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Tanda Tangan (TTD)</label>
+                    <input type="file" name="ttd" accept="image/*"
+                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                     <p class="text-xs text-slate-500 mt-1">Format: JPG, PNG. Maks: 2MB.</p>
+                    @error('ttd')
+                        <div class="text-red-500 text-xs mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>

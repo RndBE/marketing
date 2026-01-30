@@ -13,11 +13,7 @@
                 class="px-3 py-1 rounded-lg text-sm bg-{{ $usulan->status_color }}-100 text-{{ $usulan->status_color }}-700">
                 {{ $usulan->status_label }}
             </span>
-        </div>
-
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
+        </div>  
         @if (session('error'))
             <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
         @endif

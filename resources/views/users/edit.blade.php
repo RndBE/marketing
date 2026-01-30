@@ -7,7 +7,7 @@
             <p class="text-sm text-slate-500">Edit data pengguna</p>
         </div>
 
-        <form method="POST" action="{{ route('users.update', $user->id) }}" class="space-y-4">
+        <form method="POST" action="{{ route('users.update', $user->id) }}" class="space-y-4" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
@@ -47,6 +47,23 @@
                                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                         </div>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Tanda Tangan (TTD)</label>
+                    
+                    @if($user->ttd)
+                        <div class="mb-2">
+                            <img src="{{ asset('storage/' . $user->ttd) }}" alt="TTD" class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                        </div>
+                    @endif
+
+                    <input type="file" name="ttd" accept="image/*"
+                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                     <p class="text-xs text-slate-500 mt-1">Upload untuk mengubah TTD. Format: JPG, PNG. Maks: 2MB.</p>
+                    @error('ttd')
+                        <div class="text-red-500 text-xs mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>

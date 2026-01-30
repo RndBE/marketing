@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -42,6 +43,7 @@ class UserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id'],
+            'ttd' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $user = User::create([
@@ -49,6 +51,12 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+
+        if ($request->hasFile('ttd')) {
+            $path = $request->file('ttd')->store('signatures', 'public');
+            $user->ttd = $path;
+            $user->save();
+        }
 
         $user->roles()->sync($request->roles);
 
@@ -75,6 +83,7 @@ class UserController extends Controller
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id'],
+            'ttd' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $user->fill([
@@ -84,6 +93,13 @@ class UserController extends Controller
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
+        }
+
+        if ($request->hasFile('ttd')) {
+            if ($user->ttd && Storage::disk('public')->exists($user->ttd)) {
+                Storage::disk('public')->delete($user->ttd);
+            }
+            $user->ttd = $request->file('ttd')->store('signatures', 'public');
         }
 
         $user->save();

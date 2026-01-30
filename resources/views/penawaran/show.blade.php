@@ -42,6 +42,12 @@
             <h1 class="text-xl font-semibold">{{ $docNo }}</h1>
             <div class="text-sm text-slate-600 mt-1">{{ $penawaran->judul ?? '-' }}</div>
 
+            @if($penawaran->usulan)
+                <div class="text-sm text-slate-600 mt-1">
+                    <span class="font-medium">Diusulkan oleh:</span> {{ $penawaran->usulan->creator->name ?? '-' }}
+                </div>
+            @endif
+
             <div class="text-sm font-semibold text-slate-700 mt-3">
                 Total Penawaran sebelum pajak dan diskon : Rp {{ number_format((int) $total, 0, ',', '.') }}
             </div>
@@ -575,44 +581,61 @@
 
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
                 <h2 class="font-semibold mb-3">Tanda Tangan</h2>
+                @php
+                    $signature = $penawaran->signatures->first();
+                @endphp
                 <form method="POST" action="{{ route('penawaran.signatures.add', $penawaran->id) }}"
-                    enctype="multipart/form-data" class="space-y-2">
+                    enctype="multipart/form-data" class="space-y-3">
                     @csrf
-                    <input name="nama" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="Nama">
-                    <input name="jabatan" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="Jabatan">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input name="kota" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                            placeholder="Kota">
-                        <input type="date" name="tanggal"
-                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Nama</label>
+                        <input name="nama" value="{{ old('nama', $signature->nama ?? '') }}"
+                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                            placeholder="Nama" required>
                     </div>
-                    <input type="file" name="ttd"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                    <button
-                        class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Tambah</button>
-                </form>
-
-                <div class="mt-3 space-y-2">
-                    @foreach ($penawaran->signatures as $sg)
-                        <div class="rounded-2xl border border-slate-200 p-4 flex items-start justify-between gap-3">
-                            <div>
-                                <div class="font-semibold">{{ $sg->nama }}</div>
-                                <div class="text-sm text-slate-600">{{ $sg->jabatan }}</div>
-                                <div class="text-xs text-slate-500">{{ $sg->kota }} {{ $sg->tanggal }}</div>
-                            </div>
-                            <form method="POST"
-                                action="{{ route('penawaran.signatures.delete', [$penawaran->id, $sg->id]) }}"
-                                onsubmit="return confirm('Hapus tanda tangan?')">
-                                @csrf
-                                @method('DELETE')
-                                <button
-                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
-                            </form>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Jabatan</label>
+                        <input name="jabatan" value="{{ old('jabatan', $signature->jabatan ?? '') }}"
+                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                            placeholder="Jabatan">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold mb-1">Kota</label>
+                            <input name="kota" value="{{ old('kota', $signature->kota ?? 'Sleman') }}"
+                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                                placeholder="Kota">
                         </div>
-                    @endforeach
-                </div>
+                        <div>
+                            <label class="block text-xs font-semibold mb-1">Tanggal</label>
+                            <input type="date" name="tanggal" 
+                                value="{{ old('tanggal', $signature->tanggal ?? now()->toDateString()) }}"
+                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                        </div>
+                    </div>
+                    
+                    @if($signature && $signature->ttd_path)
+                        <div>
+                            <label class="block text-xs font-semibold mb-1">Tanda Tangan Saat Ini</label>
+                            <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD" 
+                                class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50 mb-2">
+                        </div>
+                    @endif
+                    
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">
+                            {{ $signature && $signature->ttd_path ? 'Upload Tanda Tangan Baru (Opsional)' : 'Upload Tanda Tangan' }}
+                        </label>
+                        <input type="file" name="ttd" accept="image/*"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                        <p class="text-xs text-slate-500 mt-1">Format: JPG, PNG. Maks: 2MB.</p>
+                    </div>
+                    
+                    <button
+                        class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                        {{ $signature ? 'Update' : 'Simpan' }} Tanda Tangan
+                    </button>
+                </form>
             </div>
 
 

@@ -6,7 +6,7 @@
         <div class="flex items-center justify-between mb-3">
             <h1 class="text-xl font-bold">Alur Approval</h1>
             <button onclick="openCreateModal()"
-                class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
+                class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
                 Tambah Alur
             </button>
         </div>
@@ -53,10 +53,10 @@
                             <td colspan="4" class="px-6 py-3">
                                 <div class="flex flex-wrap gap-3 text-ms">
                                     @foreach ($alur->langkah->sortBy('urutan') as $step)
-                                        <div class="bg-white border px-3 py-2 rounded-lg shadow-sm">
+                                        <div class="bg-white border border-slate-300 px-3 py-2 rounded-lg shadow-sm">
                                             <div class="font-semibold">Langkah {{ $step->no_langkah }}</div>
                                             <div>{{ $step->nama_langkah }}</div>
-                                            {{-- <div class="text-slate-500">Role: {{ $step->role_slug }}</div> --}}
+
                                         </div>
                                     @endforeach
                                 </div>
@@ -66,28 +66,31 @@
                 </tbody>
             </table>
 
-            {{-- modal untuk buat --}}
+
             <div id="createModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
                 onclick="closeCreateModal(event)">
 
-                <div class="bg-white w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl p-6" onclick="event.stopPropagation()">
+                <div class="bg-white w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl p-6"
+                    onclick="event.stopPropagation()">
                     <h2 class="text-lg font-semibold mb-4">Tambah Alur Penawaran</h2>
                     <form method="POST" action="{{ route('alurpenawaran.store') }}">
                         @csrf
                         <div class="mb-3">
                             <label class="text-sm font-medium">Nama Alur</label>
-                            <input type="text" name="nama" class="w-full border rounded-lg p-2 mt-1" required>
+                            <input type="text" name="nama" class="w-full border border-slate-300 rounded-lg p-2 mt-1"
+                                required>
                         </div>
                         <div class="mb-3">
                             <label class="text-sm font-medium">Berlaku Untuk</label>
-                            <select name="berlaku_untuk" class="w-full border rounded-lg p-2 mt-1" required>
+                            <select name="berlaku_untuk" class="w-full border border-slate-300 rounded-lg p-2 mt-1"
+                                required>
                                 <option value="penawaran">Penawaran</option>
                                 <option value="penghapusan">penghapusan</option>
                             </select>
                         </div>
                         <div class="mb-4">
                             <label class="text-sm font-medium">Status</label>
-                            <select name="status" class="w-full border rounded-lg p-2 mt-1">
+                            <select name="status" class="w-full border border-slate-300 rounded-lg p-2 mt-1">
                                 <option value="aktif">Aktif</option>
                                 <option value="nonaktif">Nonaktif</option>
                             </select>
@@ -105,10 +108,11 @@
                 </div>
             </div>
 
-            {{-- modal untuk edit --}}
+
             <div id="editModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
                 onclick="closeEditModal(event)">
-                <div class="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl p-6" onclick="event.stopPropagation()">
+                <div class="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl p-6"
+                    onclick="event.stopPropagation()">
                     <h2 class="text-lg font-semibold mb-4">Edit Alur Penawaran</h2>
 
                     <form id="editForm" method="POST">
@@ -117,13 +121,14 @@
 
                         <div class="mb-3">
                             <label class="text-sm font-medium">Nama Alur</label>
-                            <input type="text" name="nama" id="edit_nama" class="w-full border rounded-lg p-2 mt-1"
-                                required>
+                            <input type="text" name="nama" id="edit_nama"
+                                class="w-full border border-slate-300 rounded-lg p-2 mt-1" required>
                         </div>
 
                         <div class="mb-4">
                             <label class="text-sm font-medium">Status</label>
-                            <select name="status" id="edit_status" class="w-full border rounded-lg p-2 mt-1">
+                            <select name="status" id="edit_status"
+                                class="w-full border border-slate-300 rounded-lg p-2 mt-1">
                                 <option value="aktif">Aktif</option>
                                 <option value="nonaktif">Nonaktif</option>
                             </select>
@@ -165,35 +170,35 @@
             const isFirst = stepCount === 1
 
             document.getElementById('stepsWrapper').insertAdjacentHTML('beforeend', `
-                        <div class="grid grid-cols-2 gap-2 border p-3 rounded-lg relative step-item">
+                                        <div class="grid grid-cols-2 gap-2 border border-slate-300 p-3 rounded-lg relative step-item">
 
-                            ${!isFirst ? `
-                                                            <button type="button"
-                                                                onclick="removeStep(this)"
-                                                                class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">
-                                                                ✕
-                                                            </button>
-                                                            ` : ''}
+                                            ${!isFirst ? `
+                                                                            <button type="button"
+                                                                                onclick="removeStep(this)"
+                                                                                class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">
+                                                                                ✕
+                                                                            </button>
+                                                                            ` : ''}
 
-                            <input type="text" name="langkah[${stepCount}][nama_langkah]"
-                                placeholder="Nama Langkah"
-                                class="border rounded-lg p-2 col-span-2" required>
+                                            <input type="text" name="langkah[${stepCount}][nama_langkah]"
+                                                placeholder="Nama Langkah"
+                                                class="border border-slate-300 rounded-lg p-2 col-span-2" required>
 
-                            <select name="langkah[${stepCount}][user_id]"
-                                class="border rounded-lg p-2">
-                                <option value="">-- Pilih Approver --</option>
-                                @foreach ($users as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                @endforeach
-                            </select>
+                                            <select name="langkah[${stepCount}][user_id]"
+                                                class="border border-slate-300 rounded-lg p-2">
+                                                <option value="">-- Pilih Approver --</option>
+                                                @foreach ($users as $u)
+                                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                                @endforeach
+                                            </select>
 
-                            <select name="langkah[${stepCount}][harus_semua]"
-                                class="border rounded-lg p-2">
-                                <option value="0">Satu saja cukup</option>
-                                <option value="1">Semua harus setuju</option>
-                            </select>
-                        </div>
-                    `)
+                                            <select name="langkah[${stepCount}][harus_semua]"
+                                                class="border border-slate-300 rounded-lg p-2">
+                                                <option value="0">Satu saja cukup</option>
+                                                <option value="1">Semua harus setuju</option>
+                                            </select>
+                                        </div>
+                                    `)
         }
 
         function removeStep(btn) {
@@ -201,11 +206,11 @@
         }
 
         const userOptions = `
-                    <option value="">-- Pilih Approver --</option>
-                    @foreach ($users as $u)
-                        <option value="{{ $u->id }}">{{ $u->name }}</option>
-                    @endforeach
-                `;
+                                    <option value="">-- Pilih Approver --</option>
+                                    @foreach ($users as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                    @endforeach
+                                `;
 
         function closeEditModal(e) {
             if (!e || e.target.id === 'editModal') {
@@ -242,28 +247,28 @@
             const nama = (s.nama_langkah ?? '').replaceAll('"', '&quot;')
 
             return `
-                        <div class="grid grid-cols-2 gap-2 border p-3 rounded-lg relative step-item">
-                            ${removable ? `
-                                    <button type="button" onclick="removeEditStep(this)"
-                                        class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">✕</button>
-                                ` : ''}
+                                        <div class="grid grid-cols-2 gap-2 border border-slate-300 p-3 rounded-lg relative step-item">
+                                            ${removable ? `
+                                                    <button type="button" onclick="removeEditStep(this)"
+                                                        class="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center">✕</button>
+                                                ` : ''}
 
-                            <input type="hidden" name="steps[${index}][id]" value="${stepId}">
+                                            <input type="hidden" name="steps[${index}][id]" value="${stepId}">
 
-                            <input type="text" name="steps[${index}][nama_langkah]"
-                                value="${nama}"
-                                class="border rounded-lg p-2 col-span-2" required>
+                                            <input type="text" name="steps[${index}][nama_langkah]"
+                                                value="${nama}"
+                                                class="border border-slate-300 rounded-lg p-2 col-span-2" required>
 
-                            <select name="steps[${index}][user_id]" class="border rounded-lg p-2 col-span-2">
-                                ${userOptions}
-                            </select>
+                                            <select name="steps[${index}][user_id]" class="border border-slate-300 rounded-lg p-2 col-span-2">
+                                                ${userOptions}
+                                            </select>
 
-                            <select name="steps[${index}][harus_semua]" class="border rounded-lg p-2 col-span-2">
-                                <option value="0">Satu saja cukup</option>
-                                <option value="1">Semua harus setuju</option>
-                            </select>
-                        </div>
-                    `
+                                            <select name="steps[${index}][harus_semua]" class="border border-slate-300 rounded-lg p-2 col-span-2">
+                                                <option value="0">Satu saja cukup</option>
+                                                <option value="1">Semua harus setuju</option>
+                                            </select>
+                                        </div>
+                                    `
         }
 
         function addEditStep() {

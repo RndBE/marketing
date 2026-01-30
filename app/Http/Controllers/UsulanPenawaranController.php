@@ -14,6 +14,7 @@ use App\Models\PenawaranTermTemplate;
 use App\Models\AlurPenawaran;
 use App\Models\Approval;
 use App\Models\ApprovalStep;
+use App\Models\PenawaranSignature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -169,10 +170,10 @@ class UsulanPenawaranController extends Controller
         }
 
         return DB::transaction(function () use ($usulan) {
-            // 1. Generate Doc Number
+            //
             $docNumber = $this->createDocNumber();
 
-            // 2. Create Penawaran
+
             $penawaran = Penawaran::create([
                 'id_pic' => $usulan->pic_id,
                 'id_user' => auth()->id(),
@@ -183,10 +184,10 @@ class UsulanPenawaranController extends Controller
                 'instansi_tujuan' => $usulan->pic?->instansi,
                 'date_created' => now()->timestamp,
                 'date_updated' => now()->timestamp,
-                'status' => 'draft', // Note: Penawaran table might not have status, but we set it for logic if needed
+                'status' => 'draft',
             ]);
 
-            // 3. Create Cover
+
             PenawaranCover::create([
                 'penawaran_id' => $penawaran->id,
                 'judul_cover' => 'Dokumen Penawaran',
@@ -194,7 +195,7 @@ class UsulanPenawaranController extends Controller
                 'perusahaan_nama' => config('app.name', 'CV Arta Solusindo'),
             ]);
 
-            // 4. Create Validity
+
             PenawaranValidity::create([
                 'penawaran_id' => $penawaran->id,
                 'mulai' => now()->toDateString(),
@@ -203,7 +204,7 @@ class UsulanPenawaranController extends Controller
                 'keterangan' => 'Penawaran berlaku 30 hari.'
             ]);
 
-            // 5. Clone Term Templates
+
             $templates = PenawaranTermTemplate::query()
                 ->whereNull('parent_id')
                 ->orderBy('urutan')
@@ -215,8 +216,8 @@ class UsulanPenawaranController extends Controller
                 $this->cloneTemplateTerm($penawaran->id, $t, null);
             }
 
-            // 6. Setup Approval (Optional: Init as waiting for approval immediately?)
-            // For now, let's behave like PenawaranController::store which auto-sets approval
+
+            //
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
                 ->where('status', 'aktif')
                 ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
@@ -253,12 +254,25 @@ class UsulanPenawaranController extends Controller
                 ]);
             }
 
-            // 7. Link Usulan
+            // Auto Create Signature
+            $user = auth()->user();
+            $roleNames = $user->roles->pluck('name')->implode(', ');
+
+            PenawaranSignature::create([
+                'penawaran_id' => $penawaran->id,
+                'urutan' => 1,
+                'nama' => $user->name,
+                'jabatan' => $roleNames ?: 'Staff',
+                'kota' => 'Sleman',
+                'tanggal' => now()->toDateString(),
+                'ttd_path' => $user->ttd,
+            ]);
+
             $usulan->update([
                 'penawaran_id' => $penawaran->id,
                 'status' => 'disetujui',
-                'tanggal_ditanggapi' => now(), // Update respond date if not yet
-                'ditanggapi_oleh' => auth()->id(), // Update responder if not yet
+                'tanggal_ditanggapi' => now(),
+                'ditanggapi_oleh' => auth()->id(),
             ]);
 
             return redirect()->route('penawaran.show', $penawaran->id)->with('success', 'Penawaran berhasil dibuat dari usulan');

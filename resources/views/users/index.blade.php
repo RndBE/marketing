@@ -2,17 +2,13 @@
 
 @section('content')
     <div class="w-full">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-3">
             <h1 class="text-xl font-bold">Manajemen User</h1>
             <a href="{{ route('users.create') }}"
                 class="rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">
                 Tambah User
             </a>
         </div>
-
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
         @if (session('error'))
             <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
         @endif
