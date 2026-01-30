@@ -71,10 +71,10 @@
                     Penghapusan Penawaran
                 </button>
             @endif
-            <button onclick="window.history.back()"
+            <a href="{{ route('penawaran.index') }}"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
-            Kembali
-            </button>
+                Kembali
+            </a>
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
