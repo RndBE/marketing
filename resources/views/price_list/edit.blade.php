@@ -62,13 +62,15 @@
             <form id="add-detail-form" method="POST" action="{{ route('price_list.details.add', $product->id) }}"
                 class="space-y-3">
                 @csrf
-                {{-- Komponen Select --}}
-                <div>
+                {{-- Searchable Komponen Select --}}
+                <div class="relative">
                     <label class="block text-xs font-semibold mb-1">Pilih dari Komponen (opsional)</label>
-                    <select id="komponen-select"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        <option value="">-- Ketik manual atau pilih komponen --</option>
-                    </select>
+                    <input type="text" id="komponen-search" placeholder="Ketik untuk cari komponen..."
+                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" autocomplete="off">
+                    <input type="hidden" id="komponen-select" value="">
+                    <div id="komponen-dropdown"
+                        class="hidden absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-10 gap-2">
@@ -112,6 +114,9 @@
         <script>
             const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             let komponenData = []
+            const searchInput = document.getElementById('komponen-search')
+            const dropdown = document.getElementById('komponen-dropdown')
+            const hiddenSelect = document.getElementById('komponen-select')
 
             // Load komponen list on page load
             async function loadKomponen() {
@@ -119,13 +124,6 @@
                     const res = await fetch('{{ route("api.komponen.list") }}')
                     if (res.ok) {
                         komponenData = await res.json()
-                        const select = document.getElementById('komponen-select')
-                        komponenData.forEach(k => {
-                            const opt = document.createElement('option')
-                            opt.value = k.id
-                            opt.textContent = k.kode ? `[${k.kode}] ${k.nama}` : k.nama
-                            select.appendChild(opt)
-                        })
                     }
                 } catch (e) {
                     console.error('Failed to load komponen:', e)
@@ -133,17 +131,61 @@
             }
             loadKomponen()
 
-            // Auto-fill form when komponen selected
-            document.getElementById('komponen-select').addEventListener('change', function() {
-                const id = this.value
-                if (!id) return
+            // Render dropdown items
+            function renderDropdown(items) {
+                dropdown.innerHTML = ''
+                if (items.length === 0) {
+                    dropdown.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">Tidak ditemukan</div>'
+                    return
+                }
+                items.forEach(k => {
+                    const div = document.createElement('div')
+                    div.className = 'px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer'
+                    div.textContent = k.kode ? `[${k.kode}] ${k.nama}` : k.nama
+                    div.dataset.id = k.id
+                    div.addEventListener('click', () => selectKomponen(k))
+                    dropdown.appendChild(div)
+                })
+            }
 
-                const k = komponenData.find(item => item.id == id)
-                if (k) {
-                    document.getElementById('detail-nama').value = k.nama || ''
-                    document.getElementById('detail-spesifikasi').value = k.spesifikasi || ''
-                    document.getElementById('detail-satuan').value = k.satuan || ''
-                    document.getElementById('detail-harga').value = k.harga || 0
+            // Select komponen and fill form
+            function selectKomponen(k) {
+                searchInput.value = k.kode ? `[${k.kode}] ${k.nama}` : k.nama
+                hiddenSelect.value = k.id
+                dropdown.classList.add('hidden')
+
+                document.getElementById('detail-nama').value = k.nama || ''
+                document.getElementById('detail-spesifikasi').value = k.spesifikasi || ''
+                document.getElementById('detail-satuan').value = k.satuan || ''
+                document.getElementById('detail-harga').value = k.harga || 0
+            }
+
+            // Search input events
+            searchInput.addEventListener('focus', () => {
+                const q = searchInput.value.toLowerCase().trim()
+                const filtered = komponenData.filter(k =>
+                    k.nama.toLowerCase().includes(q) ||
+                    (k.kode && k.kode.toLowerCase().includes(q))
+                )
+                renderDropdown(filtered)
+                dropdown.classList.remove('hidden')
+            })
+
+            searchInput.addEventListener('input', () => {
+                const q = searchInput.value.toLowerCase().trim()
+                const filtered = komponenData.filter(k =>
+                    k.nama.toLowerCase().includes(q) ||
+                    (k.kode && k.kode.toLowerCase().includes(q))
+                )
+                renderDropdown(filtered)
+                dropdown.classList.remove('hidden')
+                hiddenSelect.value = '' // Reset selection when typing
+            })
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#komponen-search') && !e.target.closest('#komponen-dropdown')) {
+                    dropdown.classList.add('hidden')
                 }
             })
 
@@ -170,7 +212,8 @@
                 form.reset()
                 document.getElementById('detail-qty').value = '1'
                 document.getElementById('detail-harga').value = '0'
-                document.getElementById('komponen-select').value = ''
+                searchInput.value = ''
+                hiddenSelect.value = ''
             })
 
             document.addEventListener('submit', async (e) => {
