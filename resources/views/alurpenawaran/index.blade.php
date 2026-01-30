@@ -70,7 +70,7 @@
             <div id="createModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
                 onclick="closeCreateModal(event)">
 
-                <div class="bg-white w-full max-w-xl rounded-xl p-6" onclick="event.stopPropagation()">
+                <div class="bg-white w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl p-6" onclick="event.stopPropagation()">
                     <h2 class="text-lg font-semibold mb-4">Tambah Alur Penawaran</h2>
                     <form method="POST" action="{{ route('alurpenawaran.store') }}">
                         @csrf
@@ -108,7 +108,7 @@
             {{-- modal untuk edit --}}
             <div id="editModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
                 onclick="closeEditModal(event)">
-                <div class="bg-white w-full max-w-2xl rounded-xl p-6" onclick="event.stopPropagation()">
+                <div class="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl p-6" onclick="event.stopPropagation()">
                     <h2 class="text-lg font-semibold mb-4">Edit Alur Penawaran</h2>
 
                     <form id="editForm" method="POST">
