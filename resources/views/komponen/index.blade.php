@@ -14,11 +14,10 @@
             <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
         @endif
 
-        {{-- Search --}}
         <form method="GET" class="mb-4">
             <div class="flex gap-2">
                 <input type="text" name="q" value="{{ $q }}" placeholder="Cari komponen..."
-                    class="flex-1 rounded-xl border px-3 py-2 text-sm">
+                    class="flex-1 rounded-xl border border-slate-300 focus:border-slate-500 focus:ring-slate-500 px-3 py-2 text-sm">
                 <button class="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm">Cari</button>
             </div>
         </form>
@@ -83,33 +82,37 @@
         <div class="mt-4">{{ $komponen->links() }}</div>
     </div>
 
-    {{-- Modal Create --}}
     <div id="createModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
         onclick="closeCreateModal(event)">
-        <div class="bg-white w-full max-w-lg rounded-xl p-6" onclick="event.stopPropagation()">
+        <div class="bg-white w-full max-w-xl rounded-xl p-6" onclick="event.stopPropagation()">
             <h2 class="text-lg font-semibold mb-4">Tambah Komponen</h2>
             <form method="POST" action="{{ route('komponen.store') }}">
                 @csrf
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="col-span-1">
                         <label class="block text-sm font-semibold mb-1">Kode</label>
-                        <input type="text" name="kode" class="w-full border rounded-xl px-3 py-2 text-sm">
+                        <input type="text" name="kode" class="w-full border border-slate-300     rounded-xl px-3 py-2 text-sm">
                     </div>
-                    <div>
+                    <div class="col-span-3">
                         <label class="block text-sm font-semibold mb-1">Nama *</label>
-                        <input type="text" name="nama" class="w-full border rounded-xl px-3 py-2 text-sm" required>
+                        <input type="text" name="nama" class="w-full border border-slate-300     rounded-xl px-3 py-2 text-sm" required>
                     </div>
-                    <div class="col-span-2">
+                    <div class="col-span-4">
                         <label class="block text-sm font-semibold mb-1">Spesifikasi</label>
-                        <textarea name="spesifikasi" rows="2" class="w-full border rounded-xl px-3 py-2 text-sm"></textarea>
+                        <textarea name="spesifikasi" rows="2" class="w-full border border-slate-300  rounded-xl px-3 py-2 text-sm"></textarea>
                     </div>
-                    <div>
+                    <div class="col-span-1">
                         <label class="block text-sm font-semibold mb-1">Satuan</label>
-                        <input type="text" name="satuan" class="w-full border rounded-xl px-3 py-2 text-sm">
+                        <input type="text" name="satuan" class="w-full border border-slate-300   rounded-xl px-3 py-2 text-sm">
                     </div>
-                    <div>
+                    <div class="col-span-3">
                         <label class="block text-sm font-semibold mb-1">Harga *</label>
-                        <input type="number" name="harga" class="w-full border rounded-xl px-3 py-2 text-sm" required min="0">
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span>
+                            <input type="text" id="create_display_harga" class="w-full border border-slate-300   rounded-xl pl-9 pr-3 py-2 text-sm" required
+                                onkeyup="handlePriceInput(this, 'create_harga')">
+                            <input type="hidden" name="harga" id="create_harga">
+                        </div>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
@@ -120,37 +123,41 @@
         </div>
     </div>
 
-    {{-- Modal Edit --}}
     <div id="editModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
         onclick="closeEditModal(event)">
-        <div class="bg-white w-full max-w-lg rounded-xl p-6" onclick="event.stopPropagation()">
+        <div class="bg-white w-full max-w-xl rounded-xl p-6" onclick="event.stopPropagation()">
             <h2 class="text-lg font-semibold mb-4">Edit Komponen</h2>
             <form id="editForm" method="POST">
                 @csrf @method('PUT')
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="col-span-1">
                         <label class="block text-sm font-semibold mb-1">Kode</label>
-                        <input type="text" name="kode" id="edit_kode" class="w-full border rounded-xl px-3 py-2 text-sm">
+                        <input type="text" name="kode" id="edit_kode" class="w-full border-slate-300 border rounded-xl px-3 py-2 text-sm">
                     </div>
-                    <div>
+                    <div class="col-span-3">
                         <label class="block text-sm font-semibold mb-1">Nama *</label>
-                        <input type="text" name="nama" id="edit_nama" class="w-full border rounded-xl px-3 py-2 text-sm" required>
+                        <input type="text" name="nama" id="edit_nama" class="w-full border-slate-300 border rounded-xl px-3 py-2 text-sm" required>
                     </div>
-                    <div class="col-span-2">
+                    <div class="col-span-4">
                         <label class="block text-sm font-semibold mb-1">Spesifikasi</label>
-                        <textarea name="spesifikasi" id="edit_spesifikasi" rows="2" class="w-full border rounded-xl px-3 py-2 text-sm"></textarea>
+                        <textarea name="spesifikasi" id="edit_spesifikasi" rows="2" class="w-full border-slate-300 border rounded-xl px-3 py-2 text-sm"></textarea>
                     </div>
-                    <div>
+                    <div class="col-span-1">
                         <label class="block text-sm font-semibold mb-1">Satuan</label>
-                        <input type="text" name="satuan" id="edit_satuan" class="w-full border rounded-xl px-3 py-2 text-sm">
+                        <input type="text" name="satuan" id="edit_satuan" class="w-full border-slate-300 border rounded-xl px-3 py-2 text-sm">
                     </div>
-                    <div>
+                    <div class="col-span-3">
                         <label class="block text-sm font-semibold mb-1">Harga *</label>
-                        <input type="number" name="harga" id="edit_harga" class="w-full border rounded-xl px-3 py-2 text-sm" required min="0">
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span>
+                            <input type="text" id="edit_display_harga" class="w-full border-slate-300 border rounded-xl pl-9 pr-3 py-2 text-sm" required
+                                onkeyup="handlePriceInput(this, 'edit_harga')">
+                            <input type="hidden" name="harga" id="edit_harga">
+                        </div>
                     </div>
-                    <div class="col-span-2">
+                    <div class="col-span-4">
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded border-slate-300">
+                            <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded border border-slate-300    ">
                             <span class="text-sm">Aktif</span>
                         </label>
                     </div>
@@ -173,10 +180,40 @@
             document.getElementById('edit_nama').value = btn.dataset.nama;
             document.getElementById('edit_spesifikasi').value = btn.dataset.spesifikasi || '';
             document.getElementById('edit_satuan').value = btn.dataset.satuan || '';
-            document.getElementById('edit_harga').value = btn.dataset.harga;
+            
+            // Handle Price
+            const harga = btn.dataset.harga;
+            document.getElementById('edit_harga').value = harga;
+            document.getElementById('edit_display_harga').value = formatRupiah(harga);
+
             document.getElementById('edit_is_active').checked = btn.dataset.is_active === '1';
             document.getElementById('editForm').action = `{{ url('/komponen') }}/${btn.dataset.id}`;
         }
         function closeEditModal(e) { if (!e || e.target.id === 'editModal') document.getElementById('editModal').classList.add('hidden'); }
+
+        // Currency Helper
+        function handlePriceInput(input, targetId) {
+            let value = input.value.replace(/\D/g, ''); // Remove non-digits
+            document.getElementById(targetId).value = value; // Set raw value to hidden input
+            input.value = formatRupiah(value); // Format display input
+        }
+
+        function formatRupiah(angka) {
+            if (!angka) return '';
+            angka = angka.toString();
+            let number_string = angka.replace(/[^,\d]/g, '').toString(),
+                split = number_string.split(','),
+                sisa = split[0].length % 3,
+                rupiah = split[0].substr(0, sisa),
+                ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+            if (ribuan) {
+                separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            return rupiah;
+        }
     </script>
 @endsection

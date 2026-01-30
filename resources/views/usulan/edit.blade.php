@@ -4,7 +4,6 @@
     <div class="w-full max-w-3xl">
         <div class="mb-5">
             <h1 class="text-xl font-semibold">Edit Usulan Penawaran</h1>
-            <p class="text-sm text-slate-500">Edit detail usulan yang masih dalam status draft</p>
         </div>
 
         <form method="POST" action="{{ route('usulan.update', $usulan->id) }}" enctype="multipart/form-data"
@@ -115,15 +114,15 @@
             const row = document.createElement('div');
             row.className = 'flex gap-2 mb-2 attachment-row';
             row.innerHTML = `
-                    <select name="attachment_types[]" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                        <option value="survei">Survei</option>
-                        <option value="dokumen">Dokumen</option>
-                        <option value="foto">Foto</option>
-                        <option value="lainnya">Lainnya</option>
-                    </select>
-                    <input type="file" name="attachments[]" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                    <button type="button" onclick="this.parentElement.remove()" class="text-red-500 text-sm">Hapus</button>
-                `;
+                        <select name="attachment_types[]" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            <option value="survei">Survei</option>
+                            <option value="dokumen">Dokumen</option>
+                            <option value="foto">Foto</option>
+                            <option value="lainnya">Lainnya</option>
+                        </select>
+                        <input type="file" name="attachments[]" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                        <button type="button" onclick="this.parentElement.remove()" class="text-red-500 text-sm">Hapus</button>
+                    `;
             container.appendChild(row);
         }
 
