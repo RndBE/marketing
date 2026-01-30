@@ -30,12 +30,13 @@
 
             <div>
                 <label class="block text-xs font-semibold mb-1">Deskripsi</label>
-                <textarea name="deskripsi" rows="4" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{{ $product->deskripsi }}</textarea>
+                <textarea name="deskripsi" rows="4"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{{ $product->deskripsi }}</textarea>
             </div>
 
             <div class="flex items-center gap-2">
-                <input id="is_active" type="checkbox" name="is_active" value="1"
-                    {{ $product->is_active ? 'checked' : '' }} class="rounded border-slate-300">
+                <input id="is_active" type="checkbox" name="is_active" value="1" {{ $product->is_active ? 'checked' : '' }}
+                    class="rounded border-slate-300">
                 <label for="is_active" class="text-sm">Aktif</label>
             </div>
 
@@ -59,33 +60,45 @@
             </div>
 
             <form id="add-detail-form" method="POST" action="{{ route('price_list.details.add', $product->id) }}"
-                class="grid grid-cols-1 md:grid-cols-10 gap-2">
+                class="space-y-3">
                 @csrf
-                <div class="md:col-span-3">
-                    <input name="nama" placeholder="Nama"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
-                </div>
-                <div class="md:col-span-3">
-                    <input name="spesifikasi" placeholder="Spesifikasi (opsional)"
+                {{-- Komponen Select --}}
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Pilih dari Komponen (opsional)</label>
+                    <select id="komponen-select"
                         class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                </div>
-                <div class="md:col-span-1">
-                    <input name="qty" value="1" inputmode="decimal"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
-                </div>
-                <div class="md:col-span-1">
-                    <input name="satuan" placeholder="Satuan"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                </div>
-                <div class="md:col-span-2">
-                    <input name="harga" value="0" inputmode="numeric"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                        <option value="">-- Ketik manual atau pilih komponen --</option>
+                    </select>
                 </div>
 
-                <div class="md:col-span-10 flex justify-end">
-                    <button class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                        Tambah Item
-                    </button>
+                <div class="grid grid-cols-1 md:grid-cols-10 gap-2">
+                    <div class="md:col-span-3">
+                        <input name="nama" id="detail-nama" placeholder="Nama"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                    </div>
+                    <div class="md:col-span-3">
+                        <input name="spesifikasi" id="detail-spesifikasi" placeholder="Spesifikasi (opsional)"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-1">
+                        <input name="qty" id="detail-qty" value="1" inputmode="decimal"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                    </div>
+                    <div class="md:col-span-1">
+                        <input name="satuan" id="detail-satuan" placeholder="Satuan"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <input name="harga" id="detail-harga" value="0" inputmode="numeric"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                    </div>
+
+                    <div class="md:col-span-10 flex justify-end">
+                        <button
+                            class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                            Tambah Item
+                        </button>
+                    </div>
                 </div>
             </form>
 
@@ -98,6 +111,41 @@
 
         <script>
             const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            let komponenData = []
+
+            // Load komponen list on page load
+            async function loadKomponen() {
+                try {
+                    const res = await fetch('{{ route("api.komponen.list") }}')
+                    if (res.ok) {
+                        komponenData = await res.json()
+                        const select = document.getElementById('komponen-select')
+                        komponenData.forEach(k => {
+                            const opt = document.createElement('option')
+                            opt.value = k.id
+                            opt.textContent = k.kode ? `[${k.kode}] ${k.nama}` : k.nama
+                            select.appendChild(opt)
+                        })
+                    }
+                } catch (e) {
+                    console.error('Failed to load komponen:', e)
+                }
+            }
+            loadKomponen()
+
+            // Auto-fill form when komponen selected
+            document.getElementById('komponen-select').addEventListener('change', function() {
+                const id = this.value
+                if (!id) return
+
+                const k = komponenData.find(item => item.id == id)
+                if (k) {
+                    document.getElementById('detail-nama').value = k.nama || ''
+                    document.getElementById('detail-spesifikasi').value = k.spesifikasi || ''
+                    document.getElementById('detail-satuan').value = k.satuan || ''
+                    document.getElementById('detail-harga').value = k.harga || 0
+                }
+            })
 
             document.getElementById('add-detail-form').addEventListener('submit', async (e) => {
                 e.preventDefault()
@@ -120,8 +168,9 @@
                 document.getElementById('details-wrap').innerHTML = html
 
                 form.reset()
-                form.querySelector('[name="qty"]').value = '1'
-                form.querySelector('[name="harga"]').value = '0'
+                document.getElementById('detail-qty').value = '1'
+                document.getElementById('detail-harga').value = '0'
+                document.getElementById('komponen-select').value = ''
             })
 
             document.addEventListener('submit', async (e) => {
