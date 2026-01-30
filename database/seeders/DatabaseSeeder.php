@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\AlurPenawaran;
-use App\Models\AlurPenawaranLangkah;
+use App\Models\LangkahAlurPenawaran;
 use App\Models\Permission;
 use App\Models\PenawaranTermTemplate;
 use App\Models\Pic;
@@ -173,7 +173,7 @@ class DatabaseSeeder extends Seeder
             'status' => 'aktif',
         ]);
 
-        AlurPenawaranLangkah::create([
+        LangkahAlurPenawaran::create([
             'id' => 1,
             'alur_penawaran_id' => 1,
             'no_langkah' => 1,
