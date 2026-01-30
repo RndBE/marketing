@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PenghapusanPenawaran extends Model
 {
+    protected $table = 'penghapusan_penawaran';
     protected $fillable = [
         'penawaran_id',
         'nomor_penghapusan',
@@ -24,6 +25,11 @@ class PenghapusanPenawaran extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'id_user');
+        return $this->belongsTo(User::class, 'disetujui_oleh');
+    }
+
+    public function dibuat()
+    {
+        return $this->belongsTo(User::class, 'dibuat_oleh');
     }
 }

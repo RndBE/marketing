@@ -62,6 +62,10 @@ Route::middleware(['auth'])->group(function () {
         // Delete (butuh permission)
         Route::delete('/{penawaran}', [PenawaranController::class, 'destroy'])
             ->middleware('permission:delete-penawaran')->name('destroy');
+
+        // Deleted list dan request delete
+        Route::get('/deleted/list', [PenawaranController::class, 'deletedList'])->name('deleted.list');
+        Route::post('/{penawaran}/request-delete', [PenawaranController::class, 'requestDelete'])->name('request.delete');
     });
 
     /*

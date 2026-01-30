@@ -27,6 +27,21 @@ class MarketingSeeder extends Seeder
                 'email' => 'admin@example.com',
                 'password' => Hash::make('password')
             ]);
+            $kepala = User::firstOrCreate(
+                ['email' => 'kepala@example.com'],
+                [
+                    'name' => 'Kepala',
+                    'password' => Hash::make('password')
+                ]
+            );
+
+            $keuangan = User::firstOrCreate(
+                ['email' => 'keuangan@example.com'],
+                [
+                    'name' => 'Keuangan',
+                    'password' => Hash::make('password')
+                ]
+            );
 
             $pic = Pic::create([
                 'nama' => 'Budi Santoso',

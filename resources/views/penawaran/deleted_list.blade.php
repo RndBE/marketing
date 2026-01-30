@@ -26,7 +26,7 @@
                                 {{ $row->penawaran->judul ?? '-' }}
                             </td>
                             <td class="px-4 py-2">
-                                {{ $row->user->name }}
+                                {{ $row->user->name ?? $row->dibuat->name ?? '-' }}
                             </td>
                             <td class="px-4 py-2">
                                 {{ $row->created_at->format('d M Y H:i') }}

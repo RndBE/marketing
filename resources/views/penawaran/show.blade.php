@@ -56,25 +56,19 @@
                 $stepAktif = $approval?->steps?->where('step_order', $approval->current_step)->first();
 
                 $akses = $stepAktif->akses_approve ?? [];
+                $m = $approval->module ?? '';
             @endphp
-
-            {{-- <div style="background:#111;color:#0f0;padding:12px;font-size:12px;margin-bottom:12px">
-                <div><b>User Login</b> : {{ auth()->id() }}</div>
-                <div><b>Approval Status</b> : {{ $approval->status ?? 'NULL' }}</div>
-                <div><b>Current Step</b> : {{ $approval->current_step ?? 'NULL' }}</div>
-                <div><b>Step Found?</b> : {{ $stepAktif ? 'YES' : 'NO' }}</div>
-                <div><b>Step Name</b> : {{ $stepAktif->step_name ?? 'NULL' }}</div>
-                <div><b>Step Status</b> : {{ $stepAktif->status ?? 'NULL' }}</div>
-                <div><b>Akses Approve</b> : {{ json_encode($akses) }}</div>
-                <div><b>User Allowed?</b> :
-                    {{ (int) ($akses['user_id'] ?? 0) === (int) auth()->id() ? 'YES' : 'NO' }}
-                </div>
-            </div> --}}
-            @if ($bolehApproveStep)
+            @if ($bolehApproveStep && $m === 'penawaran')
                 <button
                     onclick="openApprovalModal({{ $approval->id }},'{{ $approval->current_step }}','{{ $stepAktif->step_name }}')"
                     class="px-4 py-2 bg-green-600 text-white rounded-lg">
                     Persetujuan Penawaran
+                </button>
+            @elseif ($bolehApproveStep && $m === 'penghapusan')
+                <button
+                    onclick="openApprovalModal({{ $approval->id }},'{{ $approval->current_step }}','{{ $stepAktif->step_name }}')"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg">
+                    Penghapusan Penawaran
                 </button>
             @endif
             <button onclick="window.history.back()"
@@ -657,6 +651,8 @@
             </div>
         </div>
     </div>
+
+    {{-- modal untuk approval --}}
     <div id="approvalModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50"
         onclick="closeApprovalModal(event)">
 

@@ -40,6 +40,12 @@
                     <span>Keterangan</span>
                 </a>
             @endif
+
+            <a href="{{ route('penawaran.deleted.list') }}"
+                class="mt-1 flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                {{ request()->routeIs('penawaran.deleted.list') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                <span>Riwayat Penghapusan</span>
+            </a>
         </div>
 
         @if(auth()->user()->hasPermission('manage-pricelist'))

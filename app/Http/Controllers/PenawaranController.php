@@ -214,8 +214,13 @@ class PenawaranController extends Controller
         $approval = $penawaran->approval;
         $stepAktif = null;
         $bolehApproveStep = false;
+        $m = null; // 🔥 TAMBAHKAN INI
 
         if ($approval && $approval->status === 'menunggu') {
+
+            $m = $approval->module === 'penghapusan_penawaran'
+                ? 'penghapusan'
+                : 'penawaran';
 
             $stepAktif = $approval->steps
                 ->where('step_order', $approval->current_step)
@@ -229,7 +234,14 @@ class PenawaranController extends Controller
             }
         }
 
-        return view('penawaran.show', compact('penawaran', 'products', 'approval', 'stepAktif', 'bolehApproveStep'));
+        return view('penawaran.show', compact(
+            'penawaran',
+            'products',
+            'approval',
+            'stepAktif',
+            'bolehApproveStep',
+            'm' // 🔥 KIRIM KE VIEW
+        ));
     }
 
 
@@ -260,8 +272,63 @@ class PenawaranController extends Controller
 
     public function destroy(Penawaran $penawaran)
     {
-        $penawaran->delete();
-        return redirect()->route('penawaran.index');
+        // $penawaran->delete();
+        // return redirect()->route('penawaran.index');
+        DB::transaction(function () use ($penawaran) {
+
+            $approval = $penawaran->approval;
+
+            // ===============================
+            // 1️⃣ CEK: masih di approval awal?
+            // ===============================
+            $bolehHapusLangsung = false;
+
+            if (!$approval) {
+                // Belum pernah masuk approval
+                $bolehHapusLangsung = true;
+            } elseif ($approval->module === 'penawaran' && $approval->current_step == 1 && $approval->status === 'menunggu') {
+                // Masih step 1 approval penawaran
+                $bolehHapusLangsung = true;
+            }
+
+            $approval->update([
+                'status' => 'dihapus',
+                'approved_by' => auth()->id(),
+                'approved_at' => now()
+            ]);
+
+            // ===============================
+            // 2️⃣ Jika boleh hapus langsung
+            // ===============================
+            if ($bolehHapusLangsung) {
+
+                PenghapusanPenawaran::create([
+                    'nomor_penghapusan' => 'DEL-' . str_pad($penawaran->id, 6, '0', STR_PAD_LEFT),
+                    'tanggal_penghapusan' => now(),
+                    'metode' => 'hapus',
+                    'alasan' => 'Dihapus langsung saat masih tahap awal approval',
+                    'dibuat_oleh' => auth()->id(),
+                    'penawaran_id' => $penawaran->id,
+                    'approval_id'  => $approval?->id, // bisa null
+                    'deleted_by'   => auth()->id(),
+                    'deleted_at'   => now(),
+                    'keterangan'   => 'Dihapus langsung saat masih tahap awal approval'
+                ]);
+
+                // Soft delete penawaran
+                // $penawaran->delete();
+
+                return;
+            }
+
+            // ===============================
+            // 3️⃣ Jika sudah masuk proses approval → arahkan ke request delete
+            // ===============================
+            throw new \Exception('Penawaran sudah masuk proses approval. Gunakan fitur pengajuan penghapusan.');
+        });
+
+        return redirect()->route('penawaran.index')
+            ->with('success', 'Penawaran berhasil dihapus.');
     }
 
     public function upsertCover(Request $request, Penawaran $penawaran)
@@ -878,10 +945,59 @@ class PenawaranController extends Controller
 
     public function deletedList()
     {
-        $deleted = PenghapusanPenawaran::with(['penawaran', 'user'])
+        $deleted = PenghapusanPenawaran::with(['penawaran', 'user', 'dibuat'])
             ->latest()
             ->paginate(15);
 
         return view('penawaran.deleted_list', compact('deleted'));
+    }
+
+    public function requestDelete(Penawaran $penawaran)
+    {
+        if ($penawaran->status === 'menunggu_penghapusan') {
+            return back()->with('error', 'Penghapusan sudah diajukan.');
+        }
+
+        DB::transaction(function () use ($penawaran) {
+
+            $alur = AlurPenawaran::where('berlaku_untuk', 'penghapusan')
+                ->where('status', 'aktif')
+                ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
+                ->first();
+
+            if (!$alur || $alur->langkah->isEmpty()) {
+                throw new \Exception('Alur approval penghapusan belum dibuat.');
+            }
+
+            $firstStep = $alur->langkah->first()->no_langkah;
+
+            // 🔥 Buat approval khusus penghapusan
+            $approval = Approval::create([
+                'module'       => 'penghapusan',
+                'ref_id'       => $penawaran->id,
+                'status'       => 'menunggu',
+                'current_step' => $firstStep
+            ]);
+
+            foreach ($alur->langkah as $step) {
+                ApprovalStep::create([
+                    'approval_id' => $approval->id,
+                    'step_order'  => $step->no_langkah,
+                    'step_name'   => $step->nama_langkah,
+                    'status'      => 'menunggu',
+                    'akses_approve' => [
+                        'user_id' => (int) $step->user_id
+                    ]
+                ]);
+            }
+
+            // ⬇️ Status penawaran mengikuti jenis approval
+            $penawaran->update([
+                'status'      => 'menunggu_penghapusan',
+                'approval_id' => $approval->id
+            ]);
+        });
+
+        return back()->with('success', 'Penghapusan diajukan dan menunggu persetujuan.');
     }
 }

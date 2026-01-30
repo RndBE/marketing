@@ -7,6 +7,8 @@ use App\Models\Approval;
 use App\Models\ApprovalStep;
 use App\Models\Penawaran;
 use App\Models\AlurPenawaran;
+use App\Models\PenghapusanPenawaran;
+use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
@@ -204,6 +206,50 @@ class ApprovalController extends Controller
                 $penawaran->update([
                     'status' => $status
                 ]);
+            }
+        }
+
+        // =========================================
+        // APPROVAL PENGHAPUSAN PENAWARAN
+        // =========================================
+        elseif ($approval->module === 'penghapusan') {
+
+            $penawaran = Penawaran::find($approval->ref_id);
+            if (!$penawaran) return;
+
+            // 🔥 SIMPAN KE TABEL PENGHAPUSAN
+            PenghapusanPenawaran::create([
+                'nomor_penghapusan' => 'DEL-' . str_pad($penawaran->id, 6, '0', STR_PAD_LEFT),
+                'tanggal_penghapusan' => now(),
+                'metode' => 'hapus',
+                'alasan' => 'Penghapusan disetujui melalui approval',
+                'dibuat_oleh' => auth()->id(),
+                'disetujui_oleh' => auth()->id(),
+                'penawaran_id' => $penawaran->id,
+                'approval_id' => $approval->id,
+                'deleted_by' => auth()->id(),
+                'deleted_at' => now(),
+            ]);
+
+            // Optional: soft delete penawaran
+            // $penawaran->delete();
+
+            // if ($status === 'disetujui') {
+            //     $penawaran->update(['status' => 'dihapus']);
+            // }
+
+            // if ($status === 'ditolak') {
+            //     $penawaran->update(['status' => 'aktif']);
+            // }
+        }
+
+        // =========================================
+        // APPROVAL PENAWARAN BIASA
+        // =========================================
+        if ($approval->module === 'penawaran' && $approval->ref_id) {
+            $penawaran = Penawaran::find($approval->ref_id);
+            if ($penawaran) {
+                $penawaran->update(['status' => $status]);
             }
         }
     }
