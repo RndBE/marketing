@@ -113,6 +113,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('komponen')->name('komponen.')->middleware('permission:manage-pricelist')->group(function () {
         Route::get('/', [KomponenController::class, 'index'])->name('index');
         Route::post('/', [KomponenController::class, 'store'])->name('store');
+        Route::post('/bulk-import', [KomponenController::class, 'bulkImport'])->name('bulk-import');
+        Route::delete('/bulk-delete', [KomponenController::class, 'bulkDelete'])->name('bulk-delete');
         Route::put('/{komponen}', [KomponenController::class, 'update'])->name('update');
         Route::delete('/{komponen}', [KomponenController::class, 'destroy'])->name('destroy');
     });

@@ -419,7 +419,7 @@ class PenawaranController extends Controller
 
         $this->recalcItemSubtotal($item);
 
-        return back()->with('success', 'Bundle ditambahkan.');
+        return response()->json(['message' => 'Bundle berhasil ditambahkan']);
     }
 
     public function addCustomItem(Request $request, Penawaran $penawaran)
@@ -444,7 +444,7 @@ class PenawaranController extends Controller
 
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return response()->json(['message' => 'Item custom berhasil ditambahkan']);
     }
 
     public function deleteItem(Penawaran $penawaran, PenawaranItem $item)
@@ -456,7 +456,7 @@ class PenawaranController extends Controller
         $item->delete();
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return response()->json(['message' => 'Item berhasil dihapus']);
     }
 
     public function addItemDetail(Request $request, Penawaran $penawaran, PenawaranItem $item)
@@ -496,7 +496,7 @@ class PenawaranController extends Controller
             $this->recalcItemSubtotal($item);
             $penawaran->update(['date_updated' => now()->timestamp]);
 
-            return redirect()->route('penawaran.show', $penawaran->id);
+            return response()->json(['message' => 'Detail item berhasil ditambahkan']);
         });
     }
 
@@ -531,10 +531,11 @@ class PenawaranController extends Controller
                 'subtotal' => $subtotal
             ]);
 
+
             $this->recalcItemSubtotal($item);
             $penawaran->update(['date_updated' => now()->timestamp]);
 
-            return redirect()->route('penawaran.show', $penawaran->id);
+            return response()->json(['message' => 'Detail item berhasil diupdate']);
         });
     }
 
@@ -551,7 +552,8 @@ class PenawaranController extends Controller
             $detail->delete();
             $this->recalcItemSubtotal($item);
             $penawaran->update(['date_updated' => now()->timestamp]);
-            return redirect()->route('penawaran.show', $penawaran->id);
+
+            return response()->json(['message' => 'Detail item berhasil dihapus']);
         });
     }
 
@@ -595,7 +597,7 @@ class PenawaranController extends Controller
 
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return response()->json(['message' => 'Keterangan berhasil ditambahkan']);
     }
 
 
@@ -608,7 +610,7 @@ class PenawaranController extends Controller
         $term->delete();
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return response()->json(['message' => 'Keterangan berhasil dihapus']);
     }
 
     public function addSignature(Request $request, Penawaran $penawaran)
@@ -695,7 +697,7 @@ class PenawaranController extends Controller
 
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return response()->json(['message' => 'Lampiran berhasil ditambahkan']);
     }
 
     public function deleteAttachment(Penawaran $penawaran, PenawaranAttachment $attachment)
@@ -709,7 +711,7 @@ class PenawaranController extends Controller
 
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return response()->json(['message' => 'Lampiran berhasil dihapus']);
     }
 
     public function downloadPdf(Penawaran $penawaran)
@@ -838,7 +840,11 @@ class PenawaranController extends Controller
 
         $penawaran->update($data);
 
-        return back()->with('success', 'Keterangan penawaran disimpan.');
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(['message' => 'Keterangan penawaran disimpan']);
+        }
+
+        return response()->json(['message' => 'Keterangan penawaran disimpan']);
     }
 
     private function calcUnitPriceBundle($item): int
@@ -920,7 +926,7 @@ class PenawaranController extends Controller
 
         $penawaran->save();
 
-        return back()->with('success', 'Diskon & pajak tersimpan');
+        return response()->json(['message' => 'Diskon & pajak tersimpan']);
     }
 
     public function submitApproval($id)

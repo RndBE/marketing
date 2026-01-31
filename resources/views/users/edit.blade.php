@@ -4,7 +4,6 @@
     <div class="w-full max-w-2xl">
         <div class="mb-5">
             <h1 class="text-xl font-semibold">Edit User</h1>
-            <p class="text-sm text-slate-500">Edit data pengguna</p>
         </div>
 
         <form method="POST" action="{{ route('users.update', $user->id) }}" class="space-y-4" enctype="multipart/form-data">

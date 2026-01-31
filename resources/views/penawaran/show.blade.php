@@ -63,6 +63,9 @@
 
                 $akses = $stepAktif->akses_approve ?? [];
                 $m = $approval->module ?? '';
+                
+                // Check if user can edit: superadmin OR creator of penawaran
+                $canEdit = auth()->user()->roles->contains('slug', 'admin') || $penawaran->id_user === auth()->id();
             @endphp
             @if ($bolehApproveStep && $m === 'penawaran')
                 <button
@@ -84,98 +87,122 @@
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
-            <a href="{{ route('penawaran.edit', $penawaran->id) }}"
-                class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Edit</a>
-            <form method="POST" action="{{ route('penawaran.destroy', $penawaran->id) }}"
-                onsubmit="return confirm('Hapus penawaran ini?')">
-                @csrf
-                @method('DELETE')
-                <button
-                    class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
-            </form>
+            
+            @if($canEdit)
+                <a href="{{ route('penawaran.edit', $penawaran->id) }}"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Edit</a>
+                <form method="POST" action="{{ route('penawaran.destroy', $penawaran->id) }}"
+                    onsubmit="return confirm('Hapus penawaran ini?')">
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+                </form>
+            @else
+                <button disabled
+                    class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
+                    title="Hanya pembuat penawaran dan superadmin yang dapat mengedit">Edit</button>
+                <button disabled
+                    class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
+                    title="Hanya pembuat penawaran dan superadmin yang dapat menghapus">Hapus</button>
+            @endif
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 space-y-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 relative">
-                <input id="toggle_bundle" type="checkbox"
-                    class="peer absolute left-5 top-6 h-4 w-4 rounded border-slate-300 accent-slate-900">
+                @if($canEdit)
+                    <input id="toggle_bundle" type="checkbox"
+                        class="peer absolute left-5 top-6 h-4 w-4 rounded border-slate-300 accent-slate-900">
+                @endif
 
-                <div class="flex items-center justify-between gap-3 pl-7">
+                <div class="flex items-center justify-between gap-3 {{ $canEdit ? 'pl-7' : '' }}">
                     <div class="flex items-center gap-3">
-                        <label for="toggle_bundle" class="cursor-pointer text-sm font-semibold select-none">
-                            Tambah Bundle
-                        </label>
-                        <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
+                        @if($canEdit)
+                            <label for="toggle_bundle" class="cursor-pointer text-sm font-semibold select-none">
+                                Tambah Bundle
+                            </label>
+                            <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
+                        @else
+                            <div class="text-sm font-semibold">Tambah Bundle</div>
+                            <div class="text-xs text-slate-500 hidden md:block">Hanya pembuat penawaran dan superadmin yang dapat menambah item</div>
+                        @endif
                     </div>
 
 
                 </div>
 
-                <div class="mt-4 hidden peer-checked:block">
-                    <form method="POST" action="{{ route('penawaran.items.bundle', $penawaran->id) }}"
-                        class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        @csrf
+                @if($canEdit)
+                    <div class="mt-4 hidden peer-checked:block">
+                        <form method="POST" action="{{ route('penawaran.items.bundle', $penawaran->id) }}"
+                            class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                            @csrf
 
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold mb-1">Product</label>
-                            <select name="product_id"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                <option value="">Pilih product</option>
-                                @foreach ($products as $p)
-                                    <option value="{{ $p->id }}">
-                                        {{ $p->kode ? $p->kode . ' - ' : '' }}{{ $p->nama }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold mb-1">Product</label>
+                                <select name="product_id"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                    <option value="">Pilih product</option>
+                                    @foreach ($products as $p)
+                                        <option value="{{ $p->id }}">
+                                            {{ $p->kode ? $p->kode . ' - ' : '' }}{{ $p->nama }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        <div>
-                            <label class="block text-xs font-semibold mb-1">Qty</label>
-                            <input name="qty" value="1"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Qty</label>
+                                <input name="qty" value="1"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            </div>
 
-                        <div>
-                            <label class="block text-xs font-semibold mb-1">Judul (opsional)</label>
-                            <input name="judul"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Judul (opsional)</label>
+                                <input name="judul"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            </div>
 
-                        <div>
-                            <label class="block text-xs font-semibold mb-1">Catatan (opsional)</label>
-                            <input name="catatan"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Catatan (opsional)</label>
+                                <input name="catatan"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            </div>
 
-                        <div class="md:col-span-5 flex justify-end">
-                            <button
-                                class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                                Tambah Bundle
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                            <div class="md:col-span-5 flex justify-end">
+                                <button
+                                    class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                                    Tambah Bundle
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                @endif
             </div>
 
 
 
 
             <div class="rounded-2xl border border-slate-200 bg-white p-5 relative">
-                <input id="toggle_custom" type="checkbox"
-                    class="peer absolute left-5 top-6 h-4 w-4 rounded border-slate-300 accent-slate-900">
+                @if($canEdit)
+                    <input id="toggle_custom" type="checkbox"
+                        class="peer absolute left-5 top-6 h-4 w-4 rounded border-slate-300 accent-slate-900">
+                @endif
 
-                <div class="flex items-center justify-between gap-3 pl-7">
+                <div class="flex items-center justify-between gap-3 {{ $canEdit ? 'pl-7' : '' }}">
                     <div class="flex items-center gap-3">
-                        <label for="toggle_custom" class="cursor-pointer text-sm font-semibold select-none">
+                        @if($canEdit)
+                            <label for="toggle_custom" class="cursor-pointer text-sm font-semibold select-none">
                             Tambah Item Custom
                         </label>
                         <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
+                        @endif
                     </div>
                 </div>
 
-                <div class="mt-4 hidden peer-checked:block">
+                @if($canEdit)
+                    <div class="mt-4 hidden peer-checked:block">
                     <form method="POST" action="{{ route('penawaran.items.custom', $penawaran->id) }}"
                         class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         @csrf
@@ -196,7 +223,8 @@
                             </button>
                         </div>
                     </form>
-                </div>
+                    </div>
+                @endif
             </div>
 
 
@@ -305,18 +333,46 @@
                                                             </div>
                                                             <textarea name="spesifikasi" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ $d->spesifikasi }}</textarea>
                                                             <div class="flex items-center justify-between">
-                                                                <form></form>
-                                                                <form method="POST"
-                                                                    action="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}"
-                                                                    onsubmit="return confirm('Hapus detail?')">
-                                                                    @csrf
-                                                                    @method('DELETE')
-                                                                    <button
-                                                                        class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
-                                                                </form>
-                                                                <button
+                                                                <button type="button" onclick="deleteDetail{{ $d->id }}()"
+                                                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+                                                                <button type="submit"
                                                                     class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">Simpan</button>
                                                             </div>
+                                                        </form>
+                                                        <script>
+                                                            async function deleteDetail{{ $d->id }}() {
+                                                                if (!confirm('Hapus detail?')) return;
+                                                                
+                                                                try {
+                                                                    const form = document.getElementById('deleteDetailForm{{ $d->id }}');
+                                                                    const formData = new FormData(form);
+                                                                    
+                                                                    const response = await fetch(form.action, {
+                                                                        method: 'POST',
+                                                                        body: formData,
+                                                                        headers: {
+                                                                            'X-Requested-With': 'XMLHttpRequest',
+                                                                            'Accept': 'application/json'
+                                                                        }
+                                                                    });
+                                                                    
+                                                                    const data = await response.json();
+                                                                    
+                                                                    if (response.ok) {
+                                                                        showToast(data.message || 'Berhasil dihapus!', 'success');
+                                                                    } else {
+                                                                        showToast(data.message || 'Gagal menghapus', 'error');
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error:', error);
+                                                                    showToast('Terjadi kesalahan koneksi', 'error');
+                                                                }
+                                                            }
+                                                        </script>
+                                                        <form id="deleteDetailForm{{ $d->id }}" method="POST" style="display:none;"
+                                                            action="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}">
+                                                            @csrf
+                                                            @method('DELETE')
                                                         </form>
                                                     </div>
                                                 </details>
@@ -422,33 +478,35 @@
                 @endphp
 
 
-                <form method="POST" action="{{ route('penawaran.terms.add', $penawaran->id) }}" class="space-y-3">
-                    @csrf
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div class="md:col-span-1">
-                            <label class="block text-xs font-semibold mb-1">Parent (opsional)</label>
-                            <select name="parent_id"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                <option value="">Jadikan utama</option>
-                                @foreach ($termOptions as $opt)
-                                    <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                @if($canEdit)
+                    <form method="POST" action="{{ route('penawaran.terms.add', $penawaran->id) }}" class="space-y-3">
+                        @csrf
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div class="md:col-span-1">
+                                <label class="block text-xs font-semibold mb-1">Parent (opsional)</label>
+                                <select name="parent_id"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                    <option value="">Jadikan utama</option>
+                                    @foreach ($termOptions as $opt)
+                                        <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        <div class="md:col-span-3">
-                            <label class="block text-xs font-semibold mb-1">Isi</label>
-                            <div class="flex gap-2">
-                                <textarea name="isi" rows="2"
-                                    class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm" placeholder="Isi keterangan..."></textarea>
-                                <button
-                                    class="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                                    Tambah
-                                </button>
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-semibold mb-1">Isi</label>
+                                <div class="flex gap-2">
+                                    <textarea name="isi" rows="2"
+                                        class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm" placeholder="Isi keterangan..."></textarea>
+                                    <button
+                                        class="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                                        Tambah
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                @endif
 
                 <div class="mt-4 space-y-2">
                     @php
@@ -584,74 +642,92 @@
                 @php
                     $signature = $penawaran->signatures->first();
                 @endphp
-                <form method="POST" action="{{ route('penawaran.signatures.add', $penawaran->id) }}"
-                    enctype="multipart/form-data" class="space-y-3">
-                    @csrf
-                    <div>
-                        <label class="block text-xs font-semibold mb-1">Nama</label>
-                        <input name="nama" value="{{ old('nama', $signature->nama ?? '') }}"
-                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                            placeholder="Nama" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold mb-1">Jabatan</label>
-                        <input name="jabatan" value="{{ old('jabatan', $signature->jabatan ?? '') }}"
-                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                            placeholder="Jabatan">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
+                @if($canEdit)
+                    <form method="POST" action="{{ route('penawaran.signatures.add', $penawaran->id) }}"
+                        enctype="multipart/form-data" class="space-y-3">
+                        @csrf
                         <div>
-                            <label class="block text-xs font-semibold mb-1">Kota</label>
-                            <input name="kota" value="{{ old('kota', $signature->kota ?? 'Sleman') }}"
+                            <label class="block text-xs font-semibold mb-1">Nama</label>
+                            <input name="nama" value="{{ old('nama', $signature->nama ?? '') }}"
                                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                                placeholder="Kota">
+                                placeholder="Nama" required>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold mb-1">Tanggal</label>
-                            <input type="date" name="tanggal" 
-                                value="{{ old('tanggal', $signature->tanggal ?? now()->toDateString()) }}"
-                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            <label class="block text-xs font-semibold mb-1">Jabatan</label>
+                            <input name="jabatan" value="{{ old('jabatan', $signature->jabatan ?? '') }}"
+                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                                placeholder="Jabatan">
                         </div>
-                    </div>
-                    
-                    @if($signature && $signature->ttd_path)
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Kota</label>
+                                <input name="kota" value="{{ old('kota', $signature->kota ?? 'Sleman') }}"
+                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                                    placeholder="Kota">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Tanggal</label>
+                                <input type="date" name="tanggal" 
+                                    value="{{ old('tanggal', $signature->tanggal ?? now()->toDateString()) }}"
+                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        
+                        @if($signature && $signature->ttd_path)
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Tanda Tangan Saat Ini</label>
+                                <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD" 
+                                    class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50 mb-2">
+                            </div>
+                        @endif
+                        
                         <div>
-                            <label class="block text-xs font-semibold mb-1">Tanda Tangan Saat Ini</label>
-                            <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD" 
-                                class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50 mb-2">
+                            <label class="block text-xs font-semibold mb-1">
+                                {{ $signature && $signature->ttd_path ? 'Upload Tanda Tangan Baru (Opsional)' : 'Upload Tanda Tangan' }}
+                            </label>
+                            <input type="file" name="ttd" accept="image/*"
+                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                            <p class="text-xs text-slate-500 mt-1">Format: JPG, PNG. Maks: 2MB.</p>
                         </div>
-                    @endif
-                    
-                    <div>
-                        <label class="block text-xs font-semibold mb-1">
-                            {{ $signature && $signature->ttd_path ? 'Upload Tanda Tangan Baru (Opsional)' : 'Upload Tanda Tangan' }}
-                        </label>
-                        <input type="file" name="ttd" accept="image/*"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
-                        <p class="text-xs text-slate-500 mt-1">Format: JPG, PNG. Maks: 2MB.</p>
+                        
+                        <button
+                            class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                            {{ $signature ? 'Update' : 'Simpan' }} Tanda Tangan
+                        </button>
+                    </form>
+                @else
+                    <div class="text-sm text-slate-600">
+                        <p class="mb-2"><strong>Nama:</strong> {{ $signature->nama ?? '-' }}</p>
+                        <p class="mb-2"><strong>Jabatan:</strong> {{ $signature->jabatan ?? '-' }}</p>
+                        <p class="mb-2"><strong>Kota:</strong> {{ $signature->kota ?? '-' }}</p>
+                        <p class="mb-2"><strong>Tanggal:</strong> {{ $signature->tanggal ?? '-' }}</p>
+                        @if($signature && $signature->ttd_path)
+                            <div class="mt-3">
+                                <p class="font-semibold mb-1">Tanda Tangan:</p>
+                                <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD" 
+                                    class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                            </div>
+                        @endif
                     </div>
-                    
-                    <button
-                        class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                        {{ $signature ? 'Update' : 'Simpan' }} Tanda Tangan
-                    </button>
-                </form>
+                @endif
             </div>
 
 
 
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
                 <h2 class="font-semibold mb-3">Lampiran</h2>
-                <form method="POST" action="{{ route('penawaran.attachments.add', $penawaran->id) }}"
-                    enctype="multipart/form-data" class="space-y-2">
-                    @csrf
-                    <input name="judul" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                        placeholder="Judul (opsional)">
-                    <input type="file" name="file"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                    <button
-                        class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Upload</button>
-                </form>
+                @if($canEdit)
+                    <form method="POST" action="{{ route('penawaran.attachments.add', $penawaran->id) }}"
+                        enctype="multipart/form-data" class="space-y-2">
+                        @csrf
+                        <input name="judul" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                            placeholder="Judul (opsional)">
+                        <input type="file" name="file"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                        <button
+                            class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Upload</button>
+                    </form>
+                @endif
 
                 <div class="mt-3 space-y-2">
                     @foreach ($penawaran->attachments as $a)
@@ -660,14 +736,16 @@
                                 <div class="font-semibold truncate">{{ $a->judul ?? 'Lampiran' }}</div>
                                 <div class="text-xs text-slate-500 truncate">{{ $a->file_path }}</div>
                             </div>
-                            <form method="POST"
-                                action="{{ route('penawaran.attachments.delete', [$penawaran->id, $a->id]) }}"
-                                onsubmit="return confirm('Hapus lampiran?')">
-                                @csrf
-                                @method('DELETE')
-                                <button
-                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
-                            </form>
+                            @if($canEdit)
+                                <form method="POST"
+                                    action="{{ route('penawaran.attachments.delete', [$penawaran->id, $a->id]) }}"
+                                    onsubmit="return confirm('Hapus lampiran?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button
+                                        class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+                                </form>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -722,7 +800,129 @@
                 document.getElementById('approvalModal').classList.add('hidden');
             }
         }
+
+        // Toast Notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg font-semibold text-white transition-all duration-300 ${
+                type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            }`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Refresh page content without full reload
+        async function refreshContent() {
+            console.log('🔄 Refreshing page content...');
+            try {
+                const response = await fetch(window.location.href, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Find the main content container and replace it
+                const newContent = doc.querySelector('main') || doc.querySelector('.container') || doc.querySelector('[class*="max-w"]');
+                const currentContent = document.querySelector('main') || document.querySelector('.container') || document.querySelector('[class*="max-w"]');
+                
+                if (newContent && currentContent) {
+                    currentContent.innerHTML = newContent.innerHTML;
+                    console.log('✅ Content refreshed!');
+                } else {
+                    // Fallback: reload the whole page
+                    console.log('⚠️ Could not find content container, reloading...');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('❌ Error refreshing content:', error);
+                window.location.reload();
+            }
+        }
+
+        // AJAX Form Handler
+        async function handleAjaxSubmit(form) {
+            console.log('🚀 AJAX submit for:', form.action);
+            
+            const formData = new FormData(form);
+            const url = form.action;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                console.log('📥 Response:', data);
+
+                if (response.ok) {
+                    showToast(data.message || 'Berhasil!', 'success');
+                    form.reset();
+                    // Refresh content to show changes
+                    await refreshContent();
+                } else {
+                    showToast(data.message || 'Terjadi kesalahan', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Error:', error);
+                showToast('Terjadi kesalahan koneksi', 'error');
+            }
+        }
+
+        // Forms to EXCLUDE from AJAX (let them reload normally)
+        function shouldSkipAjax(formAction) {
+            if (!formAction) return true;
+            // Skip signatures - they need page reload
+            if (formAction.includes('signatures')) return true;
+            // Skip main penawaran destroy (the delete entire penawaran)
+            if (formAction.match(/\/penawaran\/\d+$/) && formAction.includes('destroy')) return true;
+            // Skip approval form
+            if (formAction.includes('approval')) return true;
+            return false;
+        }
+
+        // Global event delegation - catch ALL form submits
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            
+            if (form.tagName !== 'FORM') return;
+            
+            console.log('📋 Form submit detected:', form.action);
+            
+            // Skip forms that should reload
+            if (shouldSkipAjax(form.action)) {
+                console.log('⏭ Skipping AJAX for this form');
+                return; // Let it submit normally
+            }
+            
+            // All other forms use AJAX
+            console.log('✅ Using AJAX');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // For delete forms, confirm first
+            if (form.action.includes('delete') || form.action.includes('destroy')) {
+                if (!confirm('Hapus item ini?')) {
+                    return;
+                }
+            }
+            
+            handleAjaxSubmit(form);
+        }, true); // Use capture phase
+
+        console.log('✅ AJAX event delegation ready!');
     </script>
+
 
 
 @endsection

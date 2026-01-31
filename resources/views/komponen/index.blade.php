@@ -4,15 +4,17 @@
     <div class="w-full">
         <div class="flex items-center justify-between mb-3">
             <h1 class="text-xl font-bold">Komponen Produk</h1>
-            <button onclick="openCreateModal()"
-                class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
-                Tambah Komponen
-            </button>
+            <div class="flex gap-2">
+                <button onclick="openImportModal()"
+                    class="rounded-xl bg-white  border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold hover:bg-slate-200">
+                    Import CSV
+                </button>
+                <button onclick="openCreateModal()"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
+                    Tambah Komponen
+                </button>
+            </div>
         </div>
-
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
 
         <form method="GET" class="mb-4">
             <div class="flex gap-2">
@@ -22,10 +24,28 @@
             </div>
         </form>
 
+        <form id="bulkDeleteForm" action="{{ route('komponen.bulk-delete') }}" method="POST" class="mb-4">
+            @csrf
+            @method('DELETE')
+            <div id="bulkActions" class="hidden bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between">
+                <span class="text-sm font-semibold text-red-900">
+                    <span id="selectedCount">0</span> item dipilih
+                </span>
+                <button type="submit" onclick="return confirm('Hapus semua item yang dipilih?')"
+                    class="rounded-xl bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700">
+                    Hapus Terpilih
+                </button>
+            </div>
+        </form>
+
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-slate-50">
                     <tr>
+                        <th class="px-4 py-3 text-center w-12">
+                            <input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)"
+                                class="rounded border-slate-300">
+                        </th>
                         <th class="px-4 py-3 text-left">Kode</th>
                         <th class="px-4 py-3 text-left">Nama</th>
                         <th class="px-4 py-3 text-left">Satuan</th>
@@ -37,6 +57,10 @@
                 <tbody class="divide-y">
                     @forelse ($komponen as $k)
                         <tr>
+                            <td class="px-4 py-3 text-center">
+                                <input type="checkbox" name="ids[]" value="{{ $k->id }}" 
+                                    class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
+                            </td>
                             <td class="px-4 py-3">
                                 @if ($k->kode)
                                     <span class="px-2 py-1 bg-slate-100 rounded text-xs">{{ $k->kode }}</span>
@@ -72,7 +96,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
+                            <td colspan="7" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -80,6 +104,47 @@
         </div>
 
         <div class="mt-4">{{ $komponen->links() }}</div>
+    </div>
+
+    <div id="importModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        onclick="closeImportModal(event)">
+        <div class="bg-white w-full max-w-lg rounded-xl p-6" onclick="event.stopPropagation()">
+            <h2 class="text-lg font-semibold mb-4">Import Komponen dari CSV</h2>
+            <form action="{{ route('komponen.bulk-import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">File CSV</label>
+                        <input type="file" name="csv_file" accept=".csv" required
+                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                        <p class="text-xs text-slate-500 mt-1">
+                            Format CSV: nama, kode, satuan, harga<br>
+                            Contoh: "Datalogger BL-1100", "BL-1100", "Unit", "56,194,737"
+                        </p>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm">
+                        <p class="font-semibold text-blue-900 mb-1">📝 Catatan:</p>
+                        <ul class="text-blue-800 space-y-1 text-xs list-disc pl-4">
+                            <li>File CSV harus memiliki header di baris pertama</li>
+                            <li>Harga bisa pakai pemisah ribuan (koma)</li>
+                            <li>Komponen dengan kode yang sama akan diupdate</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeImportModal()"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-sm">
+                        Batal
+                    </button>
+                    <button type="submit" class="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm">
+                        Upload & Import
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="createModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
@@ -174,6 +239,9 @@
         function openCreateModal() { document.getElementById('createModal').classList.remove('hidden'); }
         function closeCreateModal(e) { if (!e || e.target.id === 'createModal') document.getElementById('createModal').classList.add('hidden'); }
 
+        function openImportModal() { document.getElementById('importModal').classList.remove('hidden'); }
+        function closeImportModal(e) { if (!e || e.target.id === 'importModal') document.getElementById('importModal').classList.add('hidden'); }
+
         function openEditModal(btn) {
             document.getElementById('editModal').classList.remove('hidden');
             document.getElementById('edit_kode').value = btn.dataset.kode || '';
@@ -181,7 +249,7 @@
             document.getElementById('edit_spesifikasi').value = btn.dataset.spesifikasi || '';
             document.getElementById('edit_satuan').value = btn.dataset.satuan || '';
             
-            // Handle Price
+           
             const harga = btn.dataset.harga;
             document.getElementById('edit_harga').value = harga;
             document.getElementById('edit_display_harga').value = formatRupiah(harga);
@@ -190,12 +258,11 @@
             document.getElementById('editForm').action = `{{ url('/komponen') }}/${btn.dataset.id}`;
         }
         function closeEditModal(e) { if (!e || e.target.id === 'editModal') document.getElementById('editModal').classList.add('hidden'); }
-
-        // Currency Helper
+      
         function handlePriceInput(input, targetId) {
-            let value = input.value.replace(/\D/g, ''); // Remove non-digits
-            document.getElementById(targetId).value = value; // Set raw value to hidden input
-            input.value = formatRupiah(value); // Format display input
+            let value = input.value.replace(/\D/g, '');
+            document.getElementById(targetId).value = value;
+            input.value = formatRupiah(value);
         }
 
         function formatRupiah(angka) {
@@ -214,6 +281,32 @@
 
             rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
             return rupiah;
+        }
+
+       
+        function toggleCheckAll(checkbox) {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+            const count = checkboxes.length;
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            const checkAll = document.getElementById('checkAll');
+            
+            selectedCount.textContent = count;
+            
+            if (count > 0) {
+                bulkActions.classList.remove('hidden');
+            } else {
+                bulkActions.classList.add('hidden');
+            }
+           
+            const allCheckboxes = document.querySelectorAll('.item-checkbox');
+            checkAll.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
         }
     </script>
 @endsection
