@@ -194,7 +194,6 @@
 
                                             <select name="langkah[${stepCount}][harus_semua]"
                                                 class="border border-slate-300 rounded-lg p-2">
-                                                <option value="0">Satu saja cukup</option>
                                                 <option value="1">Semua harus setuju</option>
                                             </select>
                                         </div>
@@ -264,7 +263,6 @@
                                             </select>
 
                                             <select name="steps[${index}][harus_semua]" class="border border-slate-300 rounded-lg p-2 col-span-2">
-                                                <option value="0">Satu saja cukup</option>
                                                 <option value="1">Semua harus setuju</option>
                                             </select>
                                         </div>
