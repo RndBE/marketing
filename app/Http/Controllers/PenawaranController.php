@@ -455,6 +455,7 @@ class PenawaranController extends Controller
 
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
+            'qty' => ['required', 'numeric', 'min:0.01'],
         ]);
 
         if ($item->tipe !== 'bundle') {
@@ -463,8 +464,10 @@ class PenawaranController extends Controller
 
         $item->update([
             'judul' => $payload['judul'],
+            'qty' => (float) $payload['qty'],
         ]);
 
+        $this->recalcItemSubtotal($item);
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return response()->json(['message' => 'Nama bundle berhasil diupdate']);
@@ -480,6 +483,34 @@ class PenawaranController extends Controller
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return response()->json(['message' => 'Item berhasil dihapus']);
+    }
+
+    public function reorderItems(Request $request, Penawaran $penawaran)
+    {
+        $payload = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $ids = $payload['ids'];
+        $count = PenawaranItem::where('penawaran_id', $penawaran->id)
+            ->whereIn('id', $ids)
+            ->count();
+
+        if ($count !== count($ids)) {
+            return response()->json(['message' => 'Data item tidak valid.'], 422);
+        }
+
+        $n = 1;
+        foreach ($ids as $id) {
+            PenawaranItem::where('penawaran_id', $penawaran->id)
+                ->where('id', $id)
+                ->update(['urutan' => $n++]);
+        }
+
+        $penawaran->update(['date_updated' => now()->timestamp]);
+
+        return response()->json(['message' => 'Urutan item diperbarui']);
     }
 
     public function addItemDetail(Request $request, Penawaran $penawaran, PenawaranItem $item)
@@ -580,6 +611,39 @@ class PenawaranController extends Controller
         });
     }
 
+    public function reorderItemDetails(Request $request, Penawaran $penawaran, PenawaranItem $item)
+    {
+        if ((int) $item->penawaran_id !== (int) $penawaran->id) {
+            abort(404);
+        }
+
+        $payload = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $ids = $payload['ids'];
+        $count = PenawaranItemDetail::where('penawaran_item_id', $item->id)
+            ->whereIn('id', $ids)
+            ->count();
+
+        if ($count !== count($ids)) {
+            return response()->json(['message' => 'Data detail tidak valid.'], 422);
+        }
+
+        $n = 1;
+        foreach ($ids as $id) {
+            PenawaranItemDetail::where('penawaran_item_id', $item->id)
+                ->where('id', $id)
+                ->update(['urutan' => $n++]);
+        }
+
+        $this->recalcItemSubtotal($item);
+        $penawaran->update(['date_updated' => now()->timestamp]);
+
+        return response()->json(['message' => 'Urutan rincian diperbarui']);
+    }
+
     public function addTerm(Request $request, Penawaran $penawaran)
     {
         $payload = $request->validate([
@@ -642,6 +706,45 @@ class PenawaranController extends Controller
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return response()->json(['message' => 'Keterangan berhasil diupdate']);
+    }
+
+    public function reorderTerms(Request $request, Penawaran $penawaran)
+    {
+        $payload = $request->validate([
+            'parent_id' => ['nullable', 'integer'],
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $parentId = $payload['parent_id'] ?? null;
+        $ids = $payload['ids'];
+
+        $terms = PenawaranTerm::query()
+            ->where('penawaran_id', $penawaran->id)
+            ->whereIn('id', $ids)
+            ->get(['id', 'parent_id']);
+
+        if ($terms->count() !== count($ids)) {
+            return response()->json(['message' => 'Data term tidak valid.'], 422);
+        }
+
+        foreach ($terms as $t) {
+            $p = $t->parent_id ? (int) $t->parent_id : null;
+            if ($p !== ($parentId ? (int) $parentId : null)) {
+                return response()->json(['message' => 'Term harus dalam parent yang sama.'], 422);
+            }
+        }
+
+        $n = 1;
+        foreach ($ids as $id) {
+            PenawaranTerm::where('penawaran_id', $penawaran->id)
+                ->where('id', $id)
+                ->update(['urutan' => $n++]);
+        }
+
+        $penawaran->update(['date_updated' => now()->timestamp]);
+
+        return response()->json(['message' => 'Urutan keterangan diperbarui']);
     }
 
 

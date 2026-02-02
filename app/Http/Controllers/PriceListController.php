@@ -239,6 +239,32 @@ class PriceListController extends Controller
         return $request->header('X-Requested-With') === 'XMLHttpRequest' || $request->expectsJson();
     }
 
+    public function reorderDetail(Request $request, Product $product)
+    {
+        $payload = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $ids = $payload['ids'];
+        $count = ProductDetail::where('product_id', $product->id)
+            ->whereIn('id', $ids)
+            ->count();
+
+        if ($count !== count($ids)) {
+            return response()->json(['message' => 'Data detail tidak valid.'], 422);
+        }
+
+        $n = 1;
+        foreach ($ids as $id) {
+            ProductDetail::where('product_id', $product->id)
+                ->where('id', $id)
+                ->update(['urutan' => $n++]);
+        }
+
+        return response()->json(['message' => 'Urutan rincian diperbarui']);
+    }
+
     public function bulkImport(Request $request)
     {
         $request->validate([

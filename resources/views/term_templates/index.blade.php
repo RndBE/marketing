@@ -62,7 +62,7 @@
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
                 <div class="font-semibold mb-3">Daftar (Tree)</div>
 
-                <div class="space-y-2">
+                <div class="space-y-2 term-template-list" data-parent-id="">
                     @forelse ($roots as $t)
                         @include('term_templates.partials.node', [
                             't' => $t,
@@ -76,4 +76,83 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function getCsrfToken() {
+            const input = document.querySelector('input[name="_token"]');
+            return input ? input.value : '';
+        }
+
+        async function saveTemplateOrder(listEl) {
+            const parentId = listEl.dataset.parentId || '';
+            const ids = Array.from(listEl.querySelectorAll(':scope > .term-template-node'))
+                .map(el => parseInt(el.dataset.templateId, 10))
+                .filter(Boolean);
+            if (!ids.length) return;
+
+            const payload = {
+                parent_id: parentId === '' ? null : parseInt(parentId, 10),
+                ids
+            };
+
+            try {
+                const res = await fetch('{{ route("term_templates.reorder") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    alert(data.message || 'Gagal memperbarui urutan');
+                }
+            } catch (e) {
+                console.error('Reorder error:', e);
+                alert('Terjadi kesalahan koneksi');
+            }
+        }
+
+        function initTemplateDragDrop(root = document) {
+            root.querySelectorAll('.term-template-node').forEach(node => {
+                node.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', node.dataset.templateId || '');
+                    node.classList.add('opacity-50');
+                });
+                node.addEventListener('dragend', () => {
+                    node.classList.remove('opacity-50');
+                });
+            });
+
+            root.querySelectorAll('.term-template-list').forEach(list => {
+                list.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const dragging = root.querySelector('.term-template-node.opacity-50');
+                    if (!dragging) return;
+                    const after = Array.from(list.querySelectorAll(':scope > .term-template-node'))
+                        .find(el => {
+                            const rect = el.getBoundingClientRect();
+                            return e.clientY < rect.top + rect.height / 2;
+                        });
+                    if (after) {
+                        list.insertBefore(dragging, after);
+                    } else {
+                        list.appendChild(dragging);
+                    }
+                });
+                list.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    await saveTemplateOrder(list);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTemplateDragDrop();
+        });
+    </script>
 @endsection

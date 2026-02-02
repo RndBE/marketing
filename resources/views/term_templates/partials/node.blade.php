@@ -3,7 +3,7 @@
     $indent = $level * 18;
 @endphp
 
-<div class="rounded-2xl border border-slate-200 px-4 py-2">
+<div class="rounded-2xl border border-slate-200 px-4 py-2 term-template-node" draggable="true" data-template-id="{{ $t->id }}">
     <div class="flex items-start justify-between ">
         <div class="min-w-0">
             <div class="text-sm text-slate-700">
@@ -35,8 +35,8 @@
         </div>
     </div>
 
-    @if ($children->count())
-        <div class="mt-2 space-y-2">
+    <div class="mt-2 space-y-2 term-template-list" data-parent-id="{{ $t->id }}">
+        @if ($children->count())
             @foreach ($children->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $c)
                 @include('term_templates.partials.node', [
                     't' => $c,
@@ -44,6 +44,6 @@
                     'level' => $level + 1,
                 ])
             @endforeach
-        </div>
-    @endif
+        @endif
+    </div>
 </div>

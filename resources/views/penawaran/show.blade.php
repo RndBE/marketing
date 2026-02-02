@@ -48,11 +48,13 @@
                 </div>
             @endif
 
-            <div class="text-sm font-semibold text-slate-700 mt-3">
-                Total Penawaran sebelum pajak dan diskon : Rp {{ number_format((int) $total, 0, ',', '.') }}
-            </div>
-            <div class="text-sm font-semibold text-slate-700">
-                Total Penawaran setelah pajak dan diskon : Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}
+            <div id="penawaran-totals">
+                <div class="text-sm font-semibold text-slate-700 mt-3">
+                    Total Penawaran sebelum pajak dan diskon : Rp {{ number_format((int) $total, 0, ',', '.') }}
+                </div>
+                <div class="text-sm font-semibold text-slate-700">
+                    Total Penawaran setelah pajak dan diskon : Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}
+                </div>
             </div>
         </div>
 
@@ -232,7 +234,8 @@
 
             <div class="space-y-4" id="items-wrap">
                 @forelse($penawaran->items as $item)
-                    <div class="rounded-2xl border border-slate-200 bg-white px-5 pb-4 pt-3">
+                    <div class="rounded-2xl border border-slate-200 bg-white px-5 pb-4 pt-3 penawaran-item" draggable="true"
+                        data-item-id="{{ $item->id }}">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-lg font-semibold">{{ $item->judul }}</div>
@@ -282,6 +285,13 @@
                                                 <label class="block text-xs font-semibold">Nama Bundle</label>
                                                 <input name="judul" value="{{ $item->judul }}"
                                                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                <div class="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label class="block text-xs font-semibold mb-1">Qty</label>
+                                                        <input name="qty" value="{{ $item->qty ?? 1 }}" inputmode="decimal"
+                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                    </div>
+                                                </div>
                                                 <div class="flex justify-end">
                                                     <button type="submit"
                                                         class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
@@ -314,9 +324,10 @@
                                         <th class="px-3 py-2 text-right font-semibold">Aksi</th>
                                     </tr>
                                 </thead>
-                                <tbody class="border border-slate-200 divide-y divide-slate-100">
+                                <tbody class="border border-slate-200 divide-y divide-slate-100 detail-sortable"
+                                    data-item-id="{{ $item->id }}">
                                     @forelse($item->details as $d)
-                                        <tr>
+                                        <tr class="detail-row" draggable="true" data-detail-id="{{ $d->id }}">
                                             <td class="px-3 py-2">{{ $d->urutan }}</td>
                                             <td class="px-3 py-2">
                                                 <div class="font-semibold">{{ $d->nama }}</div>
@@ -513,7 +524,7 @@
                     </form>
                 @endif
 
-                <div class="mt-4 space-y-2">
+                <div class="mt-4 space-y-2 term-list" data-parent-id="">
                     @php
                         $termsByParent = $penawaran->terms->groupBy('parent_id');
                         $roots = $termsByParent[null] ?? collect();
@@ -843,6 +854,7 @@
                 if (newContent && currentContent) {
                     currentContent.innerHTML = newContent.innerHTML;
                     console.log('✅ Content refreshed!');
+                    initDetailDragDrop(currentContent);
                 } else {
                     // Fallback: reload the whole page
                     console.log('⚠️ Could not find content container, reloading...');
@@ -869,13 +881,24 @@
 
                 const newItems = doc.querySelector('#items-wrap');
                 const currentItems = document.querySelector('#items-wrap');
+                const newTotals = doc.querySelector('#penawaran-totals');
+                const currentTotals = document.querySelector('#penawaran-totals');
 
                 if (newItems && currentItems) {
                     currentItems.innerHTML = newItems.innerHTML;
                     console.log('✅ Items refreshed!');
                     initKomponenPickers(currentItems);
                     initRupiahInputs(currentItems);
-                } else {
+                    initTermDragDrop(currentItems);
+                    initItemDragDrop(currentItems);
+                    initDetailDragDrop(currentItems);
+                }
+
+                if (newTotals && currentTotals) {
+                    currentTotals.innerHTML = newTotals.innerHTML;
+                }
+
+                if (!newItems || !currentItems) {
                     console.log('⚠️ Items container not found, fallback to full refresh...');
                     await refreshContent();
                 }
@@ -972,6 +995,216 @@
             method.value = 'DELETE';
             form.appendChild(method);
             handleAjaxSubmit(form);
+        }
+
+        async function saveTermOrder(listEl) {
+            const parentId = listEl.dataset.parentId || '';
+            const ids = Array.from(listEl.querySelectorAll(':scope > .term-node'))
+                .map(el => parseInt(el.dataset.termId, 10))
+                .filter(Boolean);
+            if (!ids.length) return;
+
+            const payload = {
+                parent_id: parentId === '' ? null : parseInt(parentId, 10),
+                ids
+            };
+
+            try {
+                const res = await fetch('{{ route("penawaran.terms.reorder", $penawaran->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showToast(data.message || 'Gagal memperbarui urutan', 'error');
+                }
+            } catch (e) {
+                console.error('Reorder error:', e);
+                showToast('Terjadi kesalahan koneksi', 'error');
+            }
+        }
+
+        async function saveItemOrder() {
+            const wrap = document.getElementById('items-wrap');
+            if (!wrap) return;
+            const ids = Array.from(wrap.querySelectorAll(':scope > .penawaran-item'))
+                .map(el => parseInt(el.dataset.itemId, 10))
+                .filter(Boolean);
+            if (!ids.length) return;
+
+            try {
+                const res = await fetch('{{ route("penawaran.items.reorder", $penawaran->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showToast(data.message || 'Gagal memperbarui urutan', 'error');
+                }
+            } catch (e) {
+                console.error('Reorder item error:', e);
+                showToast('Terjadi kesalahan koneksi', 'error');
+            }
+        }
+
+        async function saveDetailOrder(listEl) {
+            const itemId = listEl.dataset.itemId;
+            if (!itemId) return;
+            const ids = Array.from(listEl.querySelectorAll(':scope > .detail-row'))
+                .map(el => parseInt(el.dataset.detailId, 10))
+                .filter(Boolean);
+            if (!ids.length) return;
+
+            try {
+                const res = await fetch(`{{ url('/penawaran') }}/{{ $penawaran->id }}/items/${itemId}/details/reorder`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showToast(data.message || 'Gagal memperbarui urutan rincian', 'error');
+                } else {
+                    await refreshItems();
+                }
+            } catch (e) {
+                console.error('Reorder detail error:', e);
+                showToast('Terjadi kesalahan koneksi', 'error');
+            }
+        }
+
+        function initDetailDragDrop(root = document) {
+            const isInteractive = (target) => !!target.closest('input, textarea, select, button, a, label, summary, details');
+            root.querySelectorAll('.detail-row').forEach(row => {
+                row.addEventListener('dragstart', (e) => {
+                    if (isInteractive(e.target)) {
+                        e.preventDefault();
+                        return;
+                    }
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', row.dataset.detailId || '');
+                    row.classList.add('opacity-50');
+                });
+                row.addEventListener('dragend', () => {
+                    row.classList.remove('opacity-50');
+                });
+            });
+
+            root.querySelectorAll('.detail-sortable').forEach(list => {
+                list.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const dragging = list.querySelector('.detail-row.opacity-50');
+                    if (!dragging) return;
+                    const after = Array.from(list.querySelectorAll(':scope > .detail-row'))
+                        .find(el => {
+                            const rect = el.getBoundingClientRect();
+                            return e.clientY < rect.top + rect.height / 2;
+                        });
+                    if (after) {
+                        list.insertBefore(dragging, after);
+                    } else {
+                        list.appendChild(dragging);
+                    }
+                });
+                list.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    await saveDetailOrder(list);
+                });
+            });
+        }
+
+        function initItemDragDrop(root = document) {
+            const isInteractive = (target) => !!target.closest('input, textarea, select, button, a, label, summary, details');
+            const wrap = root.querySelector('#items-wrap');
+            if (!wrap) return;
+
+            wrap.querySelectorAll('.penawaran-item').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    if (isInteractive(e.target)) {
+                        e.preventDefault();
+                        return;
+                    }
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', item.dataset.itemId || '');
+                    item.classList.add('opacity-50');
+                });
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('opacity-50');
+                });
+            });
+
+            wrap.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dragging = wrap.querySelector('.penawaran-item.opacity-50');
+                if (!dragging) return;
+                const after = Array.from(wrap.querySelectorAll(':scope > .penawaran-item'))
+                    .find(el => {
+                        const rect = el.getBoundingClientRect();
+                        return e.clientY < rect.top + rect.height / 2;
+                    });
+                if (after) {
+                    wrap.insertBefore(dragging, after);
+                } else {
+                    wrap.appendChild(dragging);
+                }
+            });
+
+            wrap.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                await saveItemOrder();
+            });
+        }
+
+        function initTermDragDrop(root = document) {
+            root.querySelectorAll('.term-node').forEach(node => {
+                node.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', node.dataset.termId || '');
+                    node.classList.add('opacity-50');
+                });
+                node.addEventListener('dragend', () => {
+                    node.classList.remove('opacity-50');
+                });
+            });
+
+            root.querySelectorAll('.term-list').forEach(list => {
+                list.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const dragging = root.querySelector('.term-node.opacity-50');
+                    if (!dragging) return;
+                    const after = Array.from(list.querySelectorAll(':scope > .term-node'))
+                        .find(el => {
+                            const rect = el.getBoundingClientRect();
+                            return e.clientY < rect.top + rect.height / 2;
+                        });
+                    if (after) {
+                        list.insertBefore(dragging, after);
+                    } else {
+                        list.appendChild(dragging);
+                    }
+                });
+                list.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    await saveTermOrder(list);
+                });
+            });
         }
 
         document.addEventListener('click', function(e) {
@@ -1147,6 +1380,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             initKomponenPickers();
             initRupiahInputs();
+            initTermDragDrop();
+            initItemDragDrop();
+            initDetailDragDrop();
         });
 
         // Re-init after AJAX refresh
@@ -1155,6 +1391,9 @@
             await originalRefreshContent();
             initKomponenPickers();
             initRupiahInputs();
+            initTermDragDrop();
+            initItemDragDrop();
+            initDetailDragDrop();
         };
     </script>
 

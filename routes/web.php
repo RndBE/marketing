@@ -45,15 +45,18 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{penawaran}', [PenawaranController::class, 'update'])->name('update');
             Route::post('/{penawaran}/cover', [PenawaranController::class, 'upsertCover'])->name('cover.upsert');
             Route::post('/{penawaran}/validity', [PenawaranController::class, 'upsertValidity'])->name('validity.upsert');
-        Route::post('/{penawaran}/items/bundle', [PenawaranController::class, 'addBundle'])->name('items.bundle');
-        Route::post('/{penawaran}/items/custom', [PenawaranController::class, 'addCustomItem'])->name('items.custom');
-        Route::put('/{penawaran}/items/{item}', [PenawaranController::class, 'updateItem'])->name('items.update');
-        Route::delete('/{penawaran}/items/{item}', [PenawaranController::class, 'deleteItem'])->name('items.delete');
+            Route::post('/{penawaran}/items/bundle', [PenawaranController::class, 'addBundle'])->name('items.bundle');
+            Route::post('/{penawaran}/items/custom', [PenawaranController::class, 'addCustomItem'])->name('items.custom');
+            Route::put('/{penawaran}/items/{item}', [PenawaranController::class, 'updateItem'])->name('items.update');
+            Route::post('/{penawaran}/items/reorder', [PenawaranController::class, 'reorderItems'])->name('items.reorder');
+            Route::delete('/{penawaran}/items/{item}', [PenawaranController::class, 'deleteItem'])->name('items.delete');
             Route::post('/{penawaran}/items/{item}/details', [PenawaranController::class, 'addItemDetail'])->name('item_details.add');
             Route::put('/{penawaran}/items/{item}/details/{detail}', [PenawaranController::class, 'updateItemDetail'])->name('item_details.update');
+            Route::post('/{penawaran}/items/{item}/details/reorder', [PenawaranController::class, 'reorderItemDetails'])->name('item_details.reorder');
             Route::delete('/{penawaran}/items/{item}/details/{detail}', [PenawaranController::class, 'deleteItemDetail'])->name('item_details.delete');
             Route::post('/{penawaran}/terms', [PenawaranController::class, 'addTerm'])->name('terms.add');
             Route::put('/{penawaran}/terms/{term}', [PenawaranController::class, 'updateTerm'])->name('terms.update');
+            Route::post('/{penawaran}/terms/reorder', [PenawaranController::class, 'reorderTerms'])->name('terms.reorder');
             Route::delete('/{penawaran}/terms/{term}', [PenawaranController::class, 'deleteTerm'])->name('terms.delete');
             Route::post('/{penawaran}/signatures', [PenawaranController::class, 'addSignature'])->name('signatures.add');
             Route::delete('/{penawaran}/signatures/{signature}', [PenawaranController::class, 'deleteSignature'])->name('signatures.delete');
@@ -106,6 +109,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{product}/details', [PriceListController::class, 'addDetail'])->name('details.add');
         Route::put('/{product}/details/{detail}', [PriceListController::class, 'updateDetail'])->name('details.update');
         Route::delete('/{product}/details/{detail}', [PriceListController::class, 'deleteDetail'])->name('details.delete');
+        Route::post('/{product}/details/reorder', [PriceListController::class, 'reorderDetail'])->name('details.reorder');
         Route::post('/{product}/duplicate', [PriceListController::class, 'duplicate'])->name('duplicate');
         Route::get('/{product}/details/partial', [PriceListController::class, 'detailsPartial'])->name('details.partial');
     });
@@ -135,6 +139,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [PenawaranTermTemplateController::class, 'store'])->name('store');
         Route::get('/{template}/edit', [PenawaranTermTemplateController::class, 'edit'])->name('edit');
         Route::put('/{template}', [PenawaranTermTemplateController::class, 'update'])->name('update');
+        Route::post('/reorder', [PenawaranTermTemplateController::class, 'reorder'])->name('reorder');
         Route::delete('/{template}', [PenawaranTermTemplateController::class, 'destroy'])->name('destroy');
     });
 

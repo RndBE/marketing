@@ -32,7 +32,7 @@
             </tr>
         </thead>
 
-        <tbody class="border border-slate-200 divide-y divide-slate-100">
+        <tbody class="border border-slate-200 divide-y divide-slate-100" id="detail-sortable">
             @forelse($product->details as $d)
                 @php
                     $rowSub = (int) ($d->subtotal ?? 0);
@@ -41,7 +41,7 @@
                     }
                 @endphp
 
-                <tr>
+                <tr class="detail-row" draggable="true" data-detail-id="{{ $d->id }}">
                     <td class="px-3 py-2">{{ $d->urutan }}</td>
 
                     <td class="px-3 py-2">

@@ -145,6 +145,68 @@
                 })
             }
 
+            async function saveDetailOrder() {
+                const tbody = document.getElementById('detail-sortable')
+                if (!tbody) return
+                const ids = Array.from(tbody.querySelectorAll(':scope > .detail-row'))
+                    .map(row => parseInt(row.dataset.detailId, 10))
+                    .filter(Boolean)
+                if (!ids.length) return
+
+                const res = await fetch('{{ route("price_list.details.reorder", $product->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    body: JSON.stringify({ ids })
+                })
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}))
+                    alert(data.message || 'Gagal memperbarui urutan')
+                }
+            }
+
+            function initDetailDragDrop() {
+                const tbody = document.getElementById('detail-sortable')
+                if (!tbody) return
+
+                tbody.querySelectorAll('.detail-row').forEach(row => {
+                    row.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', row.dataset.detailId || '')
+                        row.classList.add('opacity-50')
+                    })
+                    row.addEventListener('dragend', () => {
+                        row.classList.remove('opacity-50')
+                    })
+                })
+
+                tbody.addEventListener('dragover', (e) => {
+                    e.preventDefault()
+                    const dragging = tbody.querySelector('.detail-row.opacity-50')
+                    if (!dragging) return
+                    const after = Array.from(tbody.querySelectorAll('.detail-row'))
+                        .find(el => {
+                            const rect = el.getBoundingClientRect()
+                            return e.clientY < rect.top + rect.height / 2
+                        })
+                    if (after) {
+                        tbody.insertBefore(dragging, after)
+                    } else {
+                        tbody.appendChild(dragging)
+                    }
+                })
+
+                tbody.addEventListener('drop', async (e) => {
+                    e.preventDefault()
+                    await saveDetailOrder()
+                })
+            }
+
             // Load komponen list on page load
             async function loadKomponen() {
                 try {
@@ -244,6 +306,7 @@
                 searchInput.value = ''
                 hiddenSelect.value = ''
                 initRupiahInputs(form)
+                initDetailDragDrop()
             })
 
             document.addEventListener('submit', async (e) => {
@@ -275,9 +338,11 @@
                 const html = await res.text()
                 document.getElementById('details-wrap').innerHTML = html
                 initRupiahInputs(document.getElementById('details-wrap'))
+                initDetailDragDrop()
             })
 
             initRupiahInputs()
+            initDetailDragDrop()
         </script>
 
 

@@ -141,4 +141,38 @@ class PenawaranTermTemplateController extends Controller
         $template->delete();
         return redirect()->route('term_templates.index');
     }
+
+    public function reorder(Request $request)
+    {
+        $payload = $request->validate([
+            'parent_id' => ['nullable', 'integer'],
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $parentId = $payload['parent_id'] ?? null;
+        $ids = $payload['ids'];
+
+        $terms = PenawaranTermTemplate::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'parent_id']);
+
+        if ($terms->count() !== count($ids)) {
+            return response()->json(['message' => 'Data template tidak valid.'], 422);
+        }
+
+        foreach ($terms as $t) {
+            $p = $t->parent_id ? (int) $t->parent_id : null;
+            if ($p !== ($parentId ? (int) $parentId : null)) {
+                return response()->json(['message' => 'Template harus dalam parent yang sama.'], 422);
+            }
+        }
+
+        $n = 1;
+        foreach ($ids as $id) {
+            PenawaranTermTemplate::where('id', $id)->update(['urutan' => $n++]);
+        }
+
+        return response()->json(['message' => 'Urutan template diperbarui']);
+    }
 }
