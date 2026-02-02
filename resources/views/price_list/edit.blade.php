@@ -30,13 +30,12 @@
 
             <div>
                 <label class="block text-xs font-semibold mb-1">Deskripsi</label>
-                <textarea name="deskripsi" rows="4"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{{ $product->deskripsi }}</textarea>
+                <textarea name="deskripsi" rows="4" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{{ $product->deskripsi }}</textarea>
             </div>
 
             <div class="flex items-center gap-2">
-                <input id="is_active" type="checkbox" name="is_active" value="1" {{ $product->is_active ? 'checked' : '' }}
-                    class="rounded border-slate-300">
+                <input id="is_active" type="checkbox" name="is_active" value="1"
+                    {{ $product->is_active ? 'checked' : '' }} class="rounded border-slate-300">
                 <label for="is_active" class="text-sm">Aktif</label>
             </div>
 
@@ -92,7 +91,8 @@
                     </div>
                     <div class="md:col-span-2">
                         <input name="harga" id="detail-harga" value="0" inputmode="numeric"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm rupiah-input"
+                            required>
                     </div>
 
                     <div class="md:col-span-10 flex justify-end">
@@ -118,10 +118,37 @@
             const dropdown = document.getElementById('komponen-dropdown')
             const hiddenSelect = document.getElementById('komponen-select')
 
+            function formatRupiahDigits(digits) {
+                if (!digits) return ''
+                return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+            }
+
+            function bindRupiahInput(input) {
+                if (!input || input.dataset.rupiahBound) return
+                input.dataset.rupiahBound = '1'
+                input.addEventListener('input', () => {
+                    const digits = input.value.replace(/\D/g, '')
+                    input.value = formatRupiahDigits(digits)
+                })
+                const initial = input.value.replace(/\D/g, '')
+                input.value = formatRupiahDigits(initial)
+            }
+
+            function initRupiahInputs(root = document) {
+                root.querySelectorAll('input.rupiah-input').forEach(bindRupiahInput)
+            }
+
+            function normalizeRupiahInputs(form) {
+                if (!form) return
+                form.querySelectorAll('input.rupiah-input').forEach(input => {
+                    input.value = input.value.replace(/\D/g, '')
+                })
+            }
+
             // Load komponen list on page load
             async function loadKomponen() {
                 try {
-                    const res = await fetch('{{ route("api.komponen.list") }}')
+                    const res = await fetch('{{ route('api.komponen.list') }}')
                     if (res.ok) {
                         komponenData = await res.json()
                     }
@@ -157,7 +184,8 @@
                 document.getElementById('detail-nama').value = k.nama || ''
                 document.getElementById('detail-spesifikasi').value = k.spesifikasi || ''
                 document.getElementById('detail-satuan').value = k.satuan || ''
-                document.getElementById('detail-harga').value = k.harga || 0
+                const hargaDigits = String(k.harga || 0).replace(/\D/g, '')
+                document.getElementById('detail-harga').value = formatRupiahDigits(hargaDigits)
             }
 
             // Search input events
@@ -193,6 +221,7 @@
                 e.preventDefault()
                 const form = e.currentTarget
                 const url = form.getAttribute('action')
+                normalizeRupiahInputs(form)
                 const fd = new FormData(form)
 
                 const res = await fetch(url, {
@@ -214,6 +243,7 @@
                 document.getElementById('detail-harga').value = '0'
                 searchInput.value = ''
                 hiddenSelect.value = ''
+                initRupiahInputs(form)
             })
 
             document.addEventListener('submit', async (e) => {
@@ -227,6 +257,7 @@
 
                 const url = form.getAttribute('action')
                 const m = (form.getAttribute('data-method') || 'POST').toUpperCase()
+                normalizeRupiahInputs(form)
                 const fd = new FormData(form)
                 if (m !== 'POST') fd.append('_method', m)
 
@@ -243,7 +274,10 @@
 
                 const html = await res.text()
                 document.getElementById('details-wrap').innerHTML = html
+                initRupiahInputs(document.getElementById('details-wrap'))
             })
+
+            initRupiahInputs()
         </script>
 
 

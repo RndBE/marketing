@@ -42,7 +42,7 @@
             <h1 class="text-xl font-semibold">{{ $docNo }}</h1>
             <div class="text-sm text-slate-600 mt-1">{{ $penawaran->judul ?? '-' }}</div>
 
-            @if($penawaran->usulan)
+            @if ($penawaran->usulan)
                 <div class="text-sm text-slate-600 mt-1">
                     <span class="font-medium">Diusulkan oleh:</span> {{ $penawaran->usulan->creator->name ?? '-' }}
                 </div>
@@ -63,7 +63,7 @@
 
                 $akses = $stepAktif->akses_approve ?? [];
                 $m = $approval->module ?? '';
-                
+
                 // Check if user can edit: superadmin OR creator of penawaran
                 $canEdit = auth()->user()->roles->contains('slug', 'admin') || $penawaran->id_user === auth()->id();
             @endphp
@@ -87,8 +87,8 @@
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
-            
-            @if($canEdit)
+
+            @if ($canEdit)
                 <a href="{{ route('penawaran.edit', $penawaran->id) }}"
                     class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Edit</a>
                 <form method="POST" action="{{ route('penawaran.destroy', $penawaran->id) }}"
@@ -112,28 +112,29 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 space-y-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 relative">
-                @if($canEdit)
+                @if ($canEdit)
                     <input id="toggle_bundle" type="checkbox"
                         class="peer absolute left-5 top-6 h-4 w-4 rounded border-slate-300 accent-slate-900">
                 @endif
 
                 <div class="flex items-center justify-between gap-3 {{ $canEdit ? 'pl-7' : '' }}">
                     <div class="flex items-center gap-3">
-                        @if($canEdit)
+                        @if ($canEdit)
                             <label for="toggle_bundle" class="cursor-pointer text-sm font-semibold select-none">
                                 Tambah Bundle
                             </label>
                             <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
                         @else
                             <div class="text-sm font-semibold">Tambah Bundle</div>
-                            <div class="text-xs text-slate-500 hidden md:block">Hanya pembuat penawaran dan superadmin yang dapat menambah item</div>
+                            <div class="text-xs text-slate-500 hidden md:block">Hanya pembuat penawaran dan superadmin yang
+                                dapat menambah item</div>
                         @endif
                     </div>
 
 
                 </div>
 
-                @if($canEdit)
+                @if ($canEdit)
                     <div class="mt-4 hidden peer-checked:block">
                         <form method="POST" action="{{ route('penawaran.items.bundle', $penawaran->id) }}"
                             class="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -185,51 +186,51 @@
 
 
             <div class="rounded-2xl border border-slate-200 bg-white p-5 relative">
-                @if($canEdit)
+                @if ($canEdit)
                     <input id="toggle_custom" type="checkbox"
                         class="peer absolute left-5 top-6 h-4 w-4 rounded border-slate-300 accent-slate-900">
                 @endif
 
                 <div class="flex items-center justify-between gap-3 {{ $canEdit ? 'pl-7' : '' }}">
                     <div class="flex items-center gap-3">
-                        @if($canEdit)
+                        @if ($canEdit)
                             <label for="toggle_custom" class="cursor-pointer text-sm font-semibold select-none">
-                            Tambah Item Custom
-                        </label>
-                        <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
+                                Tambah Item Custom
+                            </label>
+                            <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
                         @endif
                     </div>
                 </div>
 
-                @if($canEdit)
+                @if ($canEdit)
                     <div class="mt-4 hidden peer-checked:block">
-                    <form method="POST" action="{{ route('penawaran.items.custom', $penawaran->id) }}"
-                        class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        @csrf
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold mb-1">Judul</label>
-                            <input name="judul"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold mb-1">Catatan</label>
-                            <input name="catatan"
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        </div>
-                        <div class="md:col-span-3 flex justify-end">
-                            <button
-                                class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                                Tambah Custom
-                            </button>
-                        </div>
-                    </form>
+                        <form method="POST" action="{{ route('penawaran.items.custom', $penawaran->id) }}"
+                            class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            @csrf
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold mb-1">Judul</label>
+                                <input name="judul"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Catatan</label>
+                                <input name="catatan"
+                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            </div>
+                            <div class="md:col-span-3 flex justify-end">
+                                <button
+                                    class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                                    Tambah Custom
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 @endif
             </div>
 
 
 
-            <div class="space-y-4">
+            <div class="space-y-4" id="items-wrap">
                 @forelse($penawaran->items as $item)
                     <div class="rounded-2xl border border-slate-200 bg-white px-5 pb-4 pt-3">
                         <div class="flex items-start justify-between gap-3">
@@ -267,15 +268,40 @@
                                 @endif
 
                             </div>
-                            <form method="POST"
-                                action="{{ route('penawaran.items.delete', [$penawaran->id, $item->id]) }}"
-                                onsubmit="return confirm('Hapus item ini?')">
-                                @csrf
-                                @method('DELETE')
-                                <button
-                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus
-                                    Item</button>
-                            </form>
+                            <div class="flex items-center gap-2">
+                                @if ($canEdit && $item->tipe === 'bundle')
+                                    <details class="inline-block text-left">
+                                        <summary
+                                            class="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
+                                            Edit Nama
+                                        </summary>
+                                        <div
+                                            class="mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                                            <form method="POST"
+                                                action="{{ route('penawaran.items.update', [$penawaran->id, $item->id]) }}"
+                                                class="space-y-2">
+                                                @csrf
+                                                @method('PUT')
+                                                <label class="block text-xs font-semibold">Nama Bundle</label>
+                                                <input name="judul" value="{{ $item->judul }}"
+                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                <div class="flex justify-end">
+                                                    <button type="submit"
+                                                        class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                                                        Simpan
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </details>
+                                @endif
+                                <button type="button"
+                                    data-delete-url="{{ route('penawaran.items.delete', [$penawaran->id, $item->id]) }}"
+                                    data-confirm="Hapus item ini?"
+                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                    Hapus Item
+                                </button>
+                            </div>
                         </div>
 
                         <div class="mt-4 overflow-x-auto">
@@ -329,50 +355,20 @@
                                                                 <input name="satuan" value="{{ $d->satuan }}"
                                                                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                                                                 <input name="harga" value="{{ $d->harga }}"
-                                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                                    inputmode="numeric"
+                                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm rupiah-input">
                                                             </div>
                                                             <textarea name="spesifikasi" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ $d->spesifikasi }}</textarea>
                                                             <div class="flex items-center justify-between">
-                                                                <button type="button" onclick="deleteDetail{{ $d->id }}()"
-                                                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
+                                                                <button type="button"
+                                                                    data-delete-url="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}"
+                                                                    data-confirm="Hapus detail?"
+                                                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                                                    Hapus
+                                                                </button>
                                                                 <button type="submit"
                                                                     class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">Simpan</button>
                                                             </div>
-                                                        </form>
-                                                        <script>
-                                                            async function deleteDetail{{ $d->id }}() {
-                                                                if (!confirm('Hapus detail?')) return;
-                                                                
-                                                                try {
-                                                                    const form = document.getElementById('deleteDetailForm{{ $d->id }}');
-                                                                    const formData = new FormData(form);
-                                                                    
-                                                                    const response = await fetch(form.action, {
-                                                                        method: 'POST',
-                                                                        body: formData,
-                                                                        headers: {
-                                                                            'X-Requested-With': 'XMLHttpRequest',
-                                                                            'Accept': 'application/json'
-                                                                        }
-                                                                    });
-                                                                    
-                                                                    const data = await response.json();
-                                                                    
-                                                                    if (response.ok) {
-                                                                        showToast(data.message || 'Berhasil dihapus!', 'success');
-                                                                    } else {
-                                                                        showToast(data.message || 'Gagal menghapus', 'error');
-                                                                    }
-                                                                } catch (error) {
-                                                                    console.error('Error:', error);
-                                                                    showToast('Terjadi kesalahan koneksi', 'error');
-                                                                }
-                                                            }
-                                                        </script>
-                                                        <form id="deleteDetailForm{{ $d->id }}" method="POST" style="display:none;"
-                                                            action="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}">
-                                                            @csrf
-                                                            @method('DELETE')
                                                         </form>
                                                     </div>
                                                 </details>
@@ -407,6 +403,18 @@
                                     action="{{ route('penawaran.item_details.add', [$penawaran->id, $item->id]) }}"
                                     class="grid grid-cols-1 md:grid-cols-6 gap-3">
                                     @csrf
+                                    <div class="md:col-span-6">
+                                        <label class="block text-xs font-semibold mb-1">Cari Komponen</label>
+                                        <div class="relative komponen-picker" data-item-id="{{ $item->id }}">
+                                            <input type="text" placeholder="Ketik untuk cari komponen..."
+                                                class="komponen-search w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                            <div
+                                                class="komponen-dropdown hidden absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                                            </div>
+                                        </div>
+                                        <div class="text-[11px] text-slate-500 mt-1">Pilih komponen untuk auto isi nama,
+                                            spesifikasi, satuan, dan harga.</div>
+                                    </div>
                                     <div class="md:col-span-2">
                                         <label class="block text-xs font-semibold mb-1">Nama</label>
                                         <input name="nama"
@@ -429,8 +437,8 @@
                                     </div>
                                     <div class="md:col-span-2">
                                         <label class="block text-xs font-semibold mb-1">Harga</label>
-                                        <input name="harga" value="0"
-                                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                        <input name="harga" value="0" inputmode="numeric"
+                                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm rupiah-input">
                                     </div>
                                     <div class="md:col-span-4 flex items-end justify-end">
                                         <button
@@ -478,7 +486,7 @@
                 @endphp
 
 
-                @if($canEdit)
+                @if ($canEdit)
                     <form method="POST" action="{{ route('penawaran.terms.add', $penawaran->id) }}" class="space-y-3">
                         @csrf
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -518,6 +526,7 @@
                             'penawaran' => $penawaran,
                             'term' => $t,
                             'termsByParent' => $termsByParent,
+                            'canEdit' => $canEdit,
                             'level' => 0,
                         ])
                     @empty
@@ -642,21 +651,20 @@
                 @php
                     $signature = $penawaran->signatures->first();
                 @endphp
-                @if($canEdit)
+                @if ($canEdit)
                     <form method="POST" action="{{ route('penawaran.signatures.add', $penawaran->id) }}"
                         enctype="multipart/form-data" class="space-y-3">
                         @csrf
                         <div>
                             <label class="block text-xs font-semibold mb-1">Nama</label>
                             <input name="nama" value="{{ old('nama', $signature->nama ?? '') }}"
-                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                                placeholder="Nama" required>
+                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Nama"
+                                required>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold mb-1">Jabatan</label>
                             <input name="jabatan" value="{{ old('jabatan', $signature->jabatan ?? '') }}"
-                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                                placeholder="Jabatan">
+                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Jabatan">
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -667,20 +675,20 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold mb-1">Tanggal</label>
-                                <input type="date" name="tanggal" 
+                                <input type="date" name="tanggal"
                                     value="{{ old('tanggal', $signature->tanggal ?? now()->toDateString()) }}"
                                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                             </div>
                         </div>
-                        
-                        @if($signature && $signature->ttd_path)
+
+                        @if ($signature && $signature->ttd_path)
                             <div>
                                 <label class="block text-xs font-semibold mb-1">Tanda Tangan Saat Ini</label>
-                                <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD" 
+                                <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD"
                                     class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50 mb-2">
                             </div>
                         @endif
-                        
+
                         <div>
                             <label class="block text-xs font-semibold mb-1">
                                 {{ $signature && $signature->ttd_path ? 'Upload Tanda Tangan Baru (Opsional)' : 'Upload Tanda Tangan' }}
@@ -689,7 +697,7 @@
                                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
                             <p class="text-xs text-slate-500 mt-1">Format: JPG, PNG. Maks: 2MB.</p>
                         </div>
-                        
+
                         <button
                             class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
                             {{ $signature ? 'Update' : 'Simpan' }} Tanda Tangan
@@ -701,10 +709,10 @@
                         <p class="mb-2"><strong>Jabatan:</strong> {{ $signature->jabatan ?? '-' }}</p>
                         <p class="mb-2"><strong>Kota:</strong> {{ $signature->kota ?? '-' }}</p>
                         <p class="mb-2"><strong>Tanggal:</strong> {{ $signature->tanggal ?? '-' }}</p>
-                        @if($signature && $signature->ttd_path)
+                        @if ($signature && $signature->ttd_path)
                             <div class="mt-3">
                                 <p class="font-semibold mb-1">Tanda Tangan:</p>
-                                <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD" 
+                                <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD"
                                     class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50">
                             </div>
                         @endif
@@ -716,7 +724,7 @@
 
             <div class="rounded-2xl border border-slate-200 bg-white p-5">
                 <h2 class="font-semibold mb-3">Lampiran</h2>
-                @if($canEdit)
+                @if ($canEdit)
                     <form method="POST" action="{{ route('penawaran.attachments.add', $penawaran->id) }}"
                         enctype="multipart/form-data" class="space-y-2">
                         @csrf
@@ -736,7 +744,7 @@
                                 <div class="font-semibold truncate">{{ $a->judul ?? 'Lampiran' }}</div>
                                 <div class="text-xs text-slate-500 truncate">{{ $a->file_path }}</div>
                             </div>
-                            @if($canEdit)
+                            @if ($canEdit)
                                 <form method="POST"
                                     action="{{ route('penawaran.attachments.delete', [$penawaran->id, $a->id]) }}"
                                     onsubmit="return confirm('Hapus lampiran?')">
@@ -809,7 +817,7 @@
             }`;
             toast.textContent = message;
             document.body.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.style.opacity = '0';
                 setTimeout(() => toast.remove(), 300);
@@ -821,16 +829,20 @@
             console.log('🔄 Refreshing page content...');
             try {
                 const response = await fetch(window.location.href, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
                 const html = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
-                
+
                 // Find the main content container and replace it
-                const newContent = doc.querySelector('main') || doc.querySelector('.container') || doc.querySelector('[class*="max-w"]');
-                const currentContent = document.querySelector('main') || document.querySelector('.container') || document.querySelector('[class*="max-w"]');
-                
+                const newContent = doc.querySelector('main') || doc.querySelector('.container') || doc.querySelector(
+                    '[class*="max-w"]');
+                const currentContent = document.querySelector('main') || document.querySelector('.container') ||
+                    document.querySelector('[class*="max-w"]');
+
                 if (newContent && currentContent) {
                     currentContent.innerHTML = newContent.innerHTML;
                     console.log('✅ Content refreshed!');
@@ -845,10 +857,42 @@
             }
         }
 
+        // Refresh only bundle items list
+        async function refreshItems() {
+            console.log('🔄 Refreshing items...');
+            try {
+                const response = await fetch(window.location.href, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                const newItems = doc.querySelector('#items-wrap');
+                const currentItems = document.querySelector('#items-wrap');
+
+                if (newItems && currentItems) {
+                    currentItems.innerHTML = newItems.innerHTML;
+                    console.log('✅ Items refreshed!');
+                    initKomponenPickers(currentItems);
+                    initRupiahInputs(currentItems);
+                } else {
+                    console.log('⚠️ Items container not found, fallback to full refresh...');
+                    await refreshContent();
+                }
+            } catch (error) {
+                console.error('❌ Error refreshing items:', error);
+                await refreshContent();
+            }
+        }
+
         // AJAX Form Handler
         async function handleAjaxSubmit(form) {
             console.log('🚀 AJAX submit for:', form.action);
-            
+
+            normalizeRupiahInputs(form);
             const formData = new FormData(form);
             const url = form.action;
 
@@ -862,16 +906,31 @@
                     }
                 });
 
-                const data = await response.json();
+                let data = null;
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    data = {
+                        message: text || null
+                    };
+                }
                 console.log('📥 Response:', data);
 
                 if (response.ok) {
-                    showToast(data.message || 'Berhasil!', 'success');
+                    showToast(data?.message || 'Berhasil!', 'success');
+                    console.log(response);
                     form.reset();
-                    // Refresh content to show changes
-                    await refreshContent();
+                    const methodInput = form.querySelector('input[name="_method"]');
+                    const method = methodInput && methodInput.value ? methodInput.value.toUpperCase() : 'POST';
+                    if (form.action.includes('/items/') || form.action.includes('/item_details/')) {
+                        await refreshItems();
+                    } else {
+                        await refreshContent();
+                    }
                 } else {
-                    showToast(data.message || 'Terjadi kesalahan', 'error');
+                    showToast(data?.message || 'Terjadi kesalahan', 'error');
                 }
             } catch (error) {
                 console.error('❌ Error:', error);
@@ -891,36 +950,215 @@
             return false;
         }
 
-        // Global event delegation - catch ALL form submits
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta) return meta.getAttribute('content');
+            const input = document.querySelector('input[name="_token"]');
+            return input ? input.value : '';
+        }
+
+        function ajaxDelete(url, confirmText) {
+            if (confirmText && !confirm(confirmText)) return;
+            const form = document.createElement('form');
+            form.action = url;
+            const token = getCsrfToken();
+            if (token) {
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = token;
+                form.appendChild(csrf);
+            }
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            form.appendChild(method);
+            handleAjaxSubmit(form);
+        }
+
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-delete-url]');
+            if (!btn) return;
+            e.preventDefault();
+            ajaxDelete(btn.dataset.deleteUrl, btn.dataset.confirm || '');
+        });
+
+
         document.addEventListener('submit', function(e) {
             const form = e.target;
-            
+
             if (form.tagName !== 'FORM') return;
-            
+
             console.log('📋 Form submit detected:', form.action);
-            
-            // Skip forms that should reload
+            normalizeRupiahInputs(form);
             if (shouldSkipAjax(form.action)) {
                 console.log('⏭ Skipping AJAX for this form');
-                return; // Let it submit normally
+                return;
             }
-            
-            // All other forms use AJAX
             console.log('✅ Using AJAX');
             e.preventDefault();
             e.stopPropagation();
-            
-            // For delete forms, confirm first
-            if (form.action.includes('delete') || form.action.includes('destroy')) {
+            const methodInput = form.querySelector('input[name="_method"]');
+            const isDeleteMethod = methodInput && methodInput.value && methodInput.value.toUpperCase() === 'DELETE';
+            if (form.action.includes('delete') || form.action.includes('destroy') || isDeleteMethod) {
                 if (!confirm('Hapus item ini?')) {
                     return;
                 }
             }
-            
+
             handleAjaxSubmit(form);
-        }, true); // Use capture phase
+        }, true);
 
         console.log('✅ AJAX event delegation ready!');
+    </script>
+
+    <script>
+        let komponenCache = null;
+
+        function formatRupiahDigits(digits) {
+            if (!digits) return '';
+            return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function bindRupiahInput(input) {
+            if (!input || input.dataset.rupiahBound) return;
+            input.dataset.rupiahBound = '1';
+            input.addEventListener('input', () => {
+                const digits = input.value.replace(/\D/g, '');
+                input.value = formatRupiahDigits(digits);
+            });
+            const initial = input.value.replace(/\D/g, '');
+            input.value = formatRupiahDigits(initial);
+        }
+
+        function initRupiahInputs(root = document) {
+            root.querySelectorAll('input.rupiah-input').forEach(bindRupiahInput);
+        }
+
+        function normalizeRupiahInputs(form) {
+            if (!form) return;
+            form.querySelectorAll('input.rupiah-input').forEach(input => {
+                input.value = input.value.replace(/\D/g, '');
+            });
+        }
+
+        async function loadKomponen() {
+            if (komponenCache) return komponenCache;
+            try {
+                const res = await fetch('{{ route('api.komponen.list') }}', {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!res.ok) throw new Error('Failed to load komponen');
+                komponenCache = await res.json();
+                return komponenCache;
+            } catch (e) {
+                console.error('Failed to load komponen:', e);
+                komponenCache = [];
+                return komponenCache;
+            }
+        }
+
+        function renderKomponenDropdown(dropdown, items) {
+            dropdown.innerHTML = '';
+            if (!items.length) {
+                dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-500">Tidak ada hasil</div>';
+                return;
+            }
+
+            items.forEach(k => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'w-full text-left px-3 py-2 text-sm hover:bg-slate-50';
+                row.dataset.id = k.id;
+                row.dataset.nama = k.nama || '';
+                row.dataset.spesifikasi = k.spesifikasi || '';
+                row.dataset.satuan = k.satuan || '';
+                row.dataset.harga = k.harga || 0;
+                row.innerHTML = `
+                    <div class="font-semibold">${k.nama || '-'}</div>
+                    <div class="text-xs text-slate-500">${k.kode || ''} ${k.satuan ? '• ' + k.satuan : ''} ${k.harga ? '• Rp ' + Number(k.harga).toLocaleString('id-ID') : ''}</div>
+                `;
+                dropdown.appendChild(row);
+            });
+        }
+
+        function attachKomponenPicker(container) {
+            const searchInput = container.querySelector('.komponen-search');
+            const dropdown = container.querySelector('.komponen-dropdown');
+            if (!searchInput || !dropdown) return;
+
+            let localData = [];
+
+            searchInput.addEventListener('focus', async () => {
+                localData = await loadKomponen();
+                dropdown.classList.remove('hidden');
+                renderKomponenDropdown(dropdown, localData.slice(0, 20));
+            });
+
+            searchInput.addEventListener('input', async () => {
+                const q = searchInput.value.toLowerCase().trim();
+                if (!localData.length) localData = await loadKomponen();
+                const filtered = localData.filter(k =>
+                    (k.nama || '').toLowerCase().includes(q) ||
+                    (k.kode || '').toLowerCase().includes(q)
+                );
+                dropdown.classList.remove('hidden');
+                renderKomponenDropdown(dropdown, filtered.slice(0, 30));
+            });
+
+            dropdown.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-id]');
+                if (!btn) return;
+
+                const form = container.closest('form');
+                if (!form) return;
+
+                const nama = form.querySelector('input[name="nama"]');
+                const spesifikasi = form.querySelector('input[name="spesifikasi"]');
+                const satuan = form.querySelector('input[name="satuan"]');
+                const harga = form.querySelector('input[name="harga"]');
+
+                if (nama) nama.value = btn.dataset.nama || '';
+                if (spesifikasi) spesifikasi.value = btn.dataset.spesifikasi || '';
+                if (satuan) satuan.value = btn.dataset.satuan || '';
+                if (harga) {
+                    const digits = String(btn.dataset.harga || 0).replace(/\D/g, '');
+                    harga.value = formatRupiahDigits(digits);
+                }
+
+                searchInput.value = btn.dataset.nama || '';
+                dropdown.classList.add('hidden');
+            });
+        }
+
+        function initKomponenPickers(root = document) {
+            root.querySelectorAll('.komponen-picker').forEach(attachKomponenPicker);
+        }
+
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('.komponen-picker').forEach(picker => {
+                if (!picker.contains(e.target)) {
+                    const dd = picker.querySelector('.komponen-dropdown');
+                    if (dd) dd.classList.add('hidden');
+                }
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initKomponenPickers();
+            initRupiahInputs();
+        });
+
+        // Re-init after AJAX refresh
+        const originalRefreshContent = refreshContent;
+        refreshContent = async function() {
+            await originalRefreshContent();
+            initKomponenPickers();
+            initRupiahInputs();
+        };
     </script>
 
 

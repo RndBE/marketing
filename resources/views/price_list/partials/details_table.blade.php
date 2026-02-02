@@ -83,8 +83,8 @@
                                             required>
                                         <input name="satuan" value="{{ $d->satuan }}"
                                             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                        <input name="harga" value="{{ $d->harga }}"
-                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                                        <input name="harga" value="{{ $d->harga }}" inputmode="numeric"
+                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm rupiah-input"
                                             required>
                                     </div>
 

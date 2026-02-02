@@ -45,13 +45,15 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{penawaran}', [PenawaranController::class, 'update'])->name('update');
             Route::post('/{penawaran}/cover', [PenawaranController::class, 'upsertCover'])->name('cover.upsert');
             Route::post('/{penawaran}/validity', [PenawaranController::class, 'upsertValidity'])->name('validity.upsert');
-            Route::post('/{penawaran}/items/bundle', [PenawaranController::class, 'addBundle'])->name('items.bundle');
-            Route::post('/{penawaran}/items/custom', [PenawaranController::class, 'addCustomItem'])->name('items.custom');
-            Route::delete('/{penawaran}/items/{item}', [PenawaranController::class, 'deleteItem'])->name('items.delete');
+        Route::post('/{penawaran}/items/bundle', [PenawaranController::class, 'addBundle'])->name('items.bundle');
+        Route::post('/{penawaran}/items/custom', [PenawaranController::class, 'addCustomItem'])->name('items.custom');
+        Route::put('/{penawaran}/items/{item}', [PenawaranController::class, 'updateItem'])->name('items.update');
+        Route::delete('/{penawaran}/items/{item}', [PenawaranController::class, 'deleteItem'])->name('items.delete');
             Route::post('/{penawaran}/items/{item}/details', [PenawaranController::class, 'addItemDetail'])->name('item_details.add');
             Route::put('/{penawaran}/items/{item}/details/{detail}', [PenawaranController::class, 'updateItemDetail'])->name('item_details.update');
             Route::delete('/{penawaran}/items/{item}/details/{detail}', [PenawaranController::class, 'deleteItemDetail'])->name('item_details.delete');
             Route::post('/{penawaran}/terms', [PenawaranController::class, 'addTerm'])->name('terms.add');
+            Route::put('/{penawaran}/terms/{term}', [PenawaranController::class, 'updateTerm'])->name('terms.update');
             Route::delete('/{penawaran}/terms/{term}', [PenawaranController::class, 'deleteTerm'])->name('terms.delete');
             Route::post('/{penawaran}/signatures', [PenawaranController::class, 'addSignature'])->name('signatures.add');
             Route::delete('/{penawaran}/signatures/{signature}', [PenawaranController::class, 'deleteSignature'])->name('signatures.delete');

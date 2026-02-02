@@ -447,6 +447,29 @@ class PenawaranController extends Controller
         return response()->json(['message' => 'Item custom berhasil ditambahkan']);
     }
 
+    public function updateItem(Request $request, Penawaran $penawaran, PenawaranItem $item)
+    {
+        if ((int) $item->penawaran_id !== (int) $penawaran->id) {
+            abort(404);
+        }
+
+        $payload = $request->validate([
+            'judul' => ['required', 'string', 'max:255'],
+        ]);
+
+        if ($item->tipe !== 'bundle') {
+            return response()->json(['message' => 'Hanya bundle yang bisa diubah namanya.'], 422);
+        }
+
+        $item->update([
+            'judul' => $payload['judul'],
+        ]);
+
+        $penawaran->update(['date_updated' => now()->timestamp]);
+
+        return response()->json(['message' => 'Nama bundle berhasil diupdate']);
+    }
+
     public function deleteItem(Penawaran $penawaran, PenawaranItem $item)
     {
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
@@ -598,6 +621,27 @@ class PenawaranController extends Controller
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return response()->json(['message' => 'Keterangan berhasil ditambahkan']);
+    }
+
+    public function updateTerm(Request $request, Penawaran $penawaran, PenawaranTerm $term)
+    {
+        if ((int) $term->penawaran_id !== (int) $penawaran->id) {
+            abort(404);
+        }
+
+        $payload = $request->validate([
+            'judul' => ['nullable', 'string', 'max:255'],
+            'isi' => ['required', 'string'],
+        ]);
+
+        $term->update([
+            'judul' => $payload['judul'] ?? null,
+            'isi' => $payload['isi'],
+        ]);
+
+        $penawaran->update(['date_updated' => now()->timestamp]);
+
+        return response()->json(['message' => 'Keterangan berhasil diupdate']);
     }
 
 
