@@ -235,9 +235,6 @@
                     <div class="rounded-2xl border border-slate-200 bg-white px-5 pb-4 pt-3">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                {{-- <div class="text-xs text-slate-500">
-                                    {{ $item->tipe }}{{ $item->product?->nama ? ' • ' . $item->product->nama : '' }}
-                                </div> --}}
                                 <div class="text-lg font-semibold">{{ $item->judul }}</div>
                                 @if ($item->catatan)
                                     <div class="text-sm text-slate-600 mt-1">{{ $item->catatan }}</div>

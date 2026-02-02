@@ -36,72 +36,71 @@
                     Hapus Terpilih
                 </button>
             </div>
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-4 py-3 text-center w-12">
+                                <input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)"
+                                    class="rounded border-slate-300">
+                            </th>
+                            <th class="px-4 py-3 text-left">Kode</th>
+                            <th class="px-4 py-3 text-left">Nama</th>
+                            <th class="px-4 py-3 text-left">Satuan</th>
+                            <th class="px-4 py-3 text-right">Harga</th>
+                            <th class="px-4 py-3 text-center">Status</th>
+                            <th class="px-4 py-3 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        @forelse ($komponen as $k)
+                            <tr>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="checkbox" name="ids[]" value="{{ $k->id }}" 
+                                        class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if ($k->kode)
+                                        <span class="px-2 py-1 bg-slate-100 rounded text-xs">{{ $k->kode }}</span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 font-medium">{{ $k->nama }}</td>
+                                <td class="px-4 py-3 text-slate-600">{{ $k->satuan ?? '-' }}</td>
+                                <td class="px-4 py-3 text-right font-medium">Rp {{ number_format($k->harga, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    @if ($k->is_active)
+                                        <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Aktif</span>
+                                    @else
+                                        <span class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-xs">Nonaktif</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right space-x-2">
+                                    <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
+                                        data-id="{{ $k->id }}" data-kode="{{ e($k->kode) }}"
+                                        data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
+                                        data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
+                                        data-is_active="{{ $k->is_active ? '1' : '0' }}"
+                                        onclick="openEditModal(this)">
+                                        Edit
+                                    </button>
+                                    <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
+                                        onsubmit="return confirm('Hapus komponen ini?')">
+                                        @csrf @method('DELETE')
+                                        <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </form>
-
-        <div class="bg-white rounded-xl shadow overflow-hidden">
-            <table class="w-full text-sm">
-                <thead class="bg-slate-50">
-                    <tr>
-                        <th class="px-4 py-3 text-center w-12">
-                            <input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)"
-                                class="rounded border-slate-300">
-                        </th>
-                        <th class="px-4 py-3 text-left">Kode</th>
-                        <th class="px-4 py-3 text-left">Nama</th>
-                        <th class="px-4 py-3 text-left">Satuan</th>
-                        <th class="px-4 py-3 text-right">Harga</th>
-                        <th class="px-4 py-3 text-center">Status</th>
-                        <th class="px-4 py-3 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y">
-                    @forelse ($komponen as $k)
-                        <tr>
-                            <td class="px-4 py-3 text-center">
-                                <input type="checkbox" name="ids[]" value="{{ $k->id }}" 
-                                    class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
-                            </td>
-                            <td class="px-4 py-3">
-                                @if ($k->kode)
-                                    <span class="px-2 py-1 bg-slate-100 rounded text-xs">{{ $k->kode }}</span>
-                                @else
-                                    <span class="text-slate-400">-</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 font-medium">{{ $k->nama }}</td>
-                            <td class="px-4 py-3 text-slate-600">{{ $k->satuan ?? '-' }}</td>
-                            <td class="px-4 py-3 text-right font-medium">Rp {{ number_format($k->harga, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-center">
-                                @if ($k->is_active)
-                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Aktif</span>
-                                @else
-                                    <span class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-xs">Nonaktif</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-right space-x-2">
-                                <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
-                                    data-id="{{ $k->id }}" data-kode="{{ e($k->kode) }}"
-                                    data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
-                                    data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
-                                    data-is_active="{{ $k->is_active ? '1' : '0' }}"
-                                    onclick="openEditModal(this)">
-                                    Edit
-                                </button>
-                                <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
-                                    onsubmit="return confirm('Hapus komponen ini?')">
-                                    @csrf @method('DELETE')
-                                    <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
 
         <div class="mt-4">{{ $komponen->links() }}</div>
     </div>
