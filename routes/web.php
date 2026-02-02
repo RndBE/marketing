@@ -96,6 +96,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [PriceListController::class, 'index'])->name('index');
         Route::get('/create', [PriceListController::class, 'create'])->name('create');
         Route::post('/', [PriceListController::class, 'store'])->name('store');
+        Route::post('/bulk-import', [PriceListController::class, 'bulkImport'])->name('bulk-import');
         Route::get('/{product}', [PriceListController::class, 'show'])->name('show');
         Route::get('/{product}/edit', [PriceListController::class, 'edit'])->name('edit');
         Route::put('/{product}', [PriceListController::class, 'update'])->name('update');

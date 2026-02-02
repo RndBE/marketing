@@ -238,4 +238,138 @@ class PriceListController extends Controller
     {
         return $request->header('X-Requested-With') === 'XMLHttpRequest' || $request->expectsJson();
     }
+
+    public function bulkImport(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        $file = $request->file('csv_file');
+        $path = $file->getRealPath();
+
+        if (($handle = fopen($path, 'r')) === false) {
+            return redirect()->route('price_list.index')->with('error', 'Gagal membaca file CSV');
+        }
+
+        $header = fgetcsv($handle);
+        $headerMap = $this->mapCsvHeader($header);
+
+        $imported = 0;
+        $updated = 0;
+        $errors = [];
+
+        while (($row = fgetcsv($handle)) !== false) {
+            if (empty(array_filter($row))) {
+                continue;
+            }
+
+            $data = $this->extractProductRow($row, $headerMap);
+
+            if ($data['nama'] === '') {
+                continue;
+            }
+
+            $payload = [
+                'kode' => $data['kode'] !== '' ? $data['kode'] : null,
+                'nama' => $data['nama'],
+                'satuan' => $data['satuan'] !== '' ? $data['satuan'] : null,
+                'deskripsi' => $data['deskripsi'] !== '' ? $data['deskripsi'] : null,
+            ];
+
+            try {
+                $isActive = $this->parseCsvBoolean($data['is_active']);
+                if ($payload['kode']) {
+                    $existing = Product::where('kode', $payload['kode'])->first();
+                    if ($existing) {
+                        if ($isActive !== null) {
+                            $payload['is_active'] = $isActive;
+                        }
+                        $existing->update($payload);
+                        $updated++;
+                        continue;
+                    }
+                }
+
+                if ($isActive === null) {
+                    $payload['is_active'] = true;
+                } else {
+                    $payload['is_active'] = $isActive;
+                }
+
+                Product::create($payload);
+                $imported++;
+            } catch (\Exception $e) {
+                $errors[] = "Baris '{$data['nama']}': " . $e->getMessage();
+            }
+        }
+
+        fclose($handle);
+
+        $message = "Import selesai. {$imported} data baru ditambahkan, {$updated} data diupdate.";
+
+        if (count($errors) > 0) {
+            $message .= ' Dengan ' . count($errors) . ' error.';
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'message' => $message,
+                'imported' => $imported,
+                'updated' => $updated,
+                'errors' => $errors,
+            ]);
+        }
+
+        return redirect()->route('price_list.index')->with('success', $message);
+    }
+
+    private function mapCsvHeader(?array $header): array
+    {
+        if (empty($header)) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($header as $i => $col) {
+            $key = strtolower(trim((string) $col));
+            if ($key === 'kode') $map['kode'] = $i;
+            if ($key === 'nama') $map['nama'] = $i;
+            if ($key === 'satuan') $map['satuan'] = $i;
+            if ($key === 'deskripsi') $map['deskripsi'] = $i;
+            if (in_array($key, ['is_active', 'active', 'status'], true)) $map['is_active'] = $i;
+        }
+
+        return $map;
+    }
+
+    private function extractProductRow(array $row, array $headerMap): array
+    {
+        if (!empty($headerMap)) {
+            return [
+                'kode' => trim((string) ($row[$headerMap['kode']] ?? '')),
+                'nama' => trim((string) ($row[$headerMap['nama']] ?? '')),
+                'satuan' => trim((string) ($row[$headerMap['satuan']] ?? '')),
+                'deskripsi' => trim((string) ($row[$headerMap['deskripsi']] ?? '')),
+                'is_active' => trim((string) ($row[$headerMap['is_active']] ?? '')),
+            ];
+        }
+
+        return [
+            'kode' => trim((string) ($row[0] ?? '')),
+            'nama' => trim((string) ($row[1] ?? '')),
+            'satuan' => trim((string) ($row[2] ?? '')),
+            'deskripsi' => trim((string) ($row[3] ?? '')),
+            'is_active' => trim((string) ($row[4] ?? '')),
+        ];
+    }
+
+    private function parseCsvBoolean(string $value): ?bool
+    {
+        $value = strtolower(trim($value));
+        if ($value === '') return null;
+        if (in_array($value, ['1', 'true', 'ya', 'yes', 'aktif', 'active'], true)) return true;
+        if (in_array($value, ['0', 'false', 'no', 'tidak', 'nonaktif', 'inactive'], true)) return false;
+        return null;
+    }
 }

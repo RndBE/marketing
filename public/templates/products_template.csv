@@ -1,0 +1,3 @@
+kode,nama,satuan,deskripsi,is_active
+PRD-001,Paket Monitoring,Paket,"Include sensor + instalasi",aktif
+PRD-002,Paket Maintenance,Bulan,"Preventive maintenance",1
