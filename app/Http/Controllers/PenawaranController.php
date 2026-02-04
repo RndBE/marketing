@@ -30,13 +30,20 @@ class PenawaranController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $user = auth()->user();
+        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
 
         $data = Penawaran::query()
             ->with(['docNumber', 'approval'])
+            ->when(!$canViewAll, function ($query) use ($user) {
+                $query->where('id_user', $user->id);
+            })
             ->when($q !== '', function ($query) use ($q) {
-                $query->where('judul', 'like', "%{$q}%")
-                    ->orWhere('instansi', 'like', "%{$q}%")
-                    ->orWhereHas('docNumber', fn($qq) => $qq->where('doc_no', 'like', "%{$q}%"));
+                $query->where(function ($qq) use ($q) {
+                    $qq->where('judul', 'like', "%{$q}%")
+                        ->orWhere('instansi', 'like', "%{$q}%")
+                        ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
+                });
             })
             ->orderByDesc('id')
             ->paginate(15)
@@ -188,6 +195,12 @@ class PenawaranController extends Controller
 
     public function show(Penawaran $penawaran)
     {
+        $user = auth()->user();
+        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+        if (!$canViewAll && (int) $penawaran->id_user !== (int) $user->id) {
+            abort(403);
+        }
+
         $penawaran->load([
             'docNumber',
             'cover',
@@ -866,6 +879,12 @@ class PenawaranController extends Controller
 
     public function downloadPdf(Penawaran $penawaran)
     {
+        $user = auth()->user();
+        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+        if (!$canViewAll && (int) $penawaran->id_user !== (int) $user->id) {
+            abort(403);
+        }
+
         $penawaran->load([
             'docNumber',
             'cover',

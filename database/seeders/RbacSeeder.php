@@ -17,13 +17,15 @@ class RbacSeeder extends Seeder
         ];
 
         foreach ($roles as $role) {
-            DB::table('roles')->insert([
-                'name' => $role['name'],
-                'slug' => $role['slug'],
-                'description' => $role['description'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('roles')->updateOrInsert(
+                ['slug' => $role['slug']],
+                [
+                    'name' => $role['name'],
+                    'description' => $role['description'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
 
         // Create Permissions
@@ -34,11 +36,12 @@ class RbacSeeder extends Seeder
             ['name' => 'Kelola Permissions', 'slug' => 'manage-permissions', 'group' => 'User Management', 'description' => 'CRUD permissions'],
 
             // Penawaran
-            ['name' => 'Lihat Penawaran', 'slug' => 'view-penawaran', 'group' => 'Penawaran', 'description' => 'Lihat daftar dan detail penawaran'],
+            ['name' => 'Lihat Penawaran (Sendiri)', 'slug' => 'view-penawaran', 'group' => 'Penawaran', 'description' => 'Lihat penawaran yang dibuat sendiri'],
             ['name' => 'Buat Penawaran', 'slug' => 'create-penawaran', 'group' => 'Penawaran', 'description' => 'Buat penawaran baru'],
             ['name' => 'Edit Penawaran', 'slug' => 'edit-penawaran', 'group' => 'Penawaran', 'description' => 'Edit penawaran'],
             ['name' => 'Hapus Penawaran', 'slug' => 'delete-penawaran', 'group' => 'Penawaran', 'description' => 'Hapus penawaran'],
             ['name' => 'Approve Penawaran', 'slug' => 'approve-penawaran', 'group' => 'Penawaran', 'description' => 'Approve atau reject penawaran'],
+            ['name' => 'Lihat Semua Penawaran', 'slug' => 'view-all-penawaran', 'group' => 'Penawaran', 'description' => 'Lihat semua penawaran'],
 
             // Price List
             ['name' => 'Kelola Price List', 'slug' => 'manage-pricelist', 'group' => 'Price List', 'description' => 'CRUD price list'],
@@ -51,14 +54,16 @@ class RbacSeeder extends Seeder
         ];
 
         foreach ($permissions as $perm) {
-            DB::table('permissions')->insert([
-                'name' => $perm['name'],
-                'slug' => $perm['slug'],
-                'group' => $perm['group'],
-                'description' => $perm['description'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('permissions')->updateOrInsert(
+                ['slug' => $perm['slug']],
+                [
+                    'name' => $perm['name'],
+                    'group' => $perm['group'],
+                    'description' => $perm['description'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
 
         // Assign all permissions to Admin role
@@ -66,27 +71,29 @@ class RbacSeeder extends Seeder
         $allPermissions = DB::table('permissions')->pluck('id');
 
         foreach ($allPermissions as $permId) {
-            DB::table('permission_role')->insert([
-                'role_id' => $adminRole->id,
-                'permission_id' => $permId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('permission_role')->updateOrInsert(
+                ['role_id' => $adminRole->id, 'permission_id' => $permId],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
 
         // Assign Manager role permissions
         $managerRole = DB::table('roles')->where('slug', 'manager')->first();
         $managerPerms = DB::table('permissions')
-            ->whereIn('slug', ['view-penawaran', 'approve-penawaran', 'manage-pricelist', 'manage-pic'])
+            ->whereIn('slug', ['view-penawaran', 'view-all-penawaran', 'approve-penawaran', 'manage-pricelist', 'manage-pic'])
             ->pluck('id');
 
         foreach ($managerPerms as $permId) {
-            DB::table('permission_role')->insert([
-                'role_id' => $managerRole->id,
-                'permission_id' => $permId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('permission_role')->updateOrInsert(
+                ['role_id' => $managerRole->id, 'permission_id' => $permId],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
 
         // Assign Staff role permissions
@@ -96,23 +103,25 @@ class RbacSeeder extends Seeder
             ->pluck('id');
 
         foreach ($staffPerms as $permId) {
-            DB::table('permission_role')->insert([
-                'role_id' => $staffRole->id,
-                'permission_id' => $permId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('permission_role')->updateOrInsert(
+                ['role_id' => $staffRole->id, 'permission_id' => $permId],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
 
         // Assign Admin role to first user (Yanu Hertanto)
         $yanu = DB::table('users')->where('name', 'Yanu Hertanto')->first();
         if ($yanu) {
-            DB::table('role_user')->insert([
-                'user_id' => $yanu->id,
-                'role_id' => $adminRole->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('role_user')->updateOrInsert(
+                ['user_id' => $yanu->id, 'role_id' => $adminRole->id],
+                [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
         }
     }
 }

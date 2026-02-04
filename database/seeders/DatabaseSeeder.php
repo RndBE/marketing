@@ -55,11 +55,12 @@ class DatabaseSeeder extends Seeder
             ['id' => 1, 'name' => 'Kelola Users', 'slug' => 'manage-users', 'description' => 'CRUD users', 'group' => 'User Management'],
             ['id' => 2, 'name' => 'Kelola Roles', 'slug' => 'manage-roles', 'description' => 'CRUD roles', 'group' => 'User Management'],
             ['id' => 3, 'name' => 'Kelola Permissions', 'slug' => 'manage-permissions', 'description' => 'CRUD permissions', 'group' => 'User Management'],
-            ['id' => 4, 'name' => 'Lihat Penawaran', 'slug' => 'view-penawaran', 'description' => 'Lihat daftar dan detail penawaran', 'group' => 'Penawaran'],
+            ['id' => 4, 'name' => 'Lihat Penawaran (Sendiri)', 'slug' => 'view-penawaran', 'description' => 'Lihat penawaran yang dibuat sendiri', 'group' => 'Penawaran'],
             ['id' => 5, 'name' => 'Buat Penawaran', 'slug' => 'create-penawaran', 'description' => 'Buat penawaran baru', 'group' => 'Penawaran'],
             ['id' => 6, 'name' => 'Edit Penawaran', 'slug' => 'edit-penawaran', 'description' => 'Edit penawaran', 'group' => 'Penawaran'],
             ['id' => 7, 'name' => 'Hapus Penawaran', 'slug' => 'delete-penawaran', 'description' => 'Hapus penawaran', 'group' => 'Penawaran'],
             ['id' => 8, 'name' => 'Approve Penawaran', 'slug' => 'approve-penawaran', 'description' => 'Approve atau reject penawaran', 'group' => 'Penawaran'],
+            ['id' => 17, 'name' => 'Lihat Semua Penawaran', 'slug' => 'view-all-penawaran', 'description' => 'Lihat semua penawaran', 'group' => 'Penawaran'],
             ['id' => 9, 'name' => 'Kelola Price List', 'slug' => 'manage-pricelist', 'description' => 'CRUD price list', 'group' => 'Price List'],
             ['id' => 10, 'name' => 'Kelola PIC', 'slug' => 'manage-pic', 'description' => 'CRUD PIC', 'group' => 'PIC'],
             ['id' => 11, 'name' => 'Kelola Alur Approval', 'slug' => 'manage-alur', 'description' => 'CRUD alur approval', 'group' => 'Alur Approval'],
@@ -95,6 +96,7 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 14, 'role_id' => 1],
             ['permission_id' => 15, 'role_id' => 1],
             ['permission_id' => 16, 'role_id' => 1],
+            ['permission_id' => 17, 'role_id' => 1],
 
             // Corporate Account Manager (role_id: 2)
             ['permission_id' => 4, 'role_id' => 2],
@@ -122,6 +124,7 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 10, 'role_id' => 5],
             ['permission_id' => 11, 'role_id' => 5],
             ['permission_id' => 12, 'role_id' => 5],
+            ['permission_id' => 17, 'role_id' => 5],
         ];
 
         foreach ($permissionRole as $pr) {
