@@ -5,6 +5,7 @@ use App\Http\Controllers\PenawaranController;
 use App\Http\Controllers\PenawaranTermTemplateController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\PicController;
 use App\Http\Controllers\AlurPenawaranController;
 use App\Http\Controllers\ApprovalController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\KomponenController;
 use App\Http\Controllers\UsulanPenawaranController;
+use App\Http\Controllers\InvoiceController;
 
 
 
@@ -22,6 +24,18 @@ Route::get('/', function () {
 })->middleware('auth');
 
 Route::middleware(['auth'])->group(function () {
+    /*
+    |---------------- TEMPLATES ----------------|
+    */
+    Route::prefix('invoice-templates')->name('templates.')->group(function () {
+        Route::get('/', [TemplateController::class, 'index'])->name('index');
+        Route::post('/signature', [TemplateController::class, 'storeSignature'])->name('signature.store');
+        Route::delete('/signature/{template}', [TemplateController::class, 'deleteSignature'])->name('signature.delete');
+
+        Route::post('/term', [TemplateController::class, 'storeTerm'])->name('term.store');
+        Route::delete('/term/{template}', [TemplateController::class, 'deleteTerm'])->name('term.delete');
+    });
+
     /*
     |---------------- PENAWARAN ----------------|
     */
@@ -213,6 +227,51 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{user}', [UserRoleController::class, 'updateRoles'])->name('update');
         });
     });
+    /*
+    |---------------- INVOICE -------------------|
+    */
+    Route::prefix('invoices')->name('invoices.')->group(function () {
+        Route::get('/', [InvoiceController::class, 'index'])->name('index');
+        Route::get('/create', [InvoiceController::class, 'create'])->name('create');
+        Route::post('/', [InvoiceController::class, 'store'])->name('store');
+
+        // From Penawaran
+        Route::get('/create-from/{penawaran}', [InvoiceController::class, 'createFromPenawaran'])->name('create_from_penawaran');
+        Route::post('/create-from/{penawaran}', [InvoiceController::class, 'storeFromPenawaran'])->name('store_from_penawaran');
+
+        Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+        Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->name('edit');
+        Route::put('/{invoice}', [InvoiceController::class, 'update'])->name('update');
+        Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->name('destroy');
+        Route::get('/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('pdf');
+
+        // Items
+        Route::post('/{invoice}/items/bundle', [InvoiceController::class, 'addBundle'])->name('items.bundle');
+        Route::post('/{invoice}/termin', [InvoiceController::class, 'storeTermin'])->name('store_termin'); // New Route for Parent-Child
+        Route::post('/{invoice}/items/custom', [InvoiceController::class, 'addCustomItem'])->name('items.custom');
+        Route::post('/{invoice}/items/termin', [InvoiceController::class, 'addTerminItem'])->name('items.termin');
+        Route::put('/{invoice}/items/{item}', [InvoiceController::class, 'updateItem'])->name('items.update');
+        Route::delete('/{invoice}/items/{item}', [InvoiceController::class, 'deleteItem'])->name('items.delete');
+
+        // Item Details
+        Route::post('/{invoice}/items/{item}/details', [InvoiceController::class, 'addItemDetail'])->name('item_details.add');
+        Route::put('/{invoice}/items/{item}/details/{detail}', [InvoiceController::class, 'updateItemDetail'])->name('item_details.update');
+        Route::delete('/{invoice}/items/{item}/details/{detail}', [InvoiceController::class, 'deleteItemDetail'])->name('item_details.delete');
+
+        // Signatures Routes
+        Route::post('/{invoice}/signature', [InvoiceController::class, 'saveSignature'])->name('signatures.save');
+        Route::delete('/{invoice}/signature', [InvoiceController::class, 'deleteSignature'])->name('signatures.delete');
+
+        // Terms Routes
+        Route::post('/{invoice}/terms', [InvoiceController::class, 'addTerm'])->name('terms.add');
+        Route::delete('/{invoice}/terms/{term}', [InvoiceController::class, 'deleteTerm'])->name('terms.delete');
+
+        // Load Template Routes (Ajax)
+        Route::post('/{invoice}/load-signature-template', [InvoiceController::class, 'loadSignatureTemplate'])->name('load.signature');
+        Route::post('/{invoice}/load-term-template', [InvoiceController::class, 'loadTermTemplate'])->name('load.term');
+    });
+
+
 });
 
 require __DIR__ . '/auth.php';

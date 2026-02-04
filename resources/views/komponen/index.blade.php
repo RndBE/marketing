@@ -68,7 +68,7 @@
                                 </td>
                                 <td class="px-4 py-3 font-medium">{{ $k->nama }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $k->satuan ?? '-' }}</td>
-                                <td class="px-4 py-3 text-right font-medium">Rp {{ number_format($k->harga, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right font-medium whitespace-nowrap">Rp {{ number_format($k->harga, 0, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-center">
                                     @if ($k->is_active)
                                         <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Aktif</span>

@@ -345,8 +345,6 @@
                 </tr>
             @endif
         </tbody>
-
-
     </table>
 
     @if ($penawaran->terms && $penawaran->terms->count())

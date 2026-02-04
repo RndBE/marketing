@@ -909,7 +909,8 @@ class PenawaranController extends Controller
             'total' => $total,
             'kop' => $kop
         ])->setPaper('a4', 'portrait');
-        return $pdf->download($penawaran->judul . '.pdf');
+        $filename = str_replace(['/', '\\'], '-', $penawaran->judul) . '.pdf';
+        return $pdf->download($filename);
     }
 
     private function toRoman(int $month): string
