@@ -266,6 +266,9 @@
                                         Qty :
                                         <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
                                         <span class="text-slate-400">•</span>
+                                        Satuan :
+                                        <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                        <span class="text-slate-400">•</span>
                                         Total:
                                         <span class="font-semibold">Rp
                                             {{ number_format((int) $item->subtotal, 0, ',', '.') }}</span>
@@ -294,6 +297,11 @@
                                                     <div>
                                                         <label class="block text-xs font-semibold mb-1">Qty</label>
                                                         <input name="qty" value="{{ $item->qty ?? 1 }}" inputmode="decimal"
+                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-xs font-semibold mb-1">Satuan</label>
+                                                        <input name="satuan" value="{{ $item->satuan ?? 'ls' }}"
                                                             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                                                     </div>
                                                 </div>

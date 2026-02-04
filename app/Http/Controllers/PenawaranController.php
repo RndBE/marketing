@@ -396,6 +396,7 @@ class PenawaranController extends Controller
             'judul' => $request->judul ?: ($product->nama ?? 'Bundle'),
             'catatan' => $request->catatan,
             'qty' => (float) ($request->qty ?: 1),
+            'satuan' => $product->satuan ?? null,
             'subtotal' => 0,
         ]);
 
@@ -456,6 +457,7 @@ class PenawaranController extends Controller
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
             'qty' => ['required', 'numeric', 'min:0.01'],
+            'satuan' => ['nullable', 'string', 'max:50'],
         ]);
 
         if ($item->tipe !== 'bundle') {
@@ -465,6 +467,7 @@ class PenawaranController extends Controller
         $item->update([
             'judul' => $payload['judul'],
             'qty' => (float) $payload['qty'],
+            'satuan' => $payload['satuan'] ?? null,
         ]);
 
         $this->recalcItemSubtotal($item);

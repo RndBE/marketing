@@ -62,6 +62,17 @@
                                     <a href="{{ route('penawaran.show', $u->penawaran_id) }}"
                                         class="px-3 py-1 bg-green-600 text-white rounded-lg text-xs">Penawaran</a>
                                 @endif
+                                @if (!$u->tanggapan)
+                                    <form action="{{ route('usulan.destroy', $u->id) }}" method="POST" class="inline"
+                                        onsubmit="return confirm('Hapus usulan ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button
+                                            class="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs hover:bg-rose-100">
+                                            Hapus
+                                        </button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @empty

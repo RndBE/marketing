@@ -61,7 +61,7 @@
         }
 
         .items-table th {
-            background-color: #f3f4f6;
+            background-color: #65D1F2;
             padding: 10px;
             text-align: left;
 
@@ -82,7 +82,7 @@
             text-align: right;
         }
 
-        .text-center{
+        .text-center {
             text-align: right;
         }
 
@@ -203,12 +203,14 @@
         </tr>
     </table>
 
-    @if($invoice->parent)
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 2px;">
-        <tr>
-            <td style="font-weight: bold; ">Pembayaran ke - {{ $invoice->parent->children()->where('id', '<=', $invoice->id)->count() }} : {{ $invoice->judul }}</td>
-        </tr>
-    </table>
+    @if ($invoice->parent)
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 2px;">
+            <tr>
+                <td style="font-weight: bold; ">Pembayaran ke -
+                    {{ $invoice->parent->children()->where('id', '<=', $invoice->id)->count() }} :
+                    {{ $invoice->judul }}</td>
+            </tr>
+        </table>
     @endif
 
     <table class="items-table">
@@ -227,8 +229,8 @@
         </thead>
         <tbody>
             @php $n = 1; @endphp
-            @foreach($invoice->items as $item)
-                @if($item->tipe === 'bundle')
+            @foreach ($invoice->items as $item)
+                @if ($item->tipe === 'bundle')
                     <tr>
                         <td class="font-bold" style="text-align: center;">{{ $n++ }}</td>
                         <td class="font-bold">{{ $item->judul }}</td>
@@ -238,46 +240,50 @@
                             <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                 <tr style="border:none">
                                     <td align="left" style="border:none">Rp</td>
-                                    <td align="right" style="border:none">{{ number_format($item->subtotal / max($item->qty, 1), 0, ',', '.') }}</td>
+                                    <td align="right" style="border:none">
+                                        {{ number_format($item->subtotal / max($item->qty, 1), 0, ',', '.') }}</td>
                                 </tr>
                             </table>
-                        </td>   
+                        </td>
                         <td class="font-bold" style="white-space: nowrap; padding:0;">
                             <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                 <tr style="border:none">
                                     <td align="left" style="border:none">Rp</td>
-                                    <td align="right" style="border:none">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
+                                    <td align="right" style="border:none">
+                                        {{ number_format($item->subtotal, 0, ',', '.') }}</td>
                                 </tr>
                             </table>
-                        </td>   
+                        </td>
                     </tr>
-                    @foreach($item->details as $d)
+                    @foreach ($item->details as $d)
                         <tr style="color: #555;">
                             <td></td>
                             <td style="padding-left: 20px;">
                                 {{ $d->nama }}
-                                @if($d->spesifikasi)<br><small>{{ $d->spesifikasi }}</small>@endif
+                                @if ($d->spesifikasi)
+                                    <br><small>{{ $d->spesifikasi }}</small>
+                                @endif
                             </td>
-                            <td></td> {{-- Qty Hidden --}}
-                            <td></td> {{-- Unit Hidden --}}
-                            <td></td> {{-- Unit Price Hidden --}}
-                            <td></td> {{-- Total Hidden --}}
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
                         </tr>
                     @endforeach
                 @else
-                    
-                    @php 
+                    @php
                         $isSingle = $item->details->count() === 1;
                     @endphp
 
-                    @if($isSingle)
-                        
+                    @if ($isSingle)
                         @php $d = $item->details->first(); @endphp
                         <tr>
                             <td class="font-bold" style="text-align: center;">{{ $n++ }}</td>
                             <td class="font-bold">
                                 {{ $item->judul }}
-                                @if($d->spesifikasi)<br><small style="font-weight:normal; color:#555;">{{ $d->spesifikasi }}</small>@endif
+                                @if ($d->spesifikasi)
+                                    <br><small style="font-weight:normal; color:#555;">{{ $d->spesifikasi }}</small>
+                                @endif
                             </td>
                             <td class="" style="text-align: center;">{{ $d->qty }}</td>
                             <td class="" style="text-align: center;">{{ $d->satuan }}</td>
@@ -285,7 +291,8 @@
                                 <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none">Rp</td>
-                                        <td align="right" style="border:none">{{ number_format($d->harga, 0, ',', '.') }}</td>
+                                        <td align="right" style="border:none">
+                                            {{ number_format($d->harga, 0, ',', '.') }}</td>
                                     </tr>
                                 </table>
                             </td>
@@ -295,104 +302,114 @@
                                 <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none">Rp</td>
-                                        <td align="right" style="border:none">{{ number_format($d->subtotal, 0, ',', '.') }}</td>
+                                        <td align="right" style="border:none">
+                                            {{ number_format($d->subtotal, 0, ',', '.') }}</td>
                                     </tr>
                                 </table>
                             </td>
                         </tr>
                     @else
-                        
                         <tr>
                             <td class="font-bold">{{ $n++ }}</td>
                             <td class="font-bold">{{ $item->judul }}</td>
                             <td class="text-right"></td>
                             <td class="text-right"></td>
-                            <td class="text-right font-bold" style="white-space: nowrap;">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
+                            <td class="text-right font-bold" style="white-space: nowrap;">Rp
+                                {{ number_format($item->subtotal, 0, ',', '.') }}</td>
                         </tr>
-                        @foreach($item->details as $d)
+                        @foreach ($item->details as $d)
                             <tr style="color: #555;">
                                 <td></td>
                                 <td style="padding-left: 20px;">
                                     {{ $d->nama }}
-                                    @if($d->spesifikasi)<br><small>{{ $d->spesifikasi }}</small>@endif
+                                    @if ($d->spesifikasi)
+                                        <br><small>{{ $d->spesifikasi }}</small>
+                                    @endif
                                 </td>
                                 <td class="text-right">{{ $d->qty }} {{ $d->satuan }}</td>
-                                <td class="text-right" style="white-space: nowrap;">Rp {{ number_format($d->harga, 0, ',', '.') }}</td>
-                                <td class="text-right" style="white-space: nowrap;">Rp {{ number_format($d->subtotal, 0, ',', '.') }}</td>
+                                <td class="text-right" style="white-space: nowrap;">Rp
+                                    {{ number_format($d->harga, 0, ',', '.') }}</td>
+                                <td class="text-right" style="white-space: nowrap;">Rp
+                                    {{ number_format($d->subtotal, 0, ',', '.') }}</td>
                             </tr>
                         @endforeach
                     @endif
                 @endif
             @endforeach
         </tbody>
-            
+
+        <tr>
+            <td colspan="5" class="text-right font-bold">Subtotal</td>
+            <td class="font-bold" style="white-space: nowrap; padding:0;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                    <tr style="border:none">
+                        <td align="left" style="border:none">Rp</td>
+                        <td align="right" style="border:none">{{ number_format($invoice->subtotal, 0, ',', '.') }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        @if ($invoice->discount_amount > 0)
             <tr>
-                <td colspan="5" class="text-right font-bold">Subtotal</td>
+                <td colspan="5" class="text-right font-bold">Diskon</td>
+                <td class="text-right font-bold text-red-600">Rp
+                    {{ number_format($invoice->discount_amount, 0, ',', '.') }}</td>
+            </tr>
+        @endif
+        @if ($invoice->tax_amount > 0)
+            <tr>
+                <td colspan="5" class="text-right font-bold">Pajak ({{ $invoice->tax_percent }}%)</td>
                 <td class="font-bold" style="white-space: nowrap; padding:0;">
                     <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                         <tr style="border:none">
                             <td align="left" style="border:none">Rp</td>
-                            <td align="right" style="border:none">{{ number_format($invoice->subtotal, 0, ',', '.') }}</td>
+                            <td align="right" style="border:none">
+                                {{ number_format($invoice->tax_amount, 0, ',', '.') }}</td>
                         </tr>
                     </table>
                 </td>
             </tr>
-            @if($invoice->discount_amount > 0)
-                <tr>
-                    <td colspan="5" class="text-right font-bold">Discount</td>
-                    <td class="text-right font-bold text-red-600">- Rp {{ number_format($invoice->discount_amount, 0, ',', '.') }}</td>
-                </tr>
-            @endif
-            @if($invoice->tax_amount > 0)
-                <tr>
-                    <td colspan="5" class="text-right font-bold">Tax ({{ $invoice->tax_percent }}%)</td>
-                    <td class="font-bold" style="white-space: nowrap; padding:0;">
-                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                            <tr style="border:none">
-                                <td align="left" style="border:none">Rp</td>
-                                <td align="right" style="border:none">{{ number_format($invoice->tax_amount, 0, ',', '.') }}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            @endif
-            <tr>
-                <td colspan="5" class="text-right font-bold" >Total</td>
-                <td class="font-bold" style="white-space: nowrap; padding:0;">
-                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                        <tr style="border:none">
-                            <td align="left" style="border:none">Rp</td>
-                            <td align="right" style="border:none">{{ number_format($invoice->grand_total, 0, ',', '.') }}</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
+        @endif
+        <tr>
+            <td colspan="5" class="text-right font-bold">Total</td>
+            <td class="font-bold" style="white-space: nowrap; padding:0;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                    <tr style="border:none">
+                        <td align="left" style="border:none">Rp</td>
+                        <td align="right" style="border:none">
+                            {{ number_format($invoice->grand_total, 0, ',', '.') }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
         </tbody>
     </table>
 
-    <div style="margin-bottom: 20px; font-style: italic; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;">
-        <strong>Terbilang:</strong>  {{ $invoice->terbilang }} 
+    <div
+        style="margin-bottom: 20px; font-style: italic; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;">
+        <strong>Terbilang:</strong> {{ $invoice->terbilang }}
     </div>
 
-    {{-- PAYMENT INFO & SIGNATURE --}}
+
     <table style="width: 100%; margin-top: 20px; border-collapse: collapse; border: 0;">
         <tr>
-            {{-- LEFT COLUMN: Payment Info & Notes --}}
+
             <td style="width: 65%; vertical-align: top; padding-right: 20px; border: 0;">
                 <div style="border-radius: 5px; font-size: 11px;">
-                    @if($invoice->payment_info)
+                    @if ($invoice->payment_info)
                         <b>{!! nl2br(e($invoice->payment_info)) !!}</b>
                     @else
                         Bank: MCA (Mandiri Central Asia)<br>
                         A/N: CV. Arta Solusindo<br>
                         Rek: 123-456-7890
                     @endif
-                    
+
                     <br><br>
                     <strong>Keterangan:</strong><br>
-                    @if($invoice->terms->count() > 0)
+                    @if ($invoice->terms->count() > 0)
                         <ol style="margin: 5px 0 0 15px; padding: 0;" type="1">
-                            @foreach($invoice->terms as $term)
+                            @foreach ($invoice->terms as $term)
                                 <li style="margin-bottom: 3px;">{!! nl2br(e($term->isi)) !!}</li>
                             @endforeach
                         </ol>
@@ -402,30 +419,32 @@
                 </div>
             </td>
 
-            {{-- RIGHT COLUMN: Signature --}}
+
             <td style="width: 35%; vertical-align: top; text-align: center; border: 0;">
                 <div style="margin-bottom: 20px;">
-                    @if($invoice->signature)
+                    @if ($invoice->signature)
                         <div style="font-size: 10pt;">Hormat kami,</div>
                         <div style="font-size: 10pt; margin-top: 2px;">
-                            {{ $invoice->signature->kota ?? 'Sleman' }}, 
+                            {{ $invoice->signature->kota ?? 'Sleman' }},
                             {{ $invoice->signature->tanggal ? $invoice->signature->tanggal->isoFormat('D MMMM Y') : date('d F Y') }}
                         </div>
-                        
+
                         <div style="margin: 5px auto;">
-                            @if($invoice->signature->ttd_path)
-                                <img src="{{ public_path('storage/' . $invoice->signature->ttd_path) }}" style="height: 60px; object-fit: contain;">
+                            @if ($invoice->signature->ttd_path)
+                                <img src="{{ public_path('storage/' . $invoice->signature->ttd_path) }}"
+                                    style="height: 60px; object-fit: contain;">
                             @else
                                 <div style="height: 60px;"></div>
                             @endif
                         </div>
 
-                        <div style="font-weight: bold; font-size: 10pt; text-decoration: underline;">{{ $invoice->signature->nama }}</div>
+                        <div style="font-weight: bold; font-size: 10pt; text-decoration: underline;">
+                            {{ $invoice->signature->nama }}</div>
                         <div style="font-size: 10pt;">{{ $invoice->signature->jabatan }}</div>
                     @else
-                         <div style="font-size: 10pt;">Hormat kami,</div>
-                         <br><br><br><br>
-                         <div style="font-size: 10pt;">(..............................)</div>
+                        <div style="font-size: 10pt;">Hormat kami,</div>
+                        <br><br><br><br>
+                        <div style="font-size: 10pt;">(..............................)</div>
                     @endif
                 </div>
             </td>

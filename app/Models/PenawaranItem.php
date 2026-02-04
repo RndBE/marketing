@@ -16,6 +16,7 @@ class PenawaranItem extends Model
         'judul',
         'catatan',
         'qty',
+        'satuan',
         'subtotal',
     ];
 

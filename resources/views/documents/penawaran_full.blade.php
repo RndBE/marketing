@@ -44,7 +44,10 @@
         th,
         td {
             border: 1px solid black;
-            padding: 7px;
+            padding-top: 7px;
+            padding-bottom: 7px;
+            padding-right: 3px;
+            padding-left: 3px;
             vertical-align: top
         }
 
@@ -265,7 +268,7 @@
                     <td class="right" style="text-align: center;margin-bottom:0px">{{ $i + 1 }}</td>
 
                     <td>
-                        <div><strong>{{ $item->judul }}</strong></div>
+                        <div style="padding-left:2px;padding-right:2px"><strong>{{ $item->judul }}</strong></div>
 
                         @if (!empty($item->catatan))
                             <div class="muted" style="margin-top:4px;text-align:left">
@@ -274,7 +277,8 @@
                         @endif
 
                         @if ($detailCount)
-                            <ol style="margin:6px 0 0 10px;padding:0;" type="a">
+                            <ol style="margin:0px 0 5px 10px;padding-top:0;padding-bottom:0px;padding-left:7px;padding-right:7px"
+                                type="a">
                                 @foreach ($item->details as $d)
                                     <li style="margin:0 0 0px 0;">
                                         <div class="tight">
@@ -292,35 +296,77 @@
                     </td>
 
                     <td style="text-align:center;white-space:nowrap">
-                        {{ number_format($volume, 2, ',', '.') }}
+                        {{ number_format($volume, 2, ',', '.') }} {{ $item->satuan ?? 'ls' }}
                     </td>
 
                     <td class="right" style="white-space:nowrap">
-                        Rp {{ number_format((int) $hargaSatuanBundle, 0, ',', '.') }}
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                            <tr style="border:none">
+                                <td align="left" style="border:none">Rp</td>
+                                <td align="right" style="border:none">
+                                    {{ number_format((int) $hargaSatuanBundle, 0, ',', '.') }}</td>
+                            </tr>
+                        </table>
                     </td>
 
                     <td class="right" style="white-space:nowrap">
-                        Rp {{ number_format((int) $totalItem, 0, ',', '.') }}
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                            <tr style="border:none">
+                                <td align="left" style="border:none">Rp</td>
+                                <td align="right" style="border:none">
+                                    {{ number_format((int) $totalItem, 0, ',', '.') }}</td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             @endforeach
 
             <tr>
                 <td colspan="4" style="text-align:right"><strong>
-                        {{ !$penawaran->tax_enabled ? 'Total Harga belum termasuk PPN' : 'Total Harga' }}
+                        {{ !$penawaran->tax_enabled ? 'Harga belum termasuk PPN' : 'Harga' }}
                     </strong></td>
                 <td class="right" style="white-space:nowrap">
-                    <strong>Rp {{ number_format((int) $grand, 0, ',', '.') }}</strong>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                        <tr style="border:none">
+                            <td align="left" style="border:none"><strong>Rp</strong></td>
+                            <td align="right" style="border:none">
+                                <strong>{{ number_format((int) $grand, 0, ',', '.') }}</strong>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
 
             @if ($penawaran->discount_enabled && $discountAmount > 0)
                 <tr>
                     <td colspan="4" style="text-align:right">
-                        <strong>Diskon</strong>
+                        <strong>Diskon ({{ $dv }} %)</strong>
                     </td>
                     <td class="right" style="white-space:nowrap">
-                        <strong>- Rp {{ number_format((int) $discountAmount, 0, ',', '.') }}</strong>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                            <tr style="border:none">
+                                <td align="left" style="border:none"><strong>Rp</strong></td>
+                                <td align="right" style="border:none">
+                                    <strong>{{ number_format((int) $discountAmount, 0, ',', '.') }}</strong>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                @php
+                    $hargaSebelumPajak = max(0, (int) $grand - (int) $discountAmount);
+                @endphp
+                <tr>
+                    <td colspan="4" style="text-align:right"><strong>Harga Sebelum Pajak</strong></td>
+                    <td class="right" style="white-space:nowrap">
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                            <tr style="border:none">
+                                <td align="left" style="border:none"><strong>Rp</strong></td>
+                                <td align="right" style="border:none">
+                                    <strong>{{ number_format((int) $hargaSebelumPajak, 0, ',', '.') }}</strong>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             @endif
@@ -329,18 +375,32 @@
                 <tr>
                     <td colspan="4" style="text-align:right">
                         <strong>Pajak
-                            ({{ number_format((float) ($penawaran->tax_rate ?? 11), 2, ',', '.') }}%)</strong>
+                            ({{ number_format((float) ($penawaran->tax_rate ?? 11), 2, ',', '.') }} %)</strong>
                     </td>
                     <td class="right" style="white-space:nowrap">
-                        <strong>Rp {{ number_format((int) $taxAmount, 0, ',', '.') }}</strong>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                            <tr style="border:none">
+                                <td align="left" style="border:none"><strong>Rp</strong></td>
+                                <td align="right" style="border:none">
+                                    <strong>{{ number_format((int) $taxAmount, 0, ',', '.') }}</strong>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             @endif
             @if ($penawaran->tax_enabled)
                 <tr>
-                    <td colspan="4" style="text-align:right"><strong>Total</strong></td>
+                    <td colspan="4" style="text-align:right"><strong>Total Harga</strong></td>
                     <td class="right" style="white-space:nowrap">
-                        <strong>Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}</strong>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                            <tr style="border:none">
+                                <td align="left" style="border:none"><strong>Rp</strong></td>
+                                <td align="right" style="border:none">
+                                    <strong>{{ number_format((int) $grandTotal, 0, ',', '.') }}</strong>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             @endif

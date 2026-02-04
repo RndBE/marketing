@@ -102,6 +102,18 @@
                     </button>
                 </form>
             @endif
+
+            @if (!$usulan->tanggapan)
+                <form action="{{ route('usulan.destroy', $usulan->id) }}" method="POST"
+                    onsubmit="return confirm('Hapus usulan ini?')">
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+                        Hapus
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
 
