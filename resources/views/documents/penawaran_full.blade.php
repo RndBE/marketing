@@ -296,7 +296,7 @@
                     </td>
 
                     <td style="text-align:center;white-space:nowrap">
-                        {{ number_format($volume, 2, ',', '.') }} {{ $item->satuan ?? 'ls' }}
+                        {{ number_format($volume, 0, ',', '.') }} {{ $item->satuan ?? 'ls' }}
                     </td>
 
                     <td class="right" style="white-space:nowrap">
