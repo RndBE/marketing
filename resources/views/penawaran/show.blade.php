@@ -273,6 +273,22 @@
                                         <span class="font-semibold">Rp
                                             {{ number_format((int) $item->subtotal, 0, ',', '.') }}</span>
                                     </div>
+                                @else
+                                    <div class="mt-2 text-sm text-slate-600">
+                                        Harga Satuan :
+                                        <span class="font-semibold">Rp
+                                            {{ number_format((int) ((($item->qty ?? 1) > 0) ? round($item->subtotal / ($item->qty ?? 1)) : $item->subtotal), 0, ',', '.') }}</span>
+                                        <span class="text-slate-400">•</span>
+                                        Qty :
+                                        <span class="font-semibold">{{ number_format((float) ($item->qty ?? 1), 2, ',', '.') }}</span>
+                                        <span class="text-slate-400">•</span>
+                                        Satuan :
+                                        <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                        <span class="text-slate-400">•</span>
+                                        Total:
+                                        <span class="font-semibold">Rp
+                                            {{ number_format((int) $item->subtotal, 0, ',', '.') }}</span>
+                                    </div>
                                 @endif
 
                             </div>
@@ -293,6 +309,49 @@
                                                 <label class="block text-xs font-semibold">Nama Bundle</label>
                                                 <input name="judul" value="{{ $item->judul }}"
                                                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                <div class="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label class="block text-xs font-semibold mb-1">Qty</label>
+                                                        <input name="qty" value="{{ $item->qty ?? 1 }}" inputmode="decimal"
+                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-xs font-semibold mb-1">Satuan</label>
+                                                        <input name="satuan" value="{{ $item->satuan ?? 'ls' }}"
+                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                    </div>
+                                                </div>
+                                                <div class="flex justify-end">
+                                                    <button type="submit"
+                                                        class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                                                        Simpan
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </details>
+                                @endif
+                                @if ($canEdit && $item->tipe === 'custom')
+                                    <details class="inline-block text-left">
+                                        <summary
+                                            class="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
+                                            Edit Item
+                                        </summary>
+                                        <div
+                                            class="mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                                            <form method="POST"
+                                                action="{{ route('penawaran.items.update', [$penawaran->id, $item->id]) }}"
+                                                class="space-y-2">
+                                                @csrf
+                                                @method('PUT')
+                                                <label class="block text-xs font-semibold">Judul Item</label>
+                                                <input name="judul" value="{{ $item->judul }}"
+                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                <div>
+                                                    <label class="block text-xs font-semibold mb-1">Catatan</label>
+                                                    <input name="catatan" value="{{ $item->catatan }}"
+                                                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                                </div>
                                                 <div class="grid grid-cols-2 gap-2">
                                                     <div>
                                                         <label class="block text-xs font-semibold mb-1">Qty</label>

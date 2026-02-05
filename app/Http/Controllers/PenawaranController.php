@@ -467,26 +467,40 @@ class PenawaranController extends Controller
             abort(404);
         }
 
-        $payload = $request->validate([
+        $rules = [
             'judul' => ['required', 'string', 'max:255'],
-            'qty' => ['required', 'numeric', 'min:0.01'],
-            'satuan' => ['nullable', 'string', 'max:50'],
-        ]);
+            'catatan' => ['nullable', 'string', 'max:255'],
+        ];
 
-        if ($item->tipe !== 'bundle') {
-            return response()->json(['message' => 'Hanya bundle yang bisa diubah namanya.'], 422);
+        if ($item->tipe === 'bundle') {
+            $rules['qty'] = ['required', 'numeric', 'min:0.01'];
+            $rules['satuan'] = ['nullable', 'string', 'max:50'];
+        } else {
+            $rules['qty'] = ['required', 'numeric', 'min:0.01'];
+            $rules['satuan'] = ['nullable', 'string', 'max:50'];
         }
 
-        $item->update([
+        $payload = $request->validate($rules);
+
+        $update = [
             'judul' => $payload['judul'],
-            'qty' => (float) $payload['qty'],
-            'satuan' => $payload['satuan'] ?? null,
-        ]);
+            'catatan' => $payload['catatan'] ?? $item->catatan,
+        ];
+
+        if ($item->tipe === 'bundle') {
+            $update['qty'] = (float) $payload['qty'];
+            $update['satuan'] = $payload['satuan'] ?? null;
+        } else {
+            $update['qty'] = (float) $payload['qty'];
+            $update['satuan'] = $payload['satuan'] ?? null;
+        }
+
+        $item->update($update);
 
         $this->recalcItemSubtotal($item);
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return response()->json(['message' => 'Nama bundle berhasil diupdate']);
+        return response()->json(['message' => 'Item berhasil diupdate']);
     }
 
     public function deleteItem(Penawaran $penawaran, PenawaranItem $item)
