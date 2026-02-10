@@ -16,6 +16,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\KomponenController;
 use App\Http\Controllers\UsulanPenawaranController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PurchaseOrderController;
 
 
 
@@ -271,6 +272,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{invoice}/load-term-template', [InvoiceController::class, 'loadTermTemplate'])->name('load.term');
     });
 
+    /*
+    |---------------- PURCHASE ORDER ------------|
+    */
+    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
+        Route::get('/', [PurchaseOrderController::class, 'index'])
+            ->middleware('permission:view-purchase-order')
+            ->name('index');
+        Route::get('/create', [PurchaseOrderController::class, 'create'])
+            ->middleware('permission:create-purchase-order')
+            ->name('create');
+        Route::post('/', [PurchaseOrderController::class, 'store'])
+            ->middleware('permission:create-purchase-order')
+            ->name('store');
+        Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])
+            ->middleware('permission:view-purchase-order')
+            ->name('show');
+    });
 
 });
 

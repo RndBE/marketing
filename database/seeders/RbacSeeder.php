@@ -51,6 +51,10 @@ class RbacSeeder extends Seeder
 
             // Alur Penawaran
             ['name' => 'Kelola Alur Approval', 'slug' => 'manage-alur', 'group' => 'Alur Approval', 'description' => 'CRUD alur approval'],
+
+            // Purchase Order
+            ['name' => 'Lihat Purchase Order', 'slug' => 'view-purchase-order', 'group' => 'Purchase Order', 'description' => 'Lihat daftar purchase order'],
+            ['name' => 'Buat Purchase Order', 'slug' => 'create-purchase-order', 'group' => 'Purchase Order', 'description' => 'Buat purchase order baru'],
         ];
 
         foreach ($permissions as $perm) {

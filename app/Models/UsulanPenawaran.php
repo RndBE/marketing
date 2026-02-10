@@ -55,6 +55,11 @@ class UsulanPenawaran extends Model
         return $this->hasMany(UsulanAttachment::class, 'usulan_id');
     }
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(UsulanItem::class, 'usulan_id')->orderBy('urutan');
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {

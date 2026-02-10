@@ -69,6 +69,8 @@ class DatabaseSeeder extends Seeder
             ['id' => 14, 'name' => 'Edit Usulan', 'slug' => 'edit-usulan', 'description' => 'Edit usulan sendiri', 'group' => 'Usulan Penawaran'],
             ['id' => 15, 'name' => 'Hapus Usulan', 'slug' => 'delete-usulan', 'description' => 'Hapus usulan', 'group' => 'Usulan Penawaran'],
             ['id' => 16, 'name' => 'Tanggapi Usulan', 'slug' => 'respond-usulan', 'description' => 'Tanggapi dan approve usulan', 'group' => 'Usulan Penawaran'],
+            ['id' => 18, 'name' => 'Lihat Purchase Order', 'slug' => 'view-purchase-order', 'description' => 'Lihat daftar purchase order', 'group' => 'Purchase Order'],
+            ['id' => 19, 'name' => 'Buat Purchase Order', 'slug' => 'create-purchase-order', 'description' => 'Buat purchase order baru', 'group' => 'Purchase Order'],
         ];
 
         foreach ($permissions as $permission) {
@@ -97,6 +99,8 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 15, 'role_id' => 1],
             ['permission_id' => 16, 'role_id' => 1],
             ['permission_id' => 17, 'role_id' => 1],
+            ['permission_id' => 18, 'role_id' => 1],
+            ['permission_id' => 19, 'role_id' => 1],
 
             // Corporate Account Manager (role_id: 2)
             ['permission_id' => 4, 'role_id' => 2],
@@ -106,6 +110,8 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 12, 'role_id' => 2],
             ['permission_id' => 15, 'role_id' => 2],
             ['permission_id' => 16, 'role_id' => 2],
+            ['permission_id' => 18, 'role_id' => 2],
+            ['permission_id' => 19, 'role_id' => 2],
 
             // Bussines Development (role_id: 4)
             ['permission_id' => 4, 'role_id' => 4],
@@ -125,6 +131,8 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 11, 'role_id' => 5],
             ['permission_id' => 12, 'role_id' => 5],
             ['permission_id' => 17, 'role_id' => 5],
+            ['permission_id' => 18, 'role_id' => 5],
+            ['permission_id' => 19, 'role_id' => 5],
         ];
 
         foreach ($permissionRole as $pr) {

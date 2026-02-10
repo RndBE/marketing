@@ -7,6 +7,7 @@
 
     <nav class="px-3 py-4 overflow-y-auto" x-data="{
         invoice: {{ request()->routeIs('invoices.*') ? 'true' : 'false' }},
+        purchase_order: {{ request()->routeIs('purchase-orders.*') ? 'true' : 'false' }},
         penawaran: {{ request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*') ? 'true' : 'false' }},
         usulan: {{ request()->routeIs('usulan.*') ? 'true' : 'false' }},
         pricelist: {{ request()->routeIs('price_list.*', 'komponen.*') ? 'true' : 'false' }},
@@ -96,6 +97,36 @@
                                                                 {{ request()->routeIs('templates.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Atur Template</span>
                     </a>
+                </div>
+            </div>
+        @endif
+        @if(auth()->user()->hasPermission('view-purchase-order') || auth()->user()->hasPermission('create-purchase-order'))
+            <div class="mb-4">
+                <button @click="purchase_order = !purchase_order"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
+                    <span>Purchase Order</span>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': purchase_order }" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+
+                <div x-show="purchase_order" x-collapse class="mt-1 space-y-1">
+                    @if(auth()->user()->hasPermission('view-purchase-order'))
+                        <a href="{{ route('purchase-orders.index') }}"
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                                                            {{ request()->routeIs('purchase-orders.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                            <span>Daftar PO</span>
+                        </a>
+                    @endif
+
+                    @if(auth()->user()->hasPermission('create-purchase-order'))
+                        <a href="{{ route('purchase-orders.create') }}"
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                                                            {{ request()->routeIs('purchase-orders.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                            <span>Buat PO</span>
+                        </a>
+                    @endif
                 </div>
             </div>
         @endif

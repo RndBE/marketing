@@ -38,6 +38,42 @@
             <div class="text-sm whitespace-pre-wrap">{{ $usulan->deskripsi ?: '-' }}</div>
         </div>
 
+        @if ($usulan->items->count())
+            <div class="bg-white rounded-xl border border-slate-200 p-5 mb-4">
+                <div class="text-xs font-semibold text-slate-500 mb-2">Item Usulan</div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50 border border-slate-200">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-semibold">No</th>
+                                <th class="px-3 py-2 text-left font-semibold">Item</th>
+                                <th class="px-3 py-2 text-right font-semibold">Qty</th>
+                                <th class="px-3 py-2 text-left font-semibold">Satuan</th>
+                                <th class="px-3 py-2 text-right font-semibold">Harga</th>
+                                <th class="px-3 py-2 text-right font-semibold">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="border border-slate-200 divide-y divide-slate-100">
+                            @foreach ($usulan->items as $i => $item)
+                                <tr>
+                                    <td class="px-3 py-2">{{ $i + 1 }}</td>
+                                    <td class="px-3 py-2">
+                                        <div class="font-semibold">{{ $item->judul }}</div>
+                                    </td>
+                                    <td class="px-3 py-2 text-right">{{ number_format((float) $item->qty, 2, ',', '.') }}</td>
+                                    <td class="px-3 py-2">{{ $item->satuan ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-right">Rp
+                                        {{ number_format((int) $item->harga, 0, ',', '.') }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold">Rp
+                                        {{ number_format((int) $item->subtotal, 0, ',', '.') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         @if ($usulan->attachments->count())
             <div class="bg-white rounded-xl border border-slate-200 p-5 mb-4">
                 <div class="text-xs font-semibold text-slate-500 mb-2">Lampiran</div>
@@ -137,6 +173,22 @@
                         <option value="disetujui">Disetujui</option>
                         <option value="ditolak">Ditolak</option>
                     </select>
+                </div>
+                @php
+                    $hasItems = $usulan->items->count() > 0;
+                @endphp
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold mb-1">Penawaran (Opsional)</label>
+                    <select name="penawaran_action" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                        <option value="none">Hanya simpan tanggapan</option>
+                        <option value="empty">Buat penawaran kosong</option>
+                        <option value="from_usulan" {{ $hasItems ? '' : 'disabled' }}>
+                            Buat penawaran + item usulan{{ $hasItems ? '' : ' (Belum ada item)' }}
+                        </option>
+                    </select>
+                    <div class="text-xs text-slate-500 mt-1">
+                        Jika memilih buat penawaran, status harus <span class="font-semibold">Disetujui</span>.
+                    </div>
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" onclick="this.closest('#tanggapanModal').classList.add('hidden')"
