@@ -96,27 +96,28 @@
                     @if (count($oldJudul))
                         @foreach ($oldJudul as $i => $judul)
                             <div class="grid grid-cols-12 gap-2 mb-2 item-row">
-                            <div class="col-span-4">
-                                <input type="text" name="item_judul[]" value="{{ $judul }}"
-                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                                    placeholder="Nama item">
-                                <input type="hidden" name="item_tipe[]" value="{{ old('item_tipe.' . $i, 'custom') }}">
-                                <input type="hidden" name="item_product_id[]" value="{{ old('item_product_id.' . $i) }}">
-                            </div>
+                                <div class="col-span-4">
+                                    <input type="text" name="item_judul[]" value="{{ $judul }}"
+                                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                                        placeholder="Nama item">
+                                    <input type="hidden" name="item_tipe[]"
+                                        value="{{ old('item_tipe.' . $i, 'custom') }}">
+                                    <input type="hidden" name="item_product_id[]"
+                                        value="{{ old('item_product_id.' . $i) }}">
+                                </div>
                                 <div class="col-span-2">
-                                    <input type="number" name="item_qty[]"
-                                        value="{{ old('item_qty.' . $i, 1) }}" step="0.01" min="0.01"
+                                    <input type="number" name="item_qty[]" value="{{ old('item_qty.' . $i, 1) }}"
+                                        step="0.01" min="0.01"
                                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-right">
                                 </div>
                                 <div class="col-span-2">
-                                    <input type="text" name="item_satuan[]"
-                                        value="{{ old('item_satuan.' . $i) }}"
+                                    <input type="text" name="item_satuan[]" value="{{ old('item_satuan.' . $i) }}"
                                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                                         placeholder="ls">
                                 </div>
                                 <div class="col-span-3">
-                                    <input type="number" name="item_harga[]"
-                                        value="{{ old('item_harga.' . $i, 0) }}" min="0"
+                                    <input type="number" name="item_harga[]" value="{{ old('item_harga.' . $i, 0) }}"
+                                        min="0"
                                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-right">
                                 </div>
                                 <div class="col-span-1 flex items-center justify-end">
@@ -140,8 +141,7 @@
                             </div>
                             <div class="col-span-2">
                                 <input type="text" name="item_satuan[]"
-                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                                    placeholder="ls">
+                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="ls">
                             </div>
                             <div class="col-span-3">
                                 <input type="number" name="item_harga[]" value="0" min="0"
@@ -181,7 +181,8 @@
                     class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Simpan
                     Draft</button>
                 <button type="submit" name="status" value="menunggu"
-                    class="rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">Kirim ke
+                    class="rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">Kirim
+                    ke
                     Sales</button>
             </div>
         </form>

@@ -24,6 +24,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
 
 class PenawaranController extends Controller
 {
@@ -853,24 +854,37 @@ class PenawaranController extends Controller
     public function addAttachment(Request $request, Penawaran $penawaran)
     {
         $payload = $request->validate([
-            'judul' => ['nullable', 'string', 'max:255'],
-            'file' => ['required', 'file', 'max:10240']
+            'judul' => ['nullable', 'array'],
+            'judul.*' => ['nullable', 'string', 'max:255'],
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['file', 'mimes:pdf', 'max:10240']
         ]);
+
+        $files = $request->file('files', []);
+        $judulList = $payload['judul'] ?? [];
 
         $urutan = (int) PenawaranAttachment::where('penawaran_id', $penawaran->id)->max('urutan');
         $urutan = $urutan > 0 ? $urutan + 1 : 1;
 
-        $file = $request->file('file');
-        $path = $file->store('penawaran/lampiran', 'public');
+        foreach ($files as $idx => $file) {
+            if (!$file) {
+                continue;
+            }
 
-        PenawaranAttachment::create([
-            'penawaran_id' => $penawaran->id,
-            'urutan' => $urutan,
-            'judul' => $payload['judul'] ?? $file->getClientOriginalName(),
-            'file_path' => $path,
-            'mime' => $file->getClientMimeType(),
-            'size' => $file->getSize()
-        ]);
+            $path = $file->store('penawaran/lampiran', 'public');
+            $judul = trim((string) ($judulList[$idx] ?? ''));
+
+            PenawaranAttachment::create([
+                'penawaran_id' => $penawaran->id,
+                'urutan' => $urutan,
+                'judul' => $judul !== '' ? $judul : $file->getClientOriginalName(),
+                'file_path' => $path,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize()
+            ]);
+
+            $urutan++;
+        }
 
         $penawaran->update(['date_updated' => now()->timestamp]);
 
@@ -946,7 +960,59 @@ class PenawaranController extends Controller
             'kop' => $kop
         ])->setPaper('a4', 'portrait');
         $filename = str_replace(['/', '\\'], '-', $penawaran->judul) . '.pdf';
-        return $pdf->download($filename);
+
+        $attachmentPaths = [];
+        foreach ($penawaran->attachments as $attachment) {
+            $path = ltrim((string) $attachment->file_path, '/');
+            $p1 = storage_path('app/public/' . $path);
+            $p2 = public_path('storage/' . $path);
+            $fullPath = is_file($p1) ? $p1 : (is_file($p2) ? $p2 : null);
+            if (!$fullPath) {
+                continue;
+            }
+            $mime = strtolower((string) $attachment->mime);
+            $isPdf = str_contains($mime, 'pdf') || strtolower(pathinfo($fullPath, PATHINFO_EXTENSION)) === 'pdf';
+            if ($isPdf) {
+                $attachmentPaths[] = $fullPath;
+            }
+        }
+
+        if (!$attachmentPaths) {
+            return $pdf->stream($filename);
+        }
+
+        $tmpMain = tempnam(sys_get_temp_dir(), 'penawaran_');
+        if ($tmpMain === false) {
+            return $pdf->stream($filename);
+        }
+        try {
+            file_put_contents($tmpMain, $pdf->output());
+            $filesToMerge = array_merge([$tmpMain], $attachmentPaths);
+
+            $merged = new Fpdi();
+            foreach ($filesToMerge as $filePath) {
+                $pageCount = $merged->setSourceFile($filePath);
+                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                    $tpl = $merged->importPage($pageNo);
+                    $size = $merged->getTemplateSize($tpl);
+                    $merged->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $merged->useTemplate($tpl);
+                }
+            }
+
+            $content = $merged->Output('S');
+            return response($content, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"'
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+            return $pdf->stream($filename);
+        } finally {
+            if (is_file($tmpMain)) {
+                @unlink($tmpMain);
+            }
+        }
     }
 
     private function toRoman(int $month): string

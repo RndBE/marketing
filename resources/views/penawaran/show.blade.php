@@ -89,8 +89,8 @@
             <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
                 class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
                 PDF</a>
-            
-             <a href="{{ route('invoices.create_from_penawaran', $penawaran->id) }}"
+
+            <a href="{{ route('invoices.create_from_penawaran', $penawaran->id) }}"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
                 Buat Invoice
             </a>
@@ -277,10 +277,11 @@
                                     <div class="mt-2 text-sm text-slate-600">
                                         Harga Satuan :
                                         <span class="font-semibold">Rp
-                                            {{ number_format((int) ((($item->qty ?? 1) > 0) ? round($item->subtotal / ($item->qty ?? 1)) : $item->subtotal), 0, ',', '.') }}</span>
+                                            {{ number_format((int) (($item->qty ?? 1) > 0 ? round($item->subtotal / ($item->qty ?? 1)) : $item->subtotal), 0, ',', '.') }}</span>
                                         <span class="text-slate-400">•</span>
                                         Qty :
-                                        <span class="font-semibold">{{ number_format((float) ($item->qty ?? 1), 2, ',', '.') }}</span>
+                                        <span
+                                            class="font-semibold">{{ number_format((float) ($item->qty ?? 1), 2, ',', '.') }}</span>
                                         <span class="text-slate-400">•</span>
                                         Satuan :
                                         <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
@@ -312,7 +313,8 @@
                                                 <div class="grid grid-cols-2 gap-2">
                                                     <div>
                                                         <label class="block text-xs font-semibold mb-1">Qty</label>
-                                                        <input name="qty" value="{{ $item->qty ?? 1 }}" inputmode="decimal"
+                                                        <input name="qty" value="{{ $item->qty ?? 1 }}"
+                                                            inputmode="decimal"
                                                             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                                                     </div>
                                                     <div>
@@ -355,7 +357,8 @@
                                                 <div class="grid grid-cols-2 gap-2">
                                                     <div>
                                                         <label class="block text-xs font-semibold mb-1">Qty</label>
-                                                        <input name="qty" value="{{ $item->qty ?? 1 }}" inputmode="decimal"
+                                                        <input name="qty" value="{{ $item->qty ?? 1 }}"
+                                                            inputmode="decimal"
                                                             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                                                     </div>
                                                     <div>
@@ -808,10 +811,17 @@
                     <form method="POST" action="{{ route('penawaran.attachments.add', $penawaran->id) }}"
                         enctype="multipart/form-data" class="space-y-2">
                         @csrf
-                        <input name="judul" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                            placeholder="Judul (opsional)">
-                        <input type="file" name="file"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                        <div id="penawaran-attachment-container" class="space-y-2">
+                            <div class="flex gap-2 attachment-row">
+                                {{-- <input name="judul[]"
+                                    class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                                    placeholder="Judul (opsional)"> --}}
+                                <input type="file" name="files[]" accept="application/pdf"
+                                    class="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <button type="button" onclick="addPenawaranAttachmentRow()"
+                            class="text-sm text-blue-600 hover:underline">+ Tambah lampiran</button>
                         <button
                             class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Upload</button>
                     </form>
@@ -1082,7 +1092,7 @@
             };
 
             try {
-                const res = await fetch('{{ route("penawaran.terms.reorder", $penawaran->id) }}', {
+                const res = await fetch('{{ route('penawaran.terms.reorder', $penawaran->id) }}', {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
@@ -1111,7 +1121,7 @@
             if (!ids.length) return;
 
             try {
-                const res = await fetch('{{ route("penawaran.items.reorder", $penawaran->id) }}', {
+                const res = await fetch('{{ route('penawaran.items.reorder', $penawaran->id) }}', {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
@@ -1119,7 +1129,9 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': getCsrfToken()
                     },
-                    body: JSON.stringify({ ids })
+                    body: JSON.stringify({
+                        ids
+                    })
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
@@ -1140,16 +1152,19 @@
             if (!ids.length) return;
 
             try {
-                const res = await fetch(`{{ url('/penawaran') }}/{{ $penawaran->id }}/items/${itemId}/details/reorder`, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken()
-                    },
-                    body: JSON.stringify({ ids })
-                });
+                const res = await fetch(
+                    `{{ url('/penawaran') }}/{{ $penawaran->id }}/items/${itemId}/details/reorder`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            ids
+                        })
+                    });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
                     showToast(data.message || 'Gagal memperbarui urutan rincian', 'error');
@@ -1163,7 +1178,8 @@
         }
 
         function initDetailDragDrop(root = document) {
-            const isInteractive = (target) => !!target.closest('input, textarea, select, button, a, label, summary, details');
+            const isInteractive = (target) => !!target.closest(
+                'input, textarea, select, button, a, label, summary, details');
             root.querySelectorAll('.detail-row').forEach(row => {
                 row.addEventListener('dragstart', (e) => {
                     if (isInteractive(e.target)) {
@@ -1203,7 +1219,8 @@
         }
 
         function initItemDragDrop(root = document) {
-            const isInteractive = (target) => !!target.closest('input, textarea, select, button, a, label, summary, details');
+            const isInteractive = (target) => !!target.closest(
+                'input, textarea, select, button, a, label, summary, details');
             const wrap = root.querySelector('#items-wrap');
             if (!wrap) return;
 
@@ -1285,6 +1302,19 @@
             e.preventDefault();
             ajaxDelete(btn.dataset.deleteUrl, btn.dataset.confirm || '');
         });
+
+        function addPenawaranAttachmentRow() {
+            const container = document.getElementById('penawaran-attachment-container');
+            if (!container) return;
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 attachment-row';
+            row.innerHTML = `
+                                <input name="judul[]" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Judul (opsional)">
+                                <input type="file" name="files[]" accept="application/pdf" class="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                <button type="button" onclick="this.parentElement.remove()" class="text-red-500 text-sm">Hapus</button>
+                            `;
+            container.appendChild(row);
+        }
 
 
         document.addEventListener('submit', function(e) {
