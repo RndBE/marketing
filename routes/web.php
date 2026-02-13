@@ -17,6 +17,7 @@ use App\Http\Controllers\KomponenController;
 use App\Http\Controllers\UsulanPenawaranController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\LaporanPerjalananMarketingController;
 
 
 
@@ -288,6 +289,41 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])
             ->middleware('permission:view-purchase-order')
             ->name('show');
+    });
+
+    /*
+    |---------------- LAPORAN MARKETING --------|
+    */
+    Route::prefix('marketing-reports')->name('marketing-reports.')->group(function () {
+        Route::get('/', [LaporanPerjalananMarketingController::class, 'index'])
+            ->middleware('permission:view-marketing-report')
+            ->name('index');
+
+        Route::get('/create', [LaporanPerjalananMarketingController::class, 'create'])
+            ->middleware('permission:create-marketing-report')
+            ->name('create');
+        Route::post('/', [LaporanPerjalananMarketingController::class, 'store'])
+            ->middleware('permission:create-marketing-report')
+            ->name('store');
+
+        Route::get('/{marketingReport}', [LaporanPerjalananMarketingController::class, 'show'])
+            ->middleware('permission:view-marketing-report')
+            ->name('show');
+
+        Route::delete('/{marketingReport}/attachments/{attachment}', [LaporanPerjalananMarketingController::class, 'deleteAttachment'])
+            ->middleware('permission:edit-marketing-report')
+            ->name('attachments.destroy');
+
+        Route::get('/{marketingReport}/edit', [LaporanPerjalananMarketingController::class, 'edit'])
+            ->middleware('permission:edit-marketing-report')
+            ->name('edit');
+        Route::put('/{marketingReport}', [LaporanPerjalananMarketingController::class, 'update'])
+            ->middleware('permission:edit-marketing-report')
+            ->name('update');
+
+        Route::delete('/{marketingReport}', [LaporanPerjalananMarketingController::class, 'destroy'])
+            ->middleware('permission:delete-marketing-report')
+            ->name('destroy');
     });
 
 });

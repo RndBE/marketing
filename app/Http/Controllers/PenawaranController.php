@@ -36,6 +36,7 @@ class PenawaranController extends Controller
 
         $data = Penawaran::query()
             ->with(['docNumber', 'approval'])
+            ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
             ->when(!$canViewAll, function ($query) use ($user) {
                 $query->where('id_user', $user->id);
             })
@@ -46,7 +47,9 @@ class PenawaranController extends Controller
                         ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
                 });
             })
-            ->orderByDesc('id')
+            ->orderByDesc('dn.seq')
+            ->orderByDesc('penawaran.id')
+            ->select('penawaran.*')
             ->paginate(15)
             ->withQueryString();
 

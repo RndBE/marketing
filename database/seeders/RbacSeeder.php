@@ -55,6 +55,13 @@ class RbacSeeder extends Seeder
             // Purchase Order
             ['name' => 'Lihat Purchase Order', 'slug' => 'view-purchase-order', 'group' => 'Purchase Order', 'description' => 'Lihat daftar purchase order'],
             ['name' => 'Buat Purchase Order', 'slug' => 'create-purchase-order', 'group' => 'Purchase Order', 'description' => 'Buat purchase order baru'],
+
+            // Laporan Marketing
+            ['name' => 'Lihat Laporan Marketing', 'slug' => 'view-marketing-report', 'group' => 'Laporan Marketing', 'description' => 'Lihat laporan perjalanan marketing'],
+            ['name' => 'Lihat Semua Laporan Marketing', 'slug' => 'view-all-marketing-report', 'group' => 'Laporan Marketing', 'description' => 'Lihat semua laporan perjalanan marketing'],
+            ['name' => 'Buat Laporan Marketing', 'slug' => 'create-marketing-report', 'group' => 'Laporan Marketing', 'description' => 'Buat laporan perjalanan marketing'],
+            ['name' => 'Edit Laporan Marketing', 'slug' => 'edit-marketing-report', 'group' => 'Laporan Marketing', 'description' => 'Edit laporan perjalanan marketing'],
+            ['name' => 'Hapus Laporan Marketing', 'slug' => 'delete-marketing-report', 'group' => 'Laporan Marketing', 'description' => 'Hapus laporan perjalanan marketing'],
         ];
 
         foreach ($permissions as $perm) {
@@ -87,7 +94,7 @@ class RbacSeeder extends Seeder
         // Assign Manager role permissions
         $managerRole = DB::table('roles')->where('slug', 'manager')->first();
         $managerPerms = DB::table('permissions')
-            ->whereIn('slug', ['view-penawaran', 'view-all-penawaran', 'approve-penawaran', 'manage-pricelist', 'manage-pic'])
+            ->whereIn('slug', ['view-penawaran', 'view-all-penawaran', 'approve-penawaran', 'manage-pricelist', 'manage-pic', 'view-marketing-report', 'view-all-marketing-report', 'create-marketing-report', 'edit-marketing-report', 'delete-marketing-report'])
             ->pluck('id');
 
         foreach ($managerPerms as $permId) {
@@ -103,7 +110,7 @@ class RbacSeeder extends Seeder
         // Assign Staff role permissions
         $staffRole = DB::table('roles')->where('slug', 'staff')->first();
         $staffPerms = DB::table('permissions')
-            ->whereIn('slug', ['view-penawaran', 'create-penawaran', 'edit-penawaran'])
+            ->whereIn('slug', ['view-penawaran', 'create-penawaran', 'edit-penawaran', 'view-marketing-report', 'create-marketing-report', 'edit-marketing-report', 'delete-marketing-report'])
             ->pluck('id');
 
         foreach ($staffPerms as $permId) {

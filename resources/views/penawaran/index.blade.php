@@ -46,7 +46,6 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="font-medium">{{ $row->judul ?? '-' }}</div>
-                                    <div class="text-xs text-slate-500 mt-0.5">ID: {{ $row->id }}</div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="font-medium">{{ $row->pic?->nama ?? '-' }}</div>
@@ -62,12 +61,14 @@
                                     @endphp
 
                                     @if ($status === 'menunggu' && $m === 'penawaran')
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        <span
+                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                             Menunggu Approval Disetujui
                                             Step {{ $row->approval->current_step }}
                                         </span>
                                     @elseif ($status === 'disetujui' && $m === 'penawaran')
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        <span
+                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                             Disetujui
                                         </span>
                                     @elseif ($status === 'ditolak' && $m === 'penawaran')
@@ -75,7 +76,8 @@
                                             Ditolak
                                         </span>
                                     @elseif ($status === 'menunggu' && $m === 'penghapusan')
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        <span
+                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                             Menunggu Approval Dihapus
                                             Step {{ $row->approval->current_step }}
                                         </span>
@@ -84,11 +86,13 @@
                                             Disetujui Dihapus
                                         </span>
                                     @elseif ($status === 'dihapus')
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                                        <span
+                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
                                             Dihapus
                                         </span>
                                     @else
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
+                                        <span
+                                            class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">
                                             Draft
                                         </span>
                                     @endif
