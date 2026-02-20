@@ -14,6 +14,10 @@
             <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
         @endif
 
+        @if (session('error'))
+            <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
+        @endif
+
         {{-- Filter --}}
         <div class="flex gap-2 mb-4">
             <a href="{{ route('usulan.index') }}"
@@ -62,7 +66,7 @@
                                     <a href="{{ route('penawaran.show', $u->penawaran_id) }}"
                                         class="px-3 py-1 bg-green-600 text-white rounded-lg text-xs">Penawaran</a>
                                 @endif
-                                @if (!$u->tanggapan)
+                                @if (in_array($u->status, ['draft', 'ditolak']))
                                     <form action="{{ route('usulan.destroy', $u->id) }}" method="POST" class="inline"
                                         onsubmit="return confirm('Hapus usulan ini?')">
                                         @csrf

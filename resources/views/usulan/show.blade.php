@@ -13,7 +13,11 @@
                 class="px-3 py-1 rounded-lg text-sm bg-{{ $usulan->status_color }}-100 text-{{ $usulan->status_color }}-700">
                 {{ $usulan->status_label }}
             </span>
-        </div>  
+        </div>
+        @if (session('success'))
+            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
+        @endif
+
         @if (session('error'))
             <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
         @endif
@@ -63,9 +67,11 @@
                                     <td class="px-3 py-2 text-right">{{ number_format((float) $item->qty, 2, ',', '.') }}</td>
                                     <td class="px-3 py-2">{{ $item->satuan ?? '-' }}</td>
                                     <td class="px-3 py-2 text-right">Rp
-                                        {{ number_format((int) $item->harga, 0, ',', '.') }}</td>
+                                        {{ number_format((int) $item->harga, 0, ',', '.') }}
+                                    </td>
                                     <td class="px-3 py-2 text-right font-semibold">Rp
-                                        {{ number_format((int) $item->subtotal, 0, ',', '.') }}</td>
+                                        {{ number_format((int) $item->subtotal, 0, ',', '.') }}
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -139,7 +145,7 @@
                 </form>
             @endif
 
-            @if (!$usulan->tanggapan)
+            @if (in_array($usulan->status, ['draft', 'ditolak']))
                 <form action="{{ route('usulan.destroy', $usulan->id) }}" method="POST"
                     onsubmit="return confirm('Hapus usulan ini?')">
                     @csrf
