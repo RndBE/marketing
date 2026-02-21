@@ -3,9 +3,44 @@
 @section('content')
     @php
         $docNo = $penawaran->docNumber?->doc_no ?? 'PNW-' . str_pad((string) $penawaran->id, 6, '0', STR_PAD_LEFT);
+        $calcBundleUnit = function ($item): int {
+            $unit = 0;
+            foreach ($item->details as $d) {
+                $detailSubtotal = (int) ($d->subtotal ?? 0);
+                if ($detailSubtotal <= 0) {
+                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
+                }
+                $unit += $detailSubtotal;
+            }
+            return $unit;
+        };
+        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
+            if ($item->tipe === 'bundle') {
+                $qtyBundle = (float) ($item->qty ?? 1);
+                if ($qtyBundle <= 0) {
+                    $qtyBundle = 1;
+                }
+                return (int) round($calcBundleUnit($item) * $qtyBundle);
+            }
+
+            $subtotal = (int) ($item->subtotal ?? 0);
+            if ($subtotal > 0) {
+                return $subtotal;
+            }
+
+            $totalDetail = 0;
+            foreach ($item->details as $d) {
+                $detailSubtotal = (int) ($d->subtotal ?? 0);
+                if ($detailSubtotal <= 0) {
+                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
+                }
+                $totalDetail += $detailSubtotal;
+            }
+            return $totalDetail;
+        };
         $total = 0;
         foreach ($penawaran->items as $it) {
-            $total += (int) $it->subtotal;
+            $total += $calcItemSubtotal($it);
         }
 
         $discountAmount = 0;
@@ -249,11 +284,10 @@
                                 @endif
                                 @php
                                     $qtyBundle = (float) ($item->qty ?? 1);
+                                    $itemSubtotal = $calcItemSubtotal($item);
                                     $unitPrice = 0;
                                     if ($item->tipe === 'bundle') {
-                                        foreach ($item->details as $d) {
-                                            $unitPrice += (int) ($d->harga ?? 0);
-                                        }
+                                        $unitPrice = $calcBundleUnit($item);
                                     }
                                 @endphp
 
@@ -271,13 +305,13 @@
                                         <span class="text-slate-400">•</span>
                                         Total:
                                         <span class="font-semibold">Rp
-                                            {{ number_format((int) $item->subtotal, 0, ',', '.') }}</span>
+                                            {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
                                     </div>
                                 @else
                                     <div class="mt-2 text-sm text-slate-600">
                                         Harga Satuan :
                                         <span class="font-semibold">Rp
-                                            {{ number_format((int) (($item->qty ?? 1) > 0 ? round($item->subtotal / ($item->qty ?? 1)) : $item->subtotal), 0, ',', '.') }}</span>
+                                            {{ number_format((int) (($item->qty ?? 1) > 0 ? round($itemSubtotal / ($item->qty ?? 1)) : $itemSubtotal), 0, ',', '.') }}</span>
                                         <span class="text-slate-400">•</span>
                                         Qty :
                                         <span
@@ -288,7 +322,7 @@
                                         <span class="text-slate-400">•</span>
                                         Total:
                                         <span class="font-semibold">Rp
-                                            {{ number_format((int) $item->subtotal, 0, ',', '.') }}</span>
+                                            {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
                                     </div>
                                 @endif
 
