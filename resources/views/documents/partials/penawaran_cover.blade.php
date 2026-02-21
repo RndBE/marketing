@@ -3,7 +3,7 @@
     $titleText = trim((string) ($cover?->judul_cover ?? ''));
     $coverTitle = $defaultTitle;
 
-    $subtitleText = trim((string) ($cover?->subjudul ?? ($penawaran->judul ?? '')));
+    $subtitleText = trim((string)  ($penawaran->judul ?? ''));
     $coverSubtitle = $subtitleText !== '' ? $subtitleText : '-';
 
     $pillText = trim((string) ($penawaran->nama_pekerjaan ?? ''));
