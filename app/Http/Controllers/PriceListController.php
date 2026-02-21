@@ -17,10 +17,13 @@ class PriceListController extends Controller
 
         $data = Product::query()
             ->withCount('details')
+            ->withSum('details', 'subtotal')
             ->when($q !== '', function ($query) use ($q) {
                 $query->where('nama', 'like', "%{$q}%")
                     ->orWhere('kode', 'like', "%{$q}%");
             })
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();

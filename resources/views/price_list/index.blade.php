@@ -40,6 +40,7 @@
                     <th class="px-4 py-3 text-left font-semibold">Kode</th>
                     <th class="px-4 py-3 text-left font-semibold">Nama</th>
                     <th class="px-4 py-3 text-center font-semibold">Satuan</th>
+                    <th class="px-4 py-3 text-right font-semibold">Total Harga</th>
                     <th class="px-4 py-3 text-center font-semibold">Aktif</th>
                     {{-- <th class="px-4 py-3 text-center font-semibold">Detail</th> --}}
                     <th class="px-4 py-3 text-right font-semibold">Aksi</th>
@@ -58,6 +59,8 @@
                         </td>
 
                         <td class="px-4 py-3 text-center">{{ $p->satuan }}</td>
+                        <td class="px-4 py-3 text-right">Rp
+                            {{ number_format((int) ($p->details_sum_subtotal ?? 0), 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-center">
                             <span
                                 class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {{ $p->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
@@ -81,7 +84,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-10 text-center text-slate-500">Belum ada data.</td>
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-500">Belum ada data.</td>
                     </tr>
                 @endforelse
             </tbody>
