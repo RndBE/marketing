@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductDetail;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PriceListController extends Controller
 {
@@ -34,20 +36,35 @@ class PriceListController extends Controller
     public function store(Request $request)
     {
         $payload = $request->validate([
-            'kode' => ['nullable', 'string', 'max:255'],
+            'kode' => ['nullable', 'string', 'max:255', Rule::unique('products', 'kode')],
             'nama' => ['required', 'string', 'max:255'],
             'satuan' => ['nullable', 'string', 'max:50'],
             'deskripsi' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+        ], [
+            'kode.unique' => 'Kode bundle sudah dipakai. Gunakan kode lain.',
         ]);
 
-        $product = Product::create([
-            'kode' => $payload['kode'] ?? null,
-            'nama' => $payload['nama'],
-            'satuan' => $payload['satuan'] ?? null,
-            'deskripsi' => $payload['deskripsi'] ?? null,
-            'is_active' => (bool) ($payload['is_active'] ?? true),
-        ]);
+        $kode = trim((string) ($payload['kode'] ?? ''));
+        $kode = $kode !== '' ? $kode : null;
+
+        try {
+            $product = Product::create([
+                'kode' => $kode,
+                'nama' => $payload['nama'],
+                'satuan' => $payload['satuan'] ?? null,
+                'deskripsi' => $payload['deskripsi'] ?? null,
+                'is_active' => (bool) ($payload['is_active'] ?? true),
+            ]);
+        } catch (QueryException $e) {
+            if ($this->isDuplicateKodeError($e)) {
+                return back()->withInput()->withErrors([
+                    'kode' => 'Kode bundle sudah dipakai. Gunakan kode lain.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         return redirect()->route('price_list.show', $product->id);
     }
@@ -73,20 +90,35 @@ class PriceListController extends Controller
     public function update(Request $request, Product $product)
     {
         $payload = $request->validate([
-            'kode' => ['nullable', 'string', 'max:255'],
+            'kode' => ['nullable', 'string', 'max:255', Rule::unique('products', 'kode')->ignore($product->id)],
             'nama' => ['required', 'string', 'max:255'],
             'satuan' => ['nullable', 'string', 'max:50'],
             'deskripsi' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+        ], [
+            'kode.unique' => 'Kode bundle sudah dipakai. Gunakan kode lain.',
         ]);
 
-        $product->update([
-            'kode' => $payload['kode'] ?? null,
-            'nama' => $payload['nama'],
-            'satuan' => $payload['satuan'] ?? null,
-            'deskripsi' => $payload['deskripsi'] ?? null,
-            'is_active' => (bool) ($payload['is_active'] ?? true),
-        ]);
+        $kode = trim((string) ($payload['kode'] ?? ''));
+        $kode = $kode !== '' ? $kode : null;
+
+        try {
+            $product->update([
+                'kode' => $kode,
+                'nama' => $payload['nama'],
+                'satuan' => $payload['satuan'] ?? null,
+                'deskripsi' => $payload['deskripsi'] ?? null,
+                'is_active' => (bool) ($payload['is_active'] ?? true),
+            ]);
+        } catch (QueryException $e) {
+            if ($this->isDuplicateKodeError($e)) {
+                return back()->withInput()->withErrors([
+                    'kode' => 'Kode bundle sudah dipakai. Gunakan kode lain.',
+                ]);
+            }
+
+            throw $e;
+        }
 
         return redirect()->route('price_list.show', $product->id);
     }
@@ -397,5 +429,22 @@ class PriceListController extends Controller
         if (in_array($value, ['1', 'true', 'ya', 'yes', 'aktif', 'active'], true)) return true;
         if (in_array($value, ['0', 'false', 'no', 'tidak', 'nonaktif', 'inactive'], true)) return false;
         return null;
+    }
+
+    private function isDuplicateKodeError(QueryException $e): bool
+    {
+        $sqlState = (string) ($e->errorInfo[0] ?? '');
+        $driverCode = (string) ($e->errorInfo[1] ?? '');
+        $message = strtolower($e->getMessage());
+
+        if (!in_array($sqlState, ['23000', '23505'], true)) {
+            return false;
+        }
+
+        if (str_contains($message, 'products_kode_unique') || str_contains($message, 'duplicate') || $driverCode === '1062') {
+            return true;
+        }
+
+        return false;
     }
 }

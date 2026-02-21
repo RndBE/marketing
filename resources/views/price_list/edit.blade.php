@@ -7,35 +7,61 @@
             <div class="text-sm text-slate-500">{{ $product->nama }}</div>
         </div>
 
+        @if ($errors->any())
+            <div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                <div class="font-semibold mb-1">Periksa input berikut:</div>
+                <ul class="list-disc pl-5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('price_list.update', $product->id) }}" class="space-y-3">
             @csrf
             @method('PUT')
 
             <div>
                 <label class="block text-xs font-semibold mb-1">Kode (opsional)</label>
-                <input name="kode" value="{{ $product->kode }}"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                <input name="kode" value="{{ old('kode', $product->kode) }}"
+                    class="w-full rounded-xl border {{ $errors->has('kode') ? 'border-rose-400' : 'border-slate-200' }} bg-white px-3 py-2 text-sm">
+                @error('kode')
+                    <div class="mt-1 text-xs text-rose-600">{{ $message }}</div>
+                @enderror
             </div>
 
             <div>
                 <label class="block text-xs font-semibold mb-1">Nama</label>
-                <input name="nama" value="{{ $product->nama }}"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required>
+                <input name="nama" value="{{ old('nama', $product->nama) }}"
+                    class="w-full rounded-xl border {{ $errors->has('nama') ? 'border-rose-400' : 'border-slate-200' }} bg-white px-3 py-2 text-sm"
+                    required>
+                @error('nama')
+                    <div class="mt-1 text-xs text-rose-600">{{ $message }}</div>
+                @enderror
             </div>
             <div>
                 <label class="block text-xs font-semibold mb-1">Satuan</label>
                 <input name="satuan" value="{{ old('satuan', $product->satuan ?? '') }}"
-                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white" required>
+                    class="w-full rounded-xl border {{ $errors->has('satuan') ? 'border-rose-400' : 'border-slate-200' }} px-3 py-2 text-sm bg-white"
+                    required>
+                @error('satuan')
+                    <div class="mt-1 text-xs text-rose-600">{{ $message }}</div>
+                @enderror
             </div>
 
             <div>
                 <label class="block text-xs font-semibold mb-1">Deskripsi</label>
-                <textarea name="deskripsi" rows="4" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{{ $product->deskripsi }}</textarea>
+                <textarea name="deskripsi" rows="4"
+                    class="w-full rounded-xl border {{ $errors->has('deskripsi') ? 'border-rose-400' : 'border-slate-200' }} bg-white px-3 py-2 text-sm">{{ old('deskripsi', $product->deskripsi) }}</textarea>
+                @error('deskripsi')
+                    <div class="mt-1 text-xs text-rose-600">{{ $message }}</div>
+                @enderror
             </div>
 
             <div class="flex items-center gap-2">
                 <input id="is_active" type="checkbox" name="is_active" value="1"
-                    {{ $product->is_active ? 'checked' : '' }} class="rounded border-slate-300">
+                    {{ old('is_active', $product->is_active ? '1' : '') ? 'checked' : '' }} class="rounded border-slate-300">
                 <label for="is_active" class="text-sm">Aktif</label>
             </div>
 
