@@ -23,6 +23,7 @@ use App\Models\ProductDetail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 
@@ -938,12 +939,7 @@ class PenawaranController extends Controller
 
         $cover = $penawaran->cover;
 
-        $logo = null;
-        if ($cover?->logo_path) {
-            $p1 = public_path('storage/' . ltrim($cover->logo_path, '/'));
-            $p2 = storage_path('app/public/' . ltrim($cover->logo_path, '/'));
-            $logo = is_file($p1) ? $p1 : (is_file($p2) ? $p2 : null);
-        }
+        $logo = $this->resolvePublicDiskPath($cover?->logo_path);
         if (!$logo) {
             $logo = public_path('images/logo_arsol.png');
         }
@@ -966,11 +962,13 @@ class PenawaranController extends Controller
 
         $attachmentPaths = [];
         foreach ($penawaran->attachments as $attachment) {
-            $path = ltrim((string) $attachment->file_path, '/');
-            $p1 = storage_path('app/public/' . $path);
-            $p2 = public_path('storage/' . $path);
-            $fullPath = is_file($p1) ? $p1 : (is_file($p2) ? $p2 : null);
+            $fullPath = $this->resolvePublicDiskPath($attachment->file_path);
             if (!$fullPath) {
+                Log::warning('Lampiran penawaran tidak ditemukan saat generate PDF', [
+                    'penawaran_id' => $penawaran->id,
+                    'attachment_id' => $attachment->id,
+                    'file_path' => $attachment->file_path,
+                ]);
                 continue;
             }
             $mime = strtolower((string) $attachment->mime);
@@ -984,8 +982,11 @@ class PenawaranController extends Controller
             return $pdf->stream($filename);
         }
 
-        $tmpMain = tempnam(sys_get_temp_dir(), 'penawaran_');
+        $tmpMain = $this->makeTempPdfPath('penawaran_');
         if ($tmpMain === false) {
+            Log::warning('Gagal membuat file temporary untuk merge lampiran penawaran', [
+                'penawaran_id' => $penawaran->id,
+            ]);
             return $pdf->stream($filename);
         }
         try {
@@ -993,13 +994,25 @@ class PenawaranController extends Controller
             $filesToMerge = array_merge([$tmpMain], $attachmentPaths);
 
             $merged = new Fpdi();
-            foreach ($filesToMerge as $filePath) {
-                $pageCount = $merged->setSourceFile($filePath);
-                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-                    $tpl = $merged->importPage($pageNo);
-                    $size = $merged->getTemplateSize($tpl);
-                    $merged->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                    $merged->useTemplate($tpl);
+            foreach ($filesToMerge as $index => $filePath) {
+                try {
+                    $pageCount = $merged->setSourceFile($filePath);
+                    for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                        $tpl = $merged->importPage($pageNo);
+                        $size = $merged->getTemplateSize($tpl);
+                        $merged->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                        $merged->useTemplate($tpl);
+                    }
+                } catch (\Throwable $mergeError) {
+                    if ($index === 0) {
+                        throw $mergeError;
+                    }
+
+                    Log::warning('Lampiran penawaran gagal digabung ke PDF', [
+                        'penawaran_id' => $penawaran->id,
+                        'file_path' => $filePath,
+                        'error' => $mergeError->getMessage(),
+                    ]);
                 }
             }
 
@@ -1016,6 +1029,61 @@ class PenawaranController extends Controller
                 @unlink($tmpMain);
             }
         }
+    }
+
+    private function resolvePublicDiskPath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $cleanPath = ltrim((string) $path, '/');
+        $normalizedPath = preg_replace('#^(public|storage)/#', '', $cleanPath);
+
+        $candidates = array_values(array_unique(array_filter([
+            $cleanPath,
+            $normalizedPath,
+        ], fn($v) => is_string($v) && $v !== '')));
+
+        $disk = Storage::disk('public');
+        foreach ($candidates as $candidate) {
+            if ($disk->exists($candidate)) {
+                try {
+                    $resolved = $disk->path($candidate);
+                    if (is_file($resolved)) {
+                        return $resolved;
+                    }
+                } catch (\Throwable) {
+                    // fallback ke path fisik manual
+                }
+            }
+
+            $storageFile = storage_path('app/public/' . $candidate);
+            if (is_file($storageFile)) {
+                return $storageFile;
+            }
+
+            $publicFile = public_path('storage/' . $candidate);
+            if (is_file($publicFile)) {
+                return $publicFile;
+            }
+        }
+
+        return null;
+    }
+
+    private function makeTempPdfPath(string $prefix): string|false
+    {
+        $tmpDir = storage_path('framework/tmp');
+        if (!is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0775, true);
+        }
+
+        if (!is_dir($tmpDir) || !is_writable($tmpDir)) {
+            return tempnam(sys_get_temp_dir(), $prefix);
+        }
+
+        return tempnam($tmpDir, $prefix);
     }
 
     private function toRoman(int $month): string
