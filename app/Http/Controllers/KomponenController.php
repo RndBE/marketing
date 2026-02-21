@@ -16,7 +16,9 @@ class KomponenController extends Controller
                 $query->where('nama', 'like', "%{$q}%")
                     ->orWhere('kode', 'like', "%{$q}%");
             })
-            ->orderBy('nama')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
@@ -79,7 +81,9 @@ class KomponenController extends Controller
     public function list()
     {
         $komponen = Komponen::where('is_active', true)
-            ->orderBy('nama')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get(['id', 'kode', 'nama', 'spesifikasi', 'satuan', 'harga']);
 
         return response()->json($komponen);
@@ -207,4 +211,3 @@ class KomponenController extends Controller
         return redirect()->route('komponen.index')->with('success', "{$count} komponen berhasil dihapus");
     }
 }
-
