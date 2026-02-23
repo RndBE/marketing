@@ -18,6 +18,7 @@ use App\Http\Controllers\UsulanPenawaranController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\LaporanPerjalananMarketingController;
+use App\Http\Controllers\AuditLogController;
 
 
 
@@ -204,6 +205,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:manage-users')->group(function () {
         Route::resource('users', UserController::class);
     });
+
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])
+        ->middleware('permission:view-audit-logs')
+        ->name('audit-logs.index');
 
     /*
     |---------------- RBAC ----------------------|

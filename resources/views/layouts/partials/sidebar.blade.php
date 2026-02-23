@@ -14,7 +14,7 @@
         pricelist: {{ request()->routeIs('price_list.*', 'komponen.*') ? 'true' : 'false' }},
         pic: {{ request()->routeIs('pics.*') ? 'true' : 'false' }},
         users: {{ request()->routeIs('users.*') ? 'true' : 'false' }},
-        rbac: {{ request()->routeIs('roles.*', 'permissions.*', 'user-roles.*') ? 'true' : 'false' }}
+        rbac: {{ request()->routeIs('roles.*', 'permissions.*', 'user-roles.*', 'audit-logs.*') ? 'true' : 'false' }}
     }">
         <!-- Penawaran Section -->
         <div class="mb-4">
@@ -297,6 +297,14 @@
                                                                 {{ request()->routeIs('user-roles.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>User Roles</span>
                     </a>
+
+                    @if(auth()->user()->hasPermission('view-audit-logs'))
+                        <a href="{{ route('audit-logs.index') }}"
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                                                                    {{ request()->routeIs('audit-logs.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                            <span>Audit Log</span>
+                        </a>
+                    @endif
                 </div>
             </div>
         @endif

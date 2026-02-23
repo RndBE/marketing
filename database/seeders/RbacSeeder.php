@@ -34,6 +34,7 @@ class RbacSeeder extends Seeder
             ['name' => 'Kelola Users', 'slug' => 'manage-users', 'group' => 'User Management', 'description' => 'CRUD users'],
             ['name' => 'Kelola Roles', 'slug' => 'manage-roles', 'group' => 'User Management', 'description' => 'CRUD roles'],
             ['name' => 'Kelola Permissions', 'slug' => 'manage-permissions', 'group' => 'User Management', 'description' => 'CRUD permissions'],
+            ['name' => 'Lihat Audit Log', 'slug' => 'view-audit-logs', 'group' => 'User Management', 'description' => 'Melihat jejak aktivitas aplikasi'],
 
             // Penawaran
             ['name' => 'Lihat Penawaran (Sendiri)', 'slug' => 'view-penawaran', 'group' => 'Penawaran', 'description' => 'Lihat penawaran yang dibuat sendiri'],

@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
             ['id' => 1, 'name' => 'Kelola Users', 'slug' => 'manage-users', 'description' => 'CRUD users', 'group' => 'User Management'],
             ['id' => 2, 'name' => 'Kelola Roles', 'slug' => 'manage-roles', 'description' => 'CRUD roles', 'group' => 'User Management'],
             ['id' => 3, 'name' => 'Kelola Permissions', 'slug' => 'manage-permissions', 'description' => 'CRUD permissions', 'group' => 'User Management'],
+            ['id' => 25, 'name' => 'Lihat Audit Log', 'slug' => 'view-audit-logs', 'description' => 'Melihat jejak aktivitas aplikasi', 'group' => 'User Management'],
             ['id' => 4, 'name' => 'Lihat Penawaran (Sendiri)', 'slug' => 'view-penawaran', 'description' => 'Lihat penawaran yang dibuat sendiri', 'group' => 'Penawaran'],
             ['id' => 5, 'name' => 'Buat Penawaran', 'slug' => 'create-penawaran', 'description' => 'Buat penawaran baru', 'group' => 'Penawaran'],
             ['id' => 6, 'name' => 'Edit Penawaran', 'slug' => 'edit-penawaran', 'description' => 'Edit penawaran', 'group' => 'Penawaran'],
@@ -111,6 +112,7 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 22, 'role_id' => 1],
             ['permission_id' => 23, 'role_id' => 1],
             ['permission_id' => 24, 'role_id' => 1],
+            ['permission_id' => 25, 'role_id' => 1],
 
             // Corporate Account Manager (role_id: 2)
             ['permission_id' => 4, 'role_id' => 2],

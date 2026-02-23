@@ -1173,14 +1173,14 @@ class PenawaranController extends Controller
         $unit = 0;
 
         foreach ($item->details as $d) {
-            $harga = (int) ($d->harga ?? 0);
-            if ($harga <= 0) {
-                $qty = (float) ($d->qty ?? 1);
-                $sub = (int) ($d->subtotal ?? 0);
-                if ($sub > 0 && $qty > 0)
-                    $harga = (int) round($sub / $qty);
+            $sub = (int) ($d->subtotal ?? 0);
+            if ($sub <= 0) {
+                $qty = (float) ($d->qty ?? 0);
+                $harga = (int) ($d->harga ?? 0);
+                $sub = (int) round($qty * $harga);
             }
-            $unit += $harga;
+
+            $unit += $sub;
         }
 
         return $unit;
