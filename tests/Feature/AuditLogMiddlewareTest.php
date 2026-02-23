@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -77,4 +78,14 @@ test('authenticated write request is recorded in audit logs', function () {
         'route_name' => 'profile.update',
         'user_id' => $user->id,
     ]);
+
+    $log = AuditLog::query()
+        ->where('action', 'profile.update')
+        ->latest('id')
+        ->first();
+
+    expect($log)->not->toBeNull();
+    expect($log->payload)->toBeArray();
+    expect(data_get($log->payload, 'input.name'))->toBe('Nama Audit Baru');
+    expect(data_get($log->payload, 'input.email'))->toBe($updatedEmail);
 });

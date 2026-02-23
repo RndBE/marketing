@@ -58,12 +58,7 @@ class AuditLogMiddleware
             $route = $request->route();
             $routeName = $this->resolveRouteName($request, $route?->getName());
 
-            $payload = [
-                'input' => $this->sanitizeArray($request->except('_method')),
-                'query' => $this->sanitizeArray($request->query()),
-                'route_params' => $this->sanitizeArray($route?->parameters() ?? []),
-            ];
-            $payload = array_filter($payload, static fn(array $value) => $value !== []);
+            $payload = $this->buildPayload($request, $route?->parameters() ?? []);
 
             AuditLog::create([
                 'user_id' => $afterUserId ?? $beforeUserId,
@@ -73,7 +68,7 @@ class AuditLogMiddleware
                 'url' => $request->fullUrl(),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
-                'payload' => $payload !== [] ? $payload : null,
+                'payload' => $payload,
                 'status_code' => $response->getStatusCode(),
             ]);
         } catch (Throwable $e) {
@@ -83,6 +78,52 @@ class AuditLogMiddleware
                 'method' => $request->method(),
             ]);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $routeParameters
+     * @return array<string, mixed>|null
+     */
+    private function buildPayload(Request $request, array $routeParameters): ?array
+    {
+        $input = $request->all();
+        unset($input['_method']);
+
+        $payload = [
+            'input' => $this->sanitizeArray($input),
+            'query' => $this->sanitizeArray($request->query()),
+            'route_params' => $this->sanitizeArray($routeParameters),
+            'content_type' => (string) $request->header('Content-Type', ''),
+        ];
+
+        $files = $request->allFiles();
+        if ($files !== []) {
+            $payload['files'] = $this->sanitizeArray($files);
+        }
+
+        if (($payload['input'] ?? []) === []) {
+            $raw = (string) $request->getContent();
+            if ($raw !== '') {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $payload['raw_json'] = $this->sanitizeArray($decoded);
+                } else {
+                    $payload['raw_body_meta'] = [
+                        'length' => strlen($raw),
+                        'sha1' => sha1($raw),
+                    ];
+                }
+            }
+        }
+
+        $payload = array_filter($payload, static function ($value) {
+            if (is_array($value)) {
+                return $value !== [];
+            }
+            return $value !== null && $value !== '';
+        });
+
+        return $payload !== [] ? $payload : null;
     }
 
     private function resolveAction(Request $request, ?string $routeName, ?int $afterUserId): string

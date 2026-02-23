@@ -138,11 +138,15 @@
 
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-10 text-center text-slate-500">Belum ada data.</td>
+                            <td colspan="6" class="px-4 py-10 text-center text-slate-500">Belum ada data.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <div class="mt-4">
+        {{ $data->links() }}
     </div>
 @endsection

@@ -19,8 +19,12 @@
         <!-- Penawaran Section -->
         <div class="mb-4">
             <button @click="penawaran = !penawaran"
-                class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                <span>Penawaran</span>
+                :class="penawaran ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                <span class="inline-flex items-center gap-2">
+                    <i :class="penawaran ? 'ri-file-text-fill' : 'ri-file-text-line'" class="text-[19px] leading-none"></i>
+                    <span>Penawaran</span>
+                </span>
                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': penawaran }" fill="none"
                     stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -73,8 +77,12 @@
         @if(auth()->user()->hasPermission('view-usulan'))
             <div class="mb-4">
                 <button @click="invoice = !invoice"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>Invoice</span>
+                    :class="invoice ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="invoice ? 'ri-bill-fill' : 'ri-bill-line'" class="text-[19px] leading-none"></i>
+                        <span>Invoice</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': invoice }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -104,8 +112,13 @@
         @if(auth()->user()->hasPermission('view-purchase-order') || auth()->user()->hasPermission('create-purchase-order'))
             <div class="mb-4">
                 <button @click="purchase_order = !purchase_order"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>Purchase Order</span>
+                    :class="purchase_order ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="purchase_order ? 'ri-shopping-cart-2-fill' : 'ri-shopping-cart-2-line'"
+                            class="text-[19px] leading-none"></i>
+                        <span>Purchase Order</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': purchase_order }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -135,8 +148,13 @@
         @if(auth()->user()->hasPermission('view-marketing-report') || auth()->user()->hasPermission('create-marketing-report'))
             <div class="mb-4">
                 <button @click="marketing_report = !marketing_report"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>Marketing BD</span>
+                    :class="marketing_report ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="marketing_report ? 'ri-bar-chart-box-fill' : 'ri-bar-chart-box-line'"
+                            class="text-[19px] leading-none"></i>
+                        <span>Marketing BD</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': marketing_report }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -167,8 +185,12 @@
         @if(auth()->user()->hasPermission('view-usulan'))
             <div class="mb-4">
                 <button @click="usulan = !usulan"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>Usulan</span>
+                    :class="usulan ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="usulan ? 'ri-lightbulb-fill' : 'ri-lightbulb-line'" class="text-[19px] leading-none"></i>
+                        <span>Usulan</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': usulan }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -196,8 +218,13 @@
         @if(auth()->user()->hasPermission('manage-pricelist'))
             <div class="mb-4">
                 <button @click="pricelist = !pricelist"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>Price List</span>
+                    :class="pricelist ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="pricelist ? 'ri-price-tag-3-fill' : 'ri-price-tag-3-line'"
+                            class="text-[19px] leading-none"></i>
+                        <span>Price List</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': pricelist }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -229,8 +256,12 @@
         @if(auth()->user()->hasPermission('manage-pic'))
             <div class="mb-4">
                 <button @click="pic = !pic"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>PIC</span>
+                    :class="pic ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="pic ? 'ri-id-card-fill' : 'ri-id-card-line'" class="text-[19px] leading-none"></i>
+                        <span>PIC</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': pic }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -250,8 +281,12 @@
         @if(auth()->user()->hasPermission('manage-users'))
             <div class="mb-4">
                 <button @click="users = !users"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>User Management</span>
+                    :class="users ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="users ? 'ri-group-fill' : 'ri-group-line'" class="text-[19px] leading-none"></i>
+                        <span>User Management</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': users }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -271,8 +306,12 @@
         @if(auth()->user()->hasPermission('manage-roles'))
             <div class="mb-4">
                 <button @click="rbac = !rbac"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition">
-                    <span>RBAC</span>
+                    :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <i :class="rbac ? 'ri-shield-user-fill' : 'ri-shield-user-line'" class="text-[19px] leading-none"></i>
+                        <span>RBAC</span>
+                    </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': rbac }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
