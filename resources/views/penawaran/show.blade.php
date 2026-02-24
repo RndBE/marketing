@@ -1460,6 +1460,7 @@
         console.log('✅ AJAX event delegation ready!');
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
     <script>
         let komponenCache = null;
 
@@ -1613,16 +1614,33 @@
                 const hiddenInput = picker.querySelector('.bundle-product-id');
                 const dropdown   = picker.querySelector('.bundle-product-dropdown');
 
-                function renderOptions(q) {
-                    const filtered = bundleProductData.filter(p => {
-                        const haystack = ((p.kode || '') + ' ' + p.nama).toLowerCase();
-                        return haystack.includes(q.toLowerCase().trim());
-                    });
+                // Fuse.js instance — fuzzy search pada nama + kode
+                const fuse = new Fuse(bundleProductData, {
+                    keys: [
+                        { name: 'nama', weight: 0.7 },
+                        { name: 'kode', weight: 0.3 },
+                    ],
+                    threshold: 0.4,       // 0 = exact, 1 = match anything
+                    distance: 200,        // toleran karakter jauh di string panjang
+                    includeScore: true,
+                    useExtendedSearch: false,
+                    ignoreLocation: true, // tidak peduli posisi match
+                    minMatchCharLength: 1,
+                });
 
-                    if (!filtered.length) {
+                function renderOptions(q) {
+                    let results;
+                    if (q.trim() === '') {
+                        // kosong → tampilkan semua
+                        results = bundleProductData;
+                    } else {
+                        results = fuse.search(q).map(r => r.item);
+                    }
+
+                    if (!results.length) {
                         dropdown.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">Tidak ditemukan</div>';
                     } else {
-                        dropdown.innerHTML = filtered.map(p => `
+                        dropdown.innerHTML = results.map(p => `
                             <div class="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer"
                                 data-id="${p.id}"
                                 data-label="${p.kode ? '['+p.kode+'] ' : ''}${p.nama}">
@@ -1634,8 +1652,8 @@
                         dropdown.querySelectorAll('[data-id]').forEach(item => {
                             item.addEventListener('mousedown', (e) => {
                                 e.preventDefault();
-                                hiddenInput.value  = item.dataset.id;
-                                searchInput.value  = item.dataset.label;
+                                hiddenInput.value = item.dataset.id;
+                                searchInput.value = item.dataset.label;
                                 dropdown.classList.add('hidden');
                             });
                         });
