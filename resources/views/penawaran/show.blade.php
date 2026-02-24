@@ -209,15 +209,15 @@
 
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-semibold mb-1">Product</label>
-                                <select name="product_id"
-                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                    <option value="">Pilih product</option>
-                                    @foreach ($products as $p)
-                                        <option value="{{ $p->id }}">
-                                            {{ $p->kode ? $p->kode . ' - ' : '' }}{{ $p->nama }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <div class="relative bundle-product-picker">
+                                    <input type="text"
+                                        class="bundle-product-search w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                        placeholder="Ketik nama / kode produk..."
+                                        autocomplete="off">
+                                    <input type="hidden" name="product_id" class="bundle-product-id">
+                                    <div class="bundle-product-dropdown hidden absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
@@ -1592,10 +1592,68 @@
                     if (dd) dd.classList.add('hidden');
                 }
             });
+            // close bundle product dropdown jika klik di luar
+            document.querySelectorAll('.bundle-product-picker').forEach(picker => {
+                if (!picker.contains(e.target)) {
+                    const dd = picker.querySelector('.bundle-product-dropdown');
+                    if (dd) dd.classList.add('hidden');
+                }
+            });
         });
+
+        // Data produk untuk bundle picker
+        const bundleProductData = @json($products->map(fn($p) => ['id' => $p->id, 'kode' => $p->kode, 'nama' => $p->nama]));
+
+        function initBundleProductPicker(root = document) {
+            root.querySelectorAll('.bundle-product-picker').forEach(picker => {
+                if (picker.dataset.pickerBound) return;
+                picker.dataset.pickerBound = '1';
+
+                const searchInput = picker.querySelector('.bundle-product-search');
+                const hiddenInput = picker.querySelector('.bundle-product-id');
+                const dropdown   = picker.querySelector('.bundle-product-dropdown');
+
+                function renderOptions(q) {
+                    const filtered = bundleProductData.filter(p => {
+                        const haystack = ((p.kode || '') + ' ' + p.nama).toLowerCase();
+                        return haystack.includes(q.toLowerCase().trim());
+                    });
+
+                    if (!filtered.length) {
+                        dropdown.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">Tidak ditemukan</div>';
+                    } else {
+                        dropdown.innerHTML = filtered.map(p => `
+                            <div class="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer"
+                                data-id="${p.id}"
+                                data-label="${p.kode ? '['+p.kode+'] ' : ''}${p.nama}">
+                                ${p.kode ? '<span class="text-xs font-mono text-slate-400 mr-1">['+p.kode+']</span>' : ''}
+                                ${p.nama}
+                            </div>
+                        `).join('');
+
+                        dropdown.querySelectorAll('[data-id]').forEach(item => {
+                            item.addEventListener('mousedown', (e) => {
+                                e.preventDefault();
+                                hiddenInput.value  = item.dataset.id;
+                                searchInput.value  = item.dataset.label;
+                                dropdown.classList.add('hidden');
+                            });
+                        });
+                    }
+                    dropdown.classList.remove('hidden');
+                }
+
+                searchInput.addEventListener('focus', () => renderOptions(searchInput.value));
+                searchInput.addEventListener('input', () => {
+                    hiddenInput.value = '';
+                    renderOptions(searchInput.value);
+                });
+            });
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             initKomponenPickers();
+            initBundleProductPicker();
             initRupiahInputs();
             initTermDragDrop();
             initItemDragDrop();
@@ -1607,6 +1665,7 @@
         refreshContent = async function() {
             await originalRefreshContent();
             initKomponenPickers();
+            initBundleProductPicker();
             initRupiahInputs();
             initTermDragDrop();
             initItemDragDrop();
