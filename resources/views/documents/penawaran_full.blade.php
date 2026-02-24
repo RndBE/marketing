@@ -226,7 +226,7 @@
                             <td style="width:10px; padding:0 8px 2px 0; border:0;">:</td>
                             <td style="padding:0 0 2px 0; border:0;">
                                 <strong>
-                                    {{ $penawaran->pic?->nama ?? '-' }}
+                                    {{ trim(($penawaran->pic?->honorific ? $penawaran->pic->honorific . ' ' : '') . ($penawaran->pic?->nama ?? '-')) }}
                                     @if ($penawaran->pic?->no_hp)
                                         / {{ $penawaran->pic->no_hp }}
                                     @endif

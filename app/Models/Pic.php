@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pic extends Model
 {
-    protected $fillable = ['nama', 'jabatan', 'instansi', 'email', 'no_hp', 'alamat'];
+    protected $fillable = ['honorific', 'nama', 'jabatan', 'instansi', 'email', 'no_hp', 'alamat'];
 
     public function penawaran()
     {

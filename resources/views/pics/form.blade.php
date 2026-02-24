@@ -5,6 +5,16 @@
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
+        <label class="text-xs font-semibold">Honorifik</label>
+        <select name="honorific" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white">
+            <option value="">— Pilih —</option>
+            <option value="Bapak" {{ old('honorific', $pic->honorific ?? '') === 'Bapak' ? 'selected' : '' }}>Bapak
+            </option>
+            <option value="Ibu" {{ old('honorific', $pic->honorific ?? '') === 'Ibu' ? 'selected' : '' }}>Ibu</option>
+        </select>
+    </div>
+
+    <div>
         <label class="text-xs font-semibold">Nama</label>
         <input name="nama" value="{{ old('nama', $pic->nama ?? '') }}"
             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
@@ -36,7 +46,8 @@
 
     <div class="md:col-span-2">
         <label class="text-xs font-semibold">Alamat</label>
-        <textarea name="alamat" rows="2" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ old('alamat', $pic->alamat ?? '') }}</textarea>
+        <textarea name="alamat" rows="2"
+            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ old('alamat', $pic->alamat ?? '') }}</textarea>
     </div>
 </div>
 

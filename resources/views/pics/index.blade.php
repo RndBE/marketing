@@ -26,7 +26,8 @@
                     <tbody class=" divide-y divide-slate-100">
                         @foreach ($data as $pic)
                             <tr>
-                                <td class="px-3 py-2 font-medium">{{ $pic->nama }}</td>
+                                <td class="px-3 py-2 font-medium">
+                                    {{ trim(($pic->honorific ? $pic->honorific . ' ' : '') . $pic->nama) }}</td>
                                 <td class="px-3 py-2">{{ $pic->jabatan }}</td>
                                 <td class="px-3 py-2">{{ $pic->instansi }}</td>
                                 <td class="px-3 py-2">{{ $pic->email }}</td>

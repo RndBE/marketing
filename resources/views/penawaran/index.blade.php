@@ -48,7 +48,7 @@
                                     <div class="font-medium">{{ $row->judul ?? '-' }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-medium">{{ $row->pic?->nama ?? '-' }}</div>
+                                    <div class="font-medium">{{ trim(($row->pic?->honorific ? $row->pic->honorific . ' ' : '') . ($row->pic?->nama ?? '-')) }}</div>
                                     <div class="text-xs text-slate-500 mt-0.5">{{ $row->pic?->instansi ?? '' }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600 whitespace-nowrap">

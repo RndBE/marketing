@@ -289,212 +289,181 @@
                 @forelse($penawaran->items as $item)
                     <div class="rounded-2xl border border-slate-200 bg-white px-5 pb-4 pt-3 penawaran-item" draggable="true"
                         data-item-id="{{ $item->id }}">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <div class="text-lg font-semibold">{{ $item->judul }}</div>
-                                @if ($item->catatan)
-                                    <div class="text-sm text-slate-600 mt-1">{{ $item->catatan }}</div>
-                                @endif
-                                @php
-                                    $qtyBundle = (float) ($item->qty ?? 1);
-                                    $itemSubtotal = $calcItemSubtotal($item);
-                                    $unitPrice = 0;
-                                    if ($item->tipe === 'bundle') {
-                                        $unitPrice = $calcBundleUnit($item);
-                                    }
-                                @endphp
 
-                                @if ($item->tipe === 'bundle')
+                        {{-- VIEW MODE --}}
+                        <div class="item-view-{{ $item->id }}">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-lg font-semibold">{{ $item->judul }}</div>
+                                    @if ($item->catatan)
+                                        <div class="text-sm text-slate-600 mt-1">{{ $item->catatan }}</div>
+                                    @endif
                                     @php
-                                        $bundleRaw = (int) round($unitPrice * $qtyBundle);
-                                        $bundleDiscAmount = 0;
-                                        if ($item->discount_enabled) {
-                                            $bdv = (float) ($item->discount_value ?? 0);
-                                            $bdt = $item->discount_type ?? 'percent';
-                                            if ($bdt === 'percent') {
-                                                $bundleDiscAmount = (int) round($bundleRaw * ($bdv / 100));
-                                            } else {
-                                                $bundleDiscAmount = (int) round($bdv);
-                                            }
-                                            $bundleDiscAmount = min($bundleDiscAmount, $bundleRaw);
+                                        $qtyBundle = (float) ($item->qty ?? 1);
+                                        $itemSubtotal = $calcItemSubtotal($item);
+                                        $unitPrice = 0;
+                                        if ($item->tipe === 'bundle') {
+                                            $unitPrice = $calcBundleUnit($item);
                                         }
                                     @endphp
-                                    <div class="mt-2 text-sm text-slate-600">
-                                        Harga Satuan :
-                                        <span class="font-semibold">Rp
-                                            {{ number_format((int) $unitPrice, 0, ',', '.') }}</span>
-                                        <span class="text-slate-400">•</span>
-                                        Qty :
-                                        <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
-                                        <span class="text-slate-400">•</span>
-                                        Satuan :
-                                        <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
-                                        <span class="text-slate-400">•</span>
-                                        Total:
-                                        <span class="font-semibold">Rp
-                                            {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
-                                    </div>
-                                    @if ($item->discount_enabled && $bundleDiscAmount > 0)
-                                        <div class="mt-1 flex items-center gap-2 text-xs">
-                                            <span class="text-slate-400 line-through">Rp {{ number_format($bundleRaw, 0, ',', '.') }}</span>
-                                            <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
-                                                Diskon
-                                                @if (($item->discount_type ?? 'percent') === 'percent')
-                                                    {{ number_format((float) $item->discount_value, 0, ',', '.') }}%
-                                                @else
-                                                    Rp {{ number_format((int) $item->discount_value, 0, ',', '.') }}
-                                                @endif
-                                                &minus; Rp {{ number_format($bundleDiscAmount, 0, ',', '.') }}
-                                            </span>
+
+                                    @if ($item->tipe === 'bundle')
+                                        @php
+                                            $bundleRaw = (int) round($unitPrice * $qtyBundle);
+                                            $bundleDiscAmount = 0;
+                                            if ($item->discount_enabled) {
+                                                $bdv = (float) ($item->discount_value ?? 0);
+                                                $bdt = $item->discount_type ?? 'percent';
+                                                if ($bdt === 'percent') {
+                                                    $bundleDiscAmount = (int) round($bundleRaw * ($bdv / 100));
+                                                } else {
+                                                    $bundleDiscAmount = (int) round($bdv);
+                                                }
+                                                $bundleDiscAmount = min($bundleDiscAmount, $bundleRaw);
+                                            }
+                                        @endphp
+                                        <div class="mt-2 text-sm text-slate-600">
+                                            Harga Satuan :
+                                            <span class="font-semibold">Rp {{ number_format((int) $unitPrice, 0, ',', '.') }}</span>
+                                            <span class="text-slate-400">•</span>
+                                            Qty :
+                                            <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
+                                            <span class="text-slate-400">•</span>
+                                            Satuan :
+                                            <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                            <span class="text-slate-400">•</span>
+                                            Total:
+                                            <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
+                                        </div>
+                                        @if ($item->discount_enabled && $bundleDiscAmount > 0)
+                                            <div class="mt-1 flex items-center gap-2 text-xs">
+                                                <span class="text-slate-400 line-through">Rp {{ number_format($bundleRaw, 0, ',', '.') }}</span>
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                                    Diskon
+                                                    @if (($item->discount_type ?? 'percent') === 'percent')
+                                                        {{ number_format((float) $item->discount_value, 0, ',', '.') }}%
+                                                    @else
+                                                        Rp {{ number_format((int) $item->discount_value, 0, ',', '.') }}
+                                                    @endif
+                                                    &minus; Rp {{ number_format($bundleDiscAmount, 0, ',', '.') }}
+                                                </span>
+                                            </div>
+                                        @endif
+                                    @else
+                                        <div class="mt-2 text-sm text-slate-600">
+                                            Harga Satuan :
+                                            <span class="font-semibold">Rp {{ number_format((int) (($item->qty ?? 1) > 0 ? round($itemSubtotal / ($item->qty ?? 1)) : $itemSubtotal), 0, ',', '.') }}</span>
+                                            <span class="text-slate-400">•</span>
+                                            Qty :
+                                            <span class="font-semibold">{{ number_format((float) ($item->qty ?? 1), 2, ',', '.') }}</span>
+                                            <span class="text-slate-400">•</span>
+                                            Satuan :
+                                            <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                            <span class="text-slate-400">•</span>
+                                            Total:
+                                            <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
                                         </div>
                                     @endif
-                                @else
-                                    <div class="mt-2 text-sm text-slate-600">
-                                        Harga Satuan :
-                                        <span class="font-semibold">Rp
-                                            {{ number_format((int) (($item->qty ?? 1) > 0 ? round($itemSubtotal / ($item->qty ?? 1)) : $itemSubtotal), 0, ',', '.') }}</span>
-                                        <span class="text-slate-400">•</span>
-                                        Qty :
-                                        <span
-                                            class="font-semibold">{{ number_format((float) ($item->qty ?? 1), 2, ',', '.') }}</span>
-                                        <span class="text-slate-400">•</span>
-                                        Satuan :
-                                        <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
-                                        <span class="text-slate-400">•</span>
-                                        Total:
-                                        <span class="font-semibold">Rp
-                                            {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
+                                </div>
+
+                                <div class="flex items-center gap-2 shrink-0">
+                                    @if ($canEdit)
+                                        <button type="button"
+                                            onclick="itemInlineEdit({{ $item->id }})"
+                                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
+                                            Edit
+                                        </button>
+                                    @endif
+                                    <button type="button"
+                                        data-delete-url="{{ route('penawaran.items.delete', [$penawaran->id, $item->id]) }}"
+                                        data-confirm="Hapus item ini?"
+                                        class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                        Hapus Item
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- EDIT MODE --}}
+                        <div class="item-edit-{{ $item->id }} hidden">
+                            <form method="POST" id="item-form-{{ $item->id }}"
+                                action="{{ route('penawaran.items.update', [$penawaran->id, $item->id]) }}">
+                                @csrf
+                                @method('PUT')
+
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-1 space-y-2">
+                                        {{-- Judul --}}
+                                        <input name="judul" value="{{ $item->judul }}"
+                                            placeholder="Judul{{ $item->tipe === 'bundle' ? ' Bundle' : ' Item' }}"
+                                            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-semibold focus:outline-none focus:ring-1 focus:ring-slate-400">
+
+                                        @if ($item->tipe === 'custom')
+                                            <input name="catatan" value="{{ $item->catatan }}"
+                                                placeholder="Catatan (opsional)"
+                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                        @endif
+
+                                        <div class="flex gap-2">
+                                            <div class="flex-1">
+                                                <label class="block text-xs font-semibold mb-1 text-slate-500">Qty</label>
+                                                <input name="qty" value="{{ $item->qty ?? 1 }}" inputmode="decimal"
+                                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                            </div>
+                                            <div class="flex-1">
+                                                <label class="block text-xs font-semibold mb-1 text-slate-500">Satuan</label>
+                                                <input name="satuan" value="{{ $item->satuan ?? 'ls' }}"
+                                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                            </div>
+                                        </div>
+
+                                        @if ($item->tipe === 'bundle')
+                                            {{-- Diskon Per Bundle --}}
+                                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 relative">
+                                                <input id="bundle_disc_{{ $item->id }}" type="checkbox"
+                                                    name="discount_enabled" value="1"
+                                                    class="peer absolute left-3 top-3.5 h-4 w-4 rounded border-slate-300 accent-slate-900"
+                                                    {{ $item->discount_enabled ? 'checked' : '' }}>
+                                                <div class="pl-7">
+                                                    <label for="bundle_disc_{{ $item->id }}"
+                                                        class="cursor-pointer text-xs font-semibold select-none">
+                                                        Aktifkan Diskon Bundle
+                                                    </label>
+                                                </div>
+                                                <div class="mt-2 hidden peer-checked:flex gap-2 pl-2">
+                                                    <div class="flex-1">
+                                                        <label class="block text-xs font-semibold mb-1">Tipe</label>
+                                                        <select name="discount_type"
+                                                            class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
+                                                            <option value="percent" {{ ($item->discount_type ?? 'percent') === 'percent' ? 'selected' : '' }}>%</option>
+                                                            <option value="fixed" {{ ($item->discount_type ?? '') === 'fixed' ? 'selected' : '' }}>Rp</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <label class="block text-xs font-semibold mb-1">Nilai</label>
+                                                        <input name="discount_value"
+                                                            value="{{ $item->discount_value ?? 0 }}"
+                                                            inputmode="decimal"
+                                                            class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
-                                @endif
 
-                            </div>
-                            <div class="flex items-center gap-2">
-                                @if ($canEdit && $item->tipe === 'bundle')
-                                    <details class="inline-block text-left">
-                                        <summary
-                                            class="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
-                                            Edit Nama
-                                        </summary>
-                                        <div
-                                            class="mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-                                            <form method="POST"
-                                                action="{{ route('penawaran.items.update', [$penawaran->id, $item->id]) }}"
-                                                class="space-y-2">
-                                                @csrf
-                                                @method('PUT')
-                                                <label class="block text-xs font-semibold">Nama Bundle</label>
-                                                <input name="judul" value="{{ $item->judul }}"
-                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                <div class="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label class="block text-xs font-semibold mb-1">Qty</label>
-                                                        <input name="qty" value="{{ $item->qty ?? 1 }}"
-                                                            inputmode="decimal"
-                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-xs font-semibold mb-1">Satuan</label>
-                                                        <input name="satuan" value="{{ $item->satuan ?? 'ls' }}"
-                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                    </div>
-                                                </div>
-
-                                                {{-- Diskon Per Bundle --}}
-                                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 relative">
-                                                    <input id="bundle_disc_{{ $item->id }}" type="checkbox"
-                                                        name="discount_enabled" value="1"
-                                                        class="peer absolute left-3 top-3.5 h-4 w-4 rounded border-slate-300 accent-slate-900"
-                                                        {{ $item->discount_enabled ? 'checked' : '' }}>
-                                                    <div class="pl-7">
-                                                        <label for="bundle_disc_{{ $item->id }}"
-                                                            class="cursor-pointer text-xs font-semibold select-none">
-                                                            Aktifkan Diskon Bundle
-                                                        </label>
-                                                    </div>
-                                                    <div class="mt-2 hidden peer-checked:block pl-2">
-                                                        <div class="grid grid-cols-2 gap-2">
-                                                            <div>
-                                                                <label class="block text-xs font-semibold mb-1">Tipe</label>
-                                                                <select name="discount_type"
-                                                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
-                                                                    <option value="percent"
-                                                                        {{ ($item->discount_type ?? 'percent') === 'percent' ? 'selected' : '' }}>%</option>
-                                                                    <option value="fixed"
-                                                                        {{ ($item->discount_type ?? '') === 'fixed' ? 'selected' : '' }}>Rp</option>
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label class="block text-xs font-semibold mb-1">Nilai</label>
-                                                                <input name="discount_value"
-                                                                    value="{{ $item->discount_value ?? 0 }}"
-                                                                    inputmode="decimal"
-                                                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="flex justify-end">
-                                                    <button type="submit"
-                                                        class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
-                                                        Simpan
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </details>
-                                @endif
-                                @if ($canEdit && $item->tipe === 'custom')
-                                    <details class="inline-block text-left">
-                                        <summary
-                                            class="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
-                                            Edit Item
-                                        </summary>
-                                        <div
-                                            class="mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-                                            <form method="POST"
-                                                action="{{ route('penawaran.items.update', [$penawaran->id, $item->id]) }}"
-                                                class="space-y-2">
-                                                @csrf
-                                                @method('PUT')
-                                                <label class="block text-xs font-semibold">Judul Item</label>
-                                                <input name="judul" value="{{ $item->judul }}"
-                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                <div>
-                                                    <label class="block text-xs font-semibold mb-1">Catatan</label>
-                                                    <input name="catatan" value="{{ $item->catatan }}"
-                                                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                </div>
-                                                <div class="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label class="block text-xs font-semibold mb-1">Qty</label>
-                                                        <input name="qty" value="{{ $item->qty ?? 1 }}"
-                                                            inputmode="decimal"
-                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-xs font-semibold mb-1">Satuan</label>
-                                                        <input name="satuan" value="{{ $item->satuan ?? 'ls' }}"
-                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                    </div>
-                                                </div>
-                                                <div class="flex justify-end">
-                                                    <button type="submit"
-                                                        class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
-                                                        Simpan
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </details>
-                                @endif
-                                <button type="button"
-                                    data-delete-url="{{ route('penawaran.items.delete', [$penawaran->id, $item->id]) }}"
-                                    data-confirm="Hapus item ini?"
-                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
-                                    Hapus Item
-                                </button>
-                            </div>
+                                    <div class="flex flex-col gap-1.5 shrink-0 pt-1">
+                                        <button type="submit"
+                                            class="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700">
+                                            Simpan
+                                        </button>
+                                        <button type="button"
+                                            onclick="itemInlineCancel({{ $item->id }})"
+                                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold hover:bg-slate-50">
+                                            Batal
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
 
                         <div class="mt-4 overflow-x-auto">
@@ -513,65 +482,86 @@
                                 <tbody class="border border-slate-200 divide-y divide-slate-100 detail-sortable"
                                     data-item-id="{{ $item->id }}">
                                     @forelse($item->details as $d)
-                                        <tr class="detail-row" draggable="true" data-detail-id="{{ $d->id }}">
-                                            <td class="px-3 py-2">{{ $d->urutan }}</td>
+                                        {{-- VIEW ROW --}}
+                                        <tr class="detail-row detail-view-{{ $d->id }}" draggable="true" data-detail-id="{{ $d->id }}">
+                                            <td class="px-3 py-2 text-slate-500 text-xs">{{ $d->urutan }}</td>
                                             <td class="px-3 py-2">
                                                 <div class="font-semibold">{{ $d->nama }}</div>
                                                 @if ($d->spesifikasi)
-                                                    <div class="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
-                                                        {{ $d->spesifikasi }}</div>
+                                                    <div class="text-xs text-slate-500 mt-0.5">{{ $d->spesifikasi }}</div>
                                                 @endif
                                             </td>
-                                            <td class="px-3 py-2 text-right  whitespace-nowrap">
-                                                {{ number_format((float) $d->qty, 2, ',', '.') }}</td>
-                                            <td class="px-3 py-2  whitespace-nowrap">{{ $d->satuan }}</td>
-                                            <td class="px-3 py-2 text-right  whitespace-nowrap">Rp
-                                                {{ number_format((int) $d->harga, 0, ',', '.') }}</td>
-                                            <td class="px-3 py-2 text-right font-semibold whitespace-nowrap">Rp
-                                                {{ number_format((int) $d->subtotal, 0, ',', '.') }}</td>
-                                            <td class="px-3 py-2 text-right">
-                                                <details class="inline-block text-left  whitespace-nowrap">
-                                                    <summary
-                                                        class="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
-                                                        Edit</summary>
-                                                    <div
-                                                        class="mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-                                                        <form method="POST"
-                                                            action="{{ route('penawaran.item_details.update', [$penawaran->id, $item->id, $d->id]) }}"
-                                                            class="space-y-2">
-                                                            @csrf
-                                                            @method('PUT')
-                                                            <input name="nama" value="{{ $d->nama }}"
-                                                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                            <div class="grid grid-cols-3 gap-2">
-                                                                <input name="qty" value="{{ $d->qty }}"
-                                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                                <input name="satuan" value="{{ $d->satuan }}"
-                                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                                                                <input name="harga" value="{{ $d->harga }}"
-                                                                    inputmode="numeric"
-                                                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm rupiah-input">
-                                                            </div>
-                                                            <textarea name="spesifikasi" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ $d->spesifikasi }}</textarea>
-                                                            <div class="flex items-center justify-between">
-                                                                <button type="button"
-                                                                    data-delete-url="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}"
-                                                                    data-confirm="Hapus detail?"
-                                                                    class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
-                                                                    Hapus
-                                                                </button>
-                                                                <button type="submit"
-                                                                    class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">Simpan</button>
-                                                            </div>
-                                                        </form>
+                                            <td class="px-3 py-2 text-right whitespace-nowrap">{{ number_format((float) $d->qty, 2, ',', '.') }}</td>
+                                            <td class="px-3 py-2 whitespace-nowrap">{{ $d->satuan }}</td>
+                                            <td class="px-3 py-2 text-right whitespace-nowrap">Rp {{ number_format((int) $d->harga, 0, ',', '.') }}</td>
+                                            <td class="px-3 py-2 text-right font-semibold whitespace-nowrap">Rp {{ number_format((int) $d->subtotal, 0, ',', '.') }}</td>
+                                            <td class="px-3 py-2 text-right whitespace-nowrap">
+                                                @if ($canEdit)
+                                                <button type="button"
+                                                    onclick="detailInlineEdit({{ $d->id }})"
+                                                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">
+                                                    Edit
+                                                </button>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                        {{-- EDIT ROW --}}
+                                        <tr class="detail-edit-{{ $d->id }} hidden bg-slate-50">
+                                            <td class="px-2 py-2 text-slate-400 text-xs align-top pt-3">{{ $d->urutan }}</td>
+                                            <td class="px-2 py-1.5" colspan="4">
+                                                <form method="POST"
+                                                    id="detail-form-{{ $d->id }}"
+                                                    action="{{ route('penawaran.item_details.update', [$penawaran->id, $item->id, $d->id]) }}">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="flex flex-col gap-1.5">
+                                                        <input name="nama" value="{{ $d->nama }}"
+                                                            placeholder="Nama"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                                        <input name="spesifikasi" value="{{ $d->spesifikasi }}"
+                                                            placeholder="Spesifikasi (opsional)"
+                                                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                                        <div class="flex gap-1.5">
+                                                            <input name="qty" value="{{ $d->qty }}"
+                                                                placeholder="Qty"
+                                                                class="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                                            <input name="satuan" value="{{ $d->satuan }}"
+                                                                placeholder="Satuan"
+                                                                class="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                                            <input name="harga" value="{{ $d->harga }}"
+                                                                placeholder="Harga"
+                                                                inputmode="numeric"
+                                                                class="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm rupiah-input focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                                        </div>
                                                     </div>
-                                                </details>
+                                                </form>
+                                            </td>
+                                            <td class="px-2 py-1.5 text-right font-semibold text-slate-400 whitespace-nowrap align-top pt-3">
+                                                Rp {{ number_format((int) $d->subtotal, 0, ',', '.') }}
+                                            </td>
+                                            <td class="px-2 py-1.5 align-top whitespace-nowrap">
+                                                <div class="flex flex-col gap-1 items-end">
+                                                    <button type="submit" form="detail-form-{{ $d->id }}"
+                                                        class="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">
+                                                        Simpan
+                                                    </button>
+                                                    <button type="button"
+                                                        onclick="detailInlineCancel({{ $d->id }})"
+                                                        class="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-slate-50">
+                                                        Batal
+                                                    </button>
+                                                    <button type="button"
+                                                        data-delete-url="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}"
+                                                        data-confirm="Hapus detail ini?"
+                                                        class="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                                        Hapus
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="px-3 py-6 text-center text-slate-500">Belum ada
-                                                rincian.</td>
+                                            <td colspan="7" class="px-3 py-6 text-center text-slate-500">Belum ada rincian.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -1608,6 +1598,57 @@
             initItemDragDrop();
             initDetailDragDrop();
         };
+
+        // Inline edit untuk baris detail bundle
+        function detailInlineEdit(id) {
+            document.querySelectorAll('.detail-view-' + id).forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.detail-edit-' + id).forEach(el => el.classList.remove('hidden'));
+            // focus input nama
+            const form = document.getElementById('detail-form-' + id);
+            if (form) {
+                const namaInput = form.querySelector('input[name="nama"]');
+                if (namaInput) namaInput.focus();
+                // re-init rupiah inputs in this form
+                initRupiahInputs(form);
+            }
+        }
+
+        function detailInlineCancel(id) {
+            document.querySelectorAll('.detail-edit-' + id).forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.detail-view-' + id).forEach(el => el.classList.remove('hidden'));
+        }
+
+        // Inline edit untuk header item (bundle / custom)
+        function itemInlineEdit(id) {
+            document.querySelectorAll('.item-view-' + id).forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.item-edit-' + id).forEach(el => el.classList.remove('hidden'));
+            const form = document.getElementById('item-form-' + id);
+            if (form) {
+                const judulInput = form.querySelector('input[name="judul"]');
+                if (judulInput) judulInput.focus();
+            }
+        }
+
+        function itemInlineCancel(id) {
+            document.querySelectorAll('.item-edit-' + id).forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.item-view-' + id).forEach(el => el.classList.remove('hidden'));
+        }
+
+        // Inline edit untuk keterangan (term)
+        function termInlineEdit(id) {
+            document.querySelectorAll('.term-view-' + id).forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.term-edit-' + id).forEach(el => el.classList.remove('hidden'));
+            const form = document.getElementById('term-form-' + id);
+            if (form) {
+                const ta = form.querySelector('textarea[name="isi"]');
+                if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+            }
+        }
+
+        function termInlineCancel(id) {
+            document.querySelectorAll('.term-edit-' + id).forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.term-view-' + id).forEach(el => el.classList.remove('hidden'));
+        }
     </script>
 
 

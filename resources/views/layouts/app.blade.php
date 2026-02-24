@@ -11,9 +11,7 @@
 </head>
 
 <body class="bg-slate-100 text-slate-900" x-data x-init="
-    // Restore sidebar state from localStorage
-    const saved = localStorage.getItem('sidebarOpen');
-    $store.sidebar.open = saved === null ? true : saved === 'true';
+    $store.sidebar.open = localStorage.getItem('sidebarOpen') === 'false' ? false : true;
 ">
     <div class="min-h-screen flex">
         @include('layouts.partials.sidebar')

@@ -21,6 +21,7 @@ class PicController extends Controller
     public function store(Request $request)
     {
         $payload = $request->validate([
+            'honorific' => 'nullable|in:Bapak,Ibu',
             'nama' => 'required|string|max:255',
             'jabatan' => 'nullable|string|max:255',
             'instansi' => 'nullable|string|max:255',
@@ -42,6 +43,7 @@ class PicController extends Controller
     public function update(Request $request, Pic $pic)
     {
         $payload = $request->validate([
+            'honorific' => 'nullable|in:Bapak,Ibu',
             'nama' => 'required|string|max:255',
             'jabatan' => 'nullable|string|max:255',
             'instansi' => 'nullable|string|max:255',
