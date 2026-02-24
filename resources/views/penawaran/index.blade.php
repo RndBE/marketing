@@ -131,6 +131,17 @@
                                                 </button>
                                             </form>
                                         @endif
+
+                                        @if(auth()->user()->hasPermission('create-penawaran'))
+                                            <form method="POST" action="{{ route('penawaran.duplicate', $row->id) }}"
+                                                onsubmit="return confirm('Duplikat penawaran ini?')">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                                                    ⧉ Duplikat
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

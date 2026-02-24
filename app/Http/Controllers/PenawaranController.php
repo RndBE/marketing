@@ -72,7 +72,7 @@ class PenawaranController extends Controller
         ]);
 
         return DB::transaction(function () use ($payload) {
-            $docNumber = $this->createDocNumber(auth()->id());
+            $docNumber = $this->createDocNumber();
 
             $penawaran = Penawaran::create([
                 'id_pic' => $payload['id_pic'] ?? null,
@@ -342,6 +342,191 @@ class PenawaranController extends Controller
 
         return redirect()->route('penawaran.index')
             ->with('success', 'Penawaran berhasil dihapus.');
+    }
+
+    public function duplicate(Penawaran $penawaran)
+    {
+        return DB::transaction(function () use ($penawaran) {
+            // Load everything we need to copy
+            $penawaran->load([
+                'cover',
+                'validity',
+                'items.details',
+                'terms',
+                'signatures',
+            ]);
+
+            // 1. New doc number
+            $docNumber = $this->createDocNumber();
+
+            // 2. New penawaran record
+            $new = Penawaran::create([
+                'id_pic' => $penawaran->id_pic,
+                'id_user' => auth()->id(),
+                'doc_number_id' => $docNumber->id,
+                'approval_id' => null,
+                'date_created' => now()->timestamp,
+                'date_updated' => now()->timestamp,
+                'judul' => '[COPY] ' . ($penawaran->judul ?? ''),
+                'catatan' => $penawaran->catatan,
+                'instansi_tujuan' => $penawaran->instansi_tujuan ?? null,
+                'nama_pekerjaan' => $penawaran->nama_pekerjaan ?? null,
+                'lokasi_pekerjaan' => $penawaran->lokasi_pekerjaan ?? null,
+                'tanggal_penawaran' => $penawaran->tanggal_penawaran ?? null,
+                'discount_enabled' => $penawaran->discount_enabled,
+                'discount_type' => $penawaran->discount_type,
+                'discount_value' => $penawaran->discount_value,
+                'tax_enabled' => $penawaran->tax_enabled,
+                'tax_rate' => $penawaran->tax_rate,
+            ]);
+
+            // 3. Cover
+            if ($penawaran->cover) {
+                $c = $penawaran->cover->toArray();
+                unset($c['id'], $c['created_at'], $c['updated_at']);
+                $c['penawaran_id'] = $new->id;
+                $c['logo_path'] = $penawaran->cover->logo_path ?? null; // re-use same file path (read-only reference)
+                PenawaranCover::create($c);
+            } else {
+                PenawaranCover::create([
+                    'penawaran_id' => $new->id,
+                    'judul_cover' => 'Dokumen Penawaran',
+                    'subjudul' => $new->judul,
+                    'perusahaan_nama' => config('app.name'),
+                ]);
+            }
+
+            // 4. Validity
+            if ($penawaran->validity) {
+                $v = $penawaran->validity->toArray();
+                unset($v['id'], $v['created_at'], $v['updated_at']);
+                $v['penawaran_id'] = $new->id;
+                PenawaranValidity::create($v);
+            } else {
+                PenawaranValidity::create([
+                    'penawaran_id' => $new->id,
+                    'mulai' => now()->toDateString(),
+                    'sampai' => now()->addDays(30)->toDateString(),
+                    'berlaku_hari' => 30,
+                    'keterangan' => 'Penawaran berlaku 30 hari.',
+                ]);
+            }
+
+            // 5. Items + Details
+            foreach ($penawaran->items as $item) {
+                $newItem = PenawaranItem::create([
+                    'penawaran_id' => $new->id,
+                    'product_id' => $item->product_id,
+                    'tipe' => $item->tipe,
+                    'urutan' => $item->urutan,
+                    'judul' => $item->judul,
+                    'catatan' => $item->catatan,
+                    'qty' => $item->qty,
+                    'satuan' => $item->satuan,
+                    'subtotal' => $item->subtotal,
+                    'discount_enabled' => $item->discount_enabled,
+                    'discount_type' => $item->discount_type,
+                    'discount_value' => $item->discount_value,
+                ]);
+
+                foreach ($item->details as $detail) {
+                    PenawaranItemDetail::create([
+                        'penawaran_item_id' => $newItem->id,
+                        'product_detail_id' => $detail->product_detail_id,
+                        'urutan' => $detail->urutan,
+                        'nama' => $detail->nama,
+                        'spesifikasi' => $detail->spesifikasi,
+                        'qty' => $detail->qty,
+                        'satuan' => $detail->satuan,
+                        'harga' => $detail->harga,
+                        'subtotal' => $detail->subtotal,
+                    ]);
+                }
+            }
+
+            // 6. Terms (rekursif: copy parent_id mapping)
+            $termIdMap = [];
+            $rootTerms = $penawaran->terms->whereNull('parent_id')->sortBy('urutan');
+            $this->duplicateTerms($new->id, $rootTerms, null, $penawaran->terms, $termIdMap);
+
+            // 7. Signatures
+            foreach ($penawaran->signatures as $sig) {
+                PenawaranSignature::create([
+                    'penawaran_id' => $new->id,
+                    'urutan' => $sig->urutan,
+                    'nama' => $sig->nama,
+                    'jabatan' => $sig->jabatan,
+                    'kota' => $sig->kota,
+                    'tanggal' => $sig->tanggal,
+                    'ttd_path' => $sig->ttd_path, // re-use same file path
+                ]);
+            }
+
+            // 8. Approval (fresh, ikuti alur yang berlaku)
+            $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
+                ->where('status', 'aktif')
+                ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
+                ->first();
+
+            if (!$alur || $alur->langkah->isEmpty()) {
+                throw new \Exception('Alur penawaran aktif belum dibuat');
+            }
+
+            $firstStep = $alur->langkah->first()->no_langkah;
+
+            $approval = Approval::create([
+                'status' => 'menunggu',
+                'current_step' => $firstStep,
+                'module' => 'penawaran',
+                'ref_id' => $new->id,
+            ]);
+
+            foreach ($alur->langkah as $step) {
+                $approverId = $step->user_id ?: $new->id_user;
+                ApprovalStep::create([
+                    'approval_id' => $approval->id,
+                    'step_order' => $step->no_langkah,
+                    'step_name' => $step->nama_langkah,
+                    'user_id' => $step->user_id,
+                    'harus_semua' => $step->harus_semua,
+                    'status' => 'menunggu',
+                    'akses_approve' => [
+                        'user_id' => (int) $approverId,
+                        'ref_penawaran' => (int) $new->id,
+                    ],
+                ]);
+            }
+
+            $new->update([
+                'approval_id' => $approval->id,
+                'status' => 'menunggu_approval',
+            ]);
+
+            return redirect()->route('penawaran.index')
+                ->with('success', 'Penawaran berhasil diduplikasi.');
+        });
+    }
+
+    /**
+     * Rekursif copy terms dengan menjaga parent_id mapping.
+     */
+    private function duplicateTerms(int $penawaranId, $terms, ?int $newParentId, $allTerms, array &$map): void
+    {
+        foreach ($terms as $term) {
+            $newTerm = PenawaranTerm::create([
+                'penawaran_id' => $penawaranId,
+                'parent_id' => $newParentId,
+                'judul' => $term->judul,
+                'isi' => $term->isi,
+                'urutan' => $term->urutan,
+            ]);
+            $map[$term->id] = $newTerm->id;
+
+            $children = $allTerms->where('parent_id', $term->id)->sortBy('urutan');
+            if ($children->count()) {
+                $this->duplicateTerms($penawaranId, $children, $newTerm->id, $allTerms, $map);
+            }
+        }
     }
 
     public function upsertCover(Request $request, Penawaran $penawaran)

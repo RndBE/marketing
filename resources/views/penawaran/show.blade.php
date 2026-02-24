@@ -161,7 +161,19 @@
                     class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
                     title="Hanya pembuat penawaran dan superadmin yang dapat menghapus">Hapus</button>
             @endif
+
+            @if(auth()->user()->hasPermission('create-penawaran'))
+                <form method="POST" action="{{ route('penawaran.duplicate', $penawaran->id) }}"
+                    onsubmit="return confirm('Duplikat penawaran ini? Salinan baru akan dibuat dengan nomor dokumen baru.')">
+                    @csrf
+                    <button type="submit"
+                        class="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">
+                        ⧉ Duplikat
+                    </button>
+                </form>
+            @endif
         </div>
+
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1150,6 +1162,8 @@
             if (formAction.match(/\/penawaran\/\d+$/) && formAction.includes('destroy')) return true;
             // Skip approval form
             if (formAction.includes('approval')) return true;
+            // Skip duplicate - it redirects to new penawaran page
+            if (formAction.includes('duplicate')) return true;
             return false;
         }
 

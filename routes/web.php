@@ -50,6 +50,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:create-penawaran')->group(function () {
             Route::get('/create', [PenawaranController::class, 'create'])->name('create');
             Route::post('/', [PenawaranController::class, 'store'])->name('store');
+            Route::post('/{penawaran}/duplicate', [PenawaranController::class, 'duplicate'])->name('duplicate');
         });
 
         // View specific (setelah /create)
