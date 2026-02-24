@@ -10,14 +10,34 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="bg-slate-100 text-slate-900">
+<body class="bg-slate-100 text-slate-900" x-data x-init="
+    // Restore sidebar state from localStorage
+    const saved = localStorage.getItem('sidebarOpen');
+    $store.sidebar.open = saved === null ? true : saved === 'true';
+">
     <div class="min-h-screen flex">
         @include('layouts.partials.sidebar')
-        <div class="flex-1 flex flex-col md:ml-64">
 
-            <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                <div class="font-semibold text-slate-700">
-                    {{ $title ?? 'Dashboard' }}
+        {{-- Main content shifts when sidebar is open --}}
+        <div class="flex-1 flex flex-col transition-all duration-300"
+            :class="$store.sidebar.open ? 'md:ml-64' : 'md:ml-0'">
+
+            <header class="bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    {{-- Sidebar toggle button --}}
+                    <button @click="
+                        $store.sidebar.open = !$store.sidebar.open;
+                        localStorage.setItem('sidebarOpen', $store.sidebar.open);
+                    " class="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition"
+                        title="Toggle sidebar">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <div class="font-semibold text-slate-700">
+                        {{ $title ?? 'Dashboard' }}
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-4" x-data="{ open: false }">

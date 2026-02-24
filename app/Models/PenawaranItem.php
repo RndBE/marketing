@@ -18,11 +18,16 @@ class PenawaranItem extends Model
         'qty',
         'satuan',
         'subtotal',
+        'discount_enabled',
+        'discount_type',
+        'discount_value',
     ];
 
     protected $casts = [
         'qty' => 'decimal:2',
         'subtotal' => 'integer',
+        'discount_enabled' => 'boolean',
+        'discount_value' => 'decimal:2',
     ];
 
     public function details()

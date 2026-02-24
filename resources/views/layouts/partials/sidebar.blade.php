@@ -1,4 +1,9 @@
-<aside class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200">
+<aside
+    class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200 transition-transform duration-300 z-20"
+    x-cloak x-show="$store.sidebar.open" x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+    x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-x-0"
+    x-transition:leave-end="-translate-x-full">
     <div class="px-3 py-4 border-slate-200">
         <div class="flex justify-center items-center gap-3">
             <img src="{{ asset('images/logo_arsol.png') }}" alt="" class="h-10">
@@ -22,7 +27,8 @@
                 :class="penawaran ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                 class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                 <span class="inline-flex items-center gap-2">
-                    <i :class="penawaran ? 'ri-file-text-fill' : 'ri-file-text-line'" class="text-[19px] leading-none"></i>
+                    <i :class="penawaran ? 'ri-file-text-fill' : 'ri-file-text-line'"
+                        class="text-[19px] leading-none"></i>
                     <span>Penawaran</span>
                 </span>
                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': penawaran }" fill="none"
@@ -35,7 +41,7 @@
                 @if(auth()->user()->hasPermission('manage-alur'))
                     <a href="{{ route('alurpenawaran.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('alurpenawaran.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('alurpenawaran.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Alur Approval</span>
                     </a>
                 @endif
@@ -43,7 +49,7 @@
                 @if(auth()->user()->hasPermission('view-penawaran'))
                     <a href="{{ route('penawaran.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('penawaran.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('penawaran.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Daftar Penawaran</span>
                     </a>
                 @endif
@@ -51,7 +57,7 @@
                 @if(auth()->user()->hasPermission('create-penawaran'))
                     <a href="{{ route('penawaran.create') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('penawaran.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('penawaran.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Buat Penawaran</span>
                     </a>
                 @endif
@@ -59,7 +65,7 @@
                 @if(auth()->user()->hasPermission('edit-penawaran'))
                     <a href="{{ route('term_templates.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('term_templates.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('term_templates.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Keterangan</span>
                     </a>
                 @endif
@@ -76,8 +82,7 @@
         </div>
         @if(auth()->user()->hasPermission('view-usulan'))
             <div class="mb-4">
-                <button @click="invoice = !invoice"
-                    :class="invoice ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                <button @click="invoice = !invoice" :class="invoice ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
                         <i :class="invoice ? 'ri-bill-fill' : 'ri-bill-line'" class="text-[19px] leading-none"></i>
@@ -92,18 +97,18 @@
                 <div x-show="invoice" x-collapse class="mt-1 space-y-1">
                     <a href="{{ route('invoices.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                {{ request()->routeIs('invoices.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                    {{ request()->routeIs('invoices.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Daftar Invoice</span>
                     </a>
 
                     <a href="{{ route('invoices.create') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                {{ request()->routeIs('invoices.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                    {{ request()->routeIs('invoices.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Buat Invoice</span>
                     </a>
                     <a href="{{ route('templates.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('templates.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('templates.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Atur Template</span>
                     </a>
                 </div>
@@ -129,7 +134,7 @@
                     @if(auth()->user()->hasPermission('view-purchase-order'))
                         <a href="{{ route('purchase-orders.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                            {{ request()->routeIs('purchase-orders.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('purchase-orders.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Daftar PO</span>
                         </a>
                     @endif
@@ -137,7 +142,7 @@
                     @if(auth()->user()->hasPermission('create-purchase-order'))
                         <a href="{{ route('purchase-orders.create') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                            {{ request()->routeIs('purchase-orders.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('purchase-orders.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Buat PO</span>
                         </a>
                     @endif
@@ -165,7 +170,7 @@
                     @if(auth()->user()->hasPermission('view-marketing-report'))
                         <a href="{{ route('marketing-reports.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                {{ request()->routeIs('marketing-reports.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                        {{ request()->routeIs('marketing-reports.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Daftar Laporan</span>
                         </a>
                     @endif
@@ -173,7 +178,7 @@
                     @if(auth()->user()->hasPermission('create-marketing-report'))
                         <a href="{{ route('marketing-reports.create') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                {{ request()->routeIs('marketing-reports.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                        {{ request()->routeIs('marketing-reports.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Buat Laporan</span>
                         </a>
                     @endif
@@ -184,8 +189,7 @@
         {{-- Usulan Penawaran --}}
         @if(auth()->user()->hasPermission('view-usulan'))
             <div class="mb-4">
-                <button @click="usulan = !usulan"
-                    :class="usulan ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                <button @click="usulan = !usulan" :class="usulan ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
                         <i :class="usulan ? 'ri-lightbulb-fill' : 'ri-lightbulb-line'" class="text-[19px] leading-none"></i>
@@ -200,14 +204,14 @@
                 <div x-show="usulan" x-collapse class="mt-1 space-y-1">
                     <a href="{{ route('usulan.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                        {{ request()->routeIs('usulan.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                            {{ request()->routeIs('usulan.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Daftar Usulan</span>
                     </a>
 
                     @if(auth()->user()->hasPermission('create-usulan'))
                         <a href="{{ route('usulan.create') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                                            {{ request()->routeIs('usulan.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                                                    {{ request()->routeIs('usulan.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Buat Usulan</span>
                         </a>
                     @endif
@@ -234,19 +238,19 @@
                 <div x-show="pricelist" x-collapse class="mt-1 space-y-1">
                     <a href="{{ route('price_list.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('price_list.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('price_list.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Daftar Bundle</span>
                     </a>
 
                     <a href="{{ route('price_list.create') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('price_list.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('price_list.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Buat Bundle</span>
                     </a>
 
                     <a href="{{ route('komponen.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('komponen.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('komponen.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Komponen</span>
                     </a>
                 </div>
@@ -255,8 +259,7 @@
 
         @if(auth()->user()->hasPermission('manage-pic'))
             <div class="mb-4">
-                <button @click="pic = !pic"
-                    :class="pic ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                <button @click="pic = !pic" :class="pic ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
                         <i :class="pic ? 'ri-id-card-fill' : 'ri-id-card-line'" class="text-[19px] leading-none"></i>
@@ -271,7 +274,7 @@
                 <div x-show="pic" x-collapse class="mt-1 space-y-1">
                     <a href="{{ route('pics.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                        {{ request()->routeIs('pics.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                            {{ request()->routeIs('pics.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Data PIC</span>
                     </a>
                 </div>
@@ -280,8 +283,7 @@
 
         @if(auth()->user()->hasPermission('manage-users'))
             <div class="mb-4">
-                <button @click="users = !users"
-                    :class="users ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                <button @click="users = !users" :class="users ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
                         <i :class="users ? 'ri-group-fill' : 'ri-group-line'" class="text-[19px] leading-none"></i>
@@ -296,7 +298,7 @@
                 <div x-show="users" x-collapse class="mt-1 space-y-1">
                     <a href="{{ route('users.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                        {{ request()->routeIs('users.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                            {{ request()->routeIs('users.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Data User</span>
                     </a>
                 </div>
@@ -305,11 +307,11 @@
 
         @if(auth()->user()->hasPermission('manage-roles'))
             <div class="mb-4">
-                <button @click="rbac = !rbac"
-                    :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                <button @click="rbac = !rbac" :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="rbac ? 'ri-shield-user-fill' : 'ri-shield-user-line'" class="text-[19px] leading-none"></i>
+                        <i :class="rbac ? 'ri-shield-user-fill' : 'ri-shield-user-line'"
+                            class="text-[19px] leading-none"></i>
                         <span>RBAC</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': rbac }" fill="none"
@@ -321,26 +323,26 @@
                 <div x-show="rbac" x-collapse class="mt-1 space-y-1">
                     <a href="{{ route('roles.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('roles.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('roles.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Roles</span>
                     </a>
 
                     <a href="{{ route('permissions.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('permissions.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('permissions.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Permissions</span>
                     </a>
 
                     <a href="{{ route('user-roles.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                {{ request()->routeIs('user-roles.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                    {{ request()->routeIs('user-roles.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>User Roles</span>
                     </a>
 
                     @if(auth()->user()->hasPermission('view-audit-logs'))
                         <a href="{{ route('audit-logs.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                                                    {{ request()->routeIs('audit-logs.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                                                                            {{ request()->routeIs('audit-logs.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Audit Log</span>
                         </a>
                     @endif

@@ -20,7 +20,20 @@
                 if ($qtyBundle <= 0) {
                     $qtyBundle = 1;
                 }
-                return (int) round($calcBundleUnit($item) * $qtyBundle);
+                $raw = (int) round($calcBundleUnit($item) * $qtyBundle);
+
+                // Apply per-bundle discount
+                if ($item->discount_enabled) {
+                    $dv = (float) ($item->discount_value ?? 0);
+                    $dt = $item->discount_type ?? 'percent';
+                    if ($dt === 'percent') {
+                        $disc = (int) round($raw * ($dv / 100));
+                    } else {
+                        $disc = (int) round($dv);
+                    }
+                    return max(0, $raw - $disc);
+                }
+                return $raw;
             }
 
             $subtotal = (int) ($item->subtotal ?? 0);
@@ -292,6 +305,20 @@
                                 @endphp
 
                                 @if ($item->tipe === 'bundle')
+                                    @php
+                                        $bundleRaw = (int) round($unitPrice * $qtyBundle);
+                                        $bundleDiscAmount = 0;
+                                        if ($item->discount_enabled) {
+                                            $bdv = (float) ($item->discount_value ?? 0);
+                                            $bdt = $item->discount_type ?? 'percent';
+                                            if ($bdt === 'percent') {
+                                                $bundleDiscAmount = (int) round($bundleRaw * ($bdv / 100));
+                                            } else {
+                                                $bundleDiscAmount = (int) round($bdv);
+                                            }
+                                            $bundleDiscAmount = min($bundleDiscAmount, $bundleRaw);
+                                        }
+                                    @endphp
                                     <div class="mt-2 text-sm text-slate-600">
                                         Harga Satuan :
                                         <span class="font-semibold">Rp
@@ -307,6 +334,20 @@
                                         <span class="font-semibold">Rp
                                             {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
                                     </div>
+                                    @if ($item->discount_enabled && $bundleDiscAmount > 0)
+                                        <div class="mt-1 flex items-center gap-2 text-xs">
+                                            <span class="text-slate-400 line-through">Rp {{ number_format($bundleRaw, 0, ',', '.') }}</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                                Diskon
+                                                @if (($item->discount_type ?? 'percent') === 'percent')
+                                                    {{ number_format((float) $item->discount_value, 0, ',', '.') }}%
+                                                @else
+                                                    Rp {{ number_format((int) $item->discount_value, 0, ',', '.') }}
+                                                @endif
+                                                &minus; Rp {{ number_format($bundleDiscAmount, 0, ',', '.') }}
+                                            </span>
+                                        </div>
+                                    @endif
                                 @else
                                     <div class="mt-2 text-sm text-slate-600">
                                         Harga Satuan :
@@ -335,7 +376,7 @@
                                             Edit Nama
                                         </summary>
                                         <div
-                                            class="mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                                            class="mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
                                             <form method="POST"
                                                 action="{{ route('penawaran.items.update', [$penawaran->id, $item->id]) }}"
                                                 class="space-y-2">
@@ -357,6 +398,42 @@
                                                             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
                                                     </div>
                                                 </div>
+
+                                                {{-- Diskon Per Bundle --}}
+                                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 relative">
+                                                    <input id="bundle_disc_{{ $item->id }}" type="checkbox"
+                                                        name="discount_enabled" value="1"
+                                                        class="peer absolute left-3 top-3.5 h-4 w-4 rounded border-slate-300 accent-slate-900"
+                                                        {{ $item->discount_enabled ? 'checked' : '' }}>
+                                                    <div class="pl-7">
+                                                        <label for="bundle_disc_{{ $item->id }}"
+                                                            class="cursor-pointer text-xs font-semibold select-none">
+                                                            Aktifkan Diskon Bundle
+                                                        </label>
+                                                    </div>
+                                                    <div class="mt-2 hidden peer-checked:block pl-2">
+                                                        <div class="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label class="block text-xs font-semibold mb-1">Tipe</label>
+                                                                <select name="discount_type"
+                                                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
+                                                                    <option value="percent"
+                                                                        {{ ($item->discount_type ?? 'percent') === 'percent' ? 'selected' : '' }}>%</option>
+                                                                    <option value="fixed"
+                                                                        {{ ($item->discount_type ?? '') === 'fixed' ? 'selected' : '' }}>Rp</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label class="block text-xs font-semibold mb-1">Nilai</label>
+                                                                <input name="discount_value"
+                                                                    value="{{ $item->discount_value ?? 0 }}"
+                                                                    inputmode="decimal"
+                                                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 <div class="flex justify-end">
                                                     <button type="submit"
                                                         class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">

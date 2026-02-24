@@ -112,7 +112,20 @@
                 if ($qtyBundle <= 0) {
                     $qtyBundle = 1;
                 }
-                return (int) round($calcBundleUnit($item) * $qtyBundle);
+                $raw = (int) round($calcBundleUnit($item) * $qtyBundle);
+
+                // Apply per-bundle discount
+                if ($item->discount_enabled) {
+                    $dv = (float) ($item->discount_value ?? 0);
+                    $dt = $item->discount_type ?? 'percent';
+                    if ($dt === 'percent') {
+                        $disc = (int) round($raw * ($dv / 100));
+                    } else {
+                        $disc = (int) round($dv);
+                    }
+                    return max(0, $raw - $disc);
+                }
+                return $raw;
             }
 
             $subtotal = (int) ($item->subtotal ?? 0);
@@ -292,14 +305,8 @@
                         }
 
                         $totalItem = $calcItemSubtotal($item);
-                        if ($item->tipe === 'bundle') {
-                            $hargaSatuanBundle = $calcBundleUnit($item);
-                            if ($hargaSatuanBundle <= 0) {
-                                $hargaSatuanBundle = $totalItem;
-                            }
-                        } else {
-                            $hargaSatuanBundle = (int) round($totalItem / $volume);
-                        }
+                        // Harga satuan = total setelah diskon ÷ qty (berlaku untuk bundle maupun custom)
+                        $hargaSatuanBundle = $volume > 0 ? (int) round($totalItem / $volume) : $totalItem;
 
                         $grand += $totalItem;
                     @endphp

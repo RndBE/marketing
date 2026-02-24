@@ -475,14 +475,14 @@ class PenawaranController extends Controller
         $rules = [
             'judul' => ['required', 'string', 'max:255'],
             'catatan' => ['nullable', 'string', 'max:255'],
+            'qty' => ['required', 'numeric', 'min:0.01'],
+            'satuan' => ['nullable', 'string', 'max:50'],
         ];
 
         if ($item->tipe === 'bundle') {
-            $rules['qty'] = ['required', 'numeric', 'min:0.01'];
-            $rules['satuan'] = ['nullable', 'string', 'max:50'];
-        } else {
-            $rules['qty'] = ['required', 'numeric', 'min:0.01'];
-            $rules['satuan'] = ['nullable', 'string', 'max:50'];
+            $rules['discount_enabled'] = ['nullable', 'boolean'];
+            $rules['discount_type'] = ['nullable', 'string', 'in:percent,fixed'];
+            $rules['discount_value'] = ['nullable', 'numeric', 'min:0'];
         }
 
         $payload = $request->validate($rules);
@@ -490,14 +490,20 @@ class PenawaranController extends Controller
         $update = [
             'judul' => $payload['judul'],
             'catatan' => $payload['catatan'] ?? $item->catatan,
+            'qty' => (float) $payload['qty'],
+            'satuan' => $payload['satuan'] ?? null,
         ];
 
         if ($item->tipe === 'bundle') {
-            $update['qty'] = (float) $payload['qty'];
-            $update['satuan'] = $payload['satuan'] ?? null;
-        } else {
-            $update['qty'] = (float) $payload['qty'];
-            $update['satuan'] = $payload['satuan'] ?? null;
+            $discountEnabled = (bool) ($request->input('discount_enabled') == 1);
+            $update['discount_enabled'] = $discountEnabled;
+            if ($discountEnabled) {
+                $update['discount_type'] = $payload['discount_type'] ?? 'percent';
+                $update['discount_value'] = $payload['discount_value'] ?? 0;
+            } else {
+                $update['discount_type'] = null;
+                $update['discount_value'] = null;
+            }
         }
 
         $item->update($update);
@@ -1196,7 +1202,21 @@ class PenawaranController extends Controller
 
         if ($item->tipe === 'bundle') {
             $unit = $this->calcUnitPriceBundle($item);
-            $item->subtotal = (int) round($unit * $qtyBundle);
+            $raw = (int) round($unit * $qtyBundle);
+
+            // Apply per-bundle discount
+            if ($item->discount_enabled) {
+                $dv = (float) ($item->discount_value ?? 0);
+                $dt = $item->discount_type ?? 'percent';
+                if ($dt === 'percent') {
+                    $disc = (int) round($raw * ($dv / 100));
+                } else {
+                    $disc = (int) round($dv);
+                }
+                $item->subtotal = max(0, $raw - $disc);
+            } else {
+                $item->subtotal = $raw;
+            }
         } else {
             $total = 0;
             foreach ($item->details as $d) {
