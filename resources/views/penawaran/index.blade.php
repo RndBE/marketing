@@ -10,8 +10,9 @@
 
     <form method="GET" class="mb-4" id="filter-form">
         <div class="flex flex-wrap gap-2">
-            <input name="q" value="{{ $q ?? '' }}" placeholder="Cari..."
-                class="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+            <input id="search-input" name="q" value="{{ $q ?? '' }}" placeholder="Cari judul, instansi, atau no. dokumen..."
+                class="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                autocomplete="off">
 
             {{-- Date range --}}
             <div class="flex items-center gap-1">
@@ -33,33 +34,62 @@
         @endphp
         <div class="flex flex-wrap gap-2 mt-2">
             <span class="text-xs text-slate-500 self-center">Cepat:</span>
+
+            {{-- Tahun ini --}}
             <button type="button" onclick="setRange('{{ $y }}-01-01','{{ $y }}-12-31')"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50 {{ ($dateFrom === "{$y}-01-01" && $dateTo === "{$y}-12-31") ? 'bg-slate-900 text-black border-slate-900' : '' }}">
+                @if($dateFrom === "{$y}-01-01" && $dateTo === "{$y}-12-31")
+                    class="rounded-lg border border-slate-800 bg-slate-800 text-white px-3 py-1 text-xs font-semibold"
+                @else
+                    class="rounded-lg border border-slate-200 bg-white text-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                @endif>
                 Tahun {{ $y }}
             </button>
+
+            {{-- 2 tahun sebelumnya --}}
             @for($yr = (int)$y - 1; $yr >= (int)$y - 2; $yr--)
-            <button type="button" onclick="setRange('{{ $yr }}-01-01','{{ $yr }}-12-31')"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50 {{ ($dateFrom === "{$yr}-01-01" && $dateTo === "{$yr}-12-31") ? 'bg-slate-900 text-white border-slate-900' : '' }}">
-                {{ $yr }}
-            </button>
+                <button type="button" onclick="setRange('{{ $yr }}-01-01','{{ $yr }}-12-31')"
+                    @if($dateFrom === "{$yr}-01-01" && $dateTo === "{$yr}-12-31")
+                        class="rounded-lg border border-slate-800 bg-slate-800 text-white px-3 py-1 text-xs font-semibold"
+                    @else
+                        class="rounded-lg border border-slate-200 bg-white text-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                    @endif>
+                    {{ $yr }}
+                </button>
             @endfor
+
+            {{-- Bulan ini --}}
             <button type="button" onclick="setRange('{{ $y }}-{{ $m }}-01','{{ $y }}-{{ $m }}-31')"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50">
+                @if($dateFrom === "{$y}-{$m}-01")
+                    class="rounded-lg border border-slate-800 bg-slate-800 text-white px-3 py-1 text-xs font-semibold"
+                @else
+                    class="rounded-lg border border-slate-200 bg-white text-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                @endif>
                 Bulan Ini
             </button>
+
+            {{-- Semua waktu --}}
             <button type="button" onclick="setRange('2000-01-01','2099-12-31')"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50 {{ ($dateTo === '2099-12-31') ? 'bg-slate-900 text-white border-slate-900' : '' }}">
+                @if($dateTo === '2099-12-31')
+                    class="rounded-lg border border-slate-800 bg-slate-800 text-white px-3 py-1 text-xs font-semibold"
+                @else
+                    class="rounded-lg border border-slate-200 bg-white text-slate-700 px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                @endif>
                 Semua Waktu
             </button>
         </div>
     </form>
 
     <script>
-    function setRange(from, to) {
-        document.getElementById('date_from').value = from;
-        document.getElementById('date_to').value = to;
-        document.getElementById('filter-form').submit();
-    }
+    (function () {
+        var form = document.getElementById('filter-form');
+
+        // Date range shortcuts
+        window.setRange = function(from, to) {
+            document.getElementById('date_from').value = from;
+            document.getElementById('date_to').value = to;
+            form.submit();
+        };
+    })();
     </script>
 
     {{-- ── Dashboard Ringkasan ── --}}

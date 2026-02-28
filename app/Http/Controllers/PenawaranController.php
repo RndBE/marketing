@@ -62,11 +62,14 @@ class PenawaranController extends Controller
                 $query->where('id_user', $user->id);
             })
             ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($qq) use ($q) {
-                    $qq->where('judul', 'like', "%{$q}%")
-                        ->orWhere('instansi', 'like', "%{$q}%")
-                        ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
-                });
+                $tokens = array_filter(array_map('trim', explode(' ', $q)));
+                foreach ($tokens as $token) {
+                    $query->where(function ($qq) use ($token) {
+                        $qq->where('judul', 'like', "%{$token}%")
+                            ->orWhere('instansi_tujuan', 'like', "%{$token}%")
+                            ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
+                    });
+                }
             })
             ->tap($applyDateRange)
             ->orderByDesc('dn.seq')
@@ -125,15 +128,18 @@ class PenawaranController extends Controller
                 $query->where('id_user', $user->id);
             })
             ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($qq) use ($q) {
-                    $qq->where('judul', 'like', "%{$q}%")
-                        ->orWhere('instansi', 'like', "%{$q}%")
-                        ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
-                });
+                $tokens = array_filter(array_map('trim', explode(' ', $q)));
+                foreach ($tokens as $token) {
+                    $query->where(function ($qq) use ($token) {
+                        $qq->where('judul', 'like', "%{$token}%")
+                            ->orWhere('instansi_tujuan', 'like', "%{$token}%")
+                            ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
+                    });
+                }
             })
             ->tap($applyDateRangeSimple)
-            ->whereHas('approval', function ($q) {
-                $q->where('status', 'disetujui')->where('module', 'penawaran');
+            ->whereHas('approval', function ($qb) {
+                $qb->where('status', 'disetujui')->where('module', 'penawaran');
             })
             ->get();
 
@@ -164,21 +170,29 @@ class PenawaranController extends Controller
         $totalGoal = 0;
         $jumlahGoal = 0;
 
-        $goalQuery = Penawaran::query()
-            ->with(['items.details'])
-            ->when(!$canViewAll, function ($query) use ($user) {
-                $query->where('id_user', $user->id);
-            })
-            ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($qq) use ($q) {
-                    $qq->where('judul', 'like', "%{$q}%")
-                        ->orWhere('instansi', 'like', "%{$q}%")
-                        ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
-                });
-            })
-            ->tap($applyDateRangeSimple)
-            ->where('is_goal', true)
-            ->get();
+        // Guard: jika kolom is_goal belum ada (migration belum dijalankan)
+        $hasGoalColumn = \Illuminate\Support\Facades\Schema::hasColumn('penawaran', 'is_goal');
+
+        $goalQuery = $hasGoalColumn
+            ? Penawaran::query()
+                ->with(['items.details'])
+                ->when(!$canViewAll, function ($query) use ($user) {
+                    $query->where('id_user', $user->id);
+                })
+                ->when($q !== '', function ($query) use ($q) {
+                    $tokens = array_filter(array_map('trim', explode(' ', $q)));
+                    foreach ($tokens as $token) {
+                        $query->where(function ($qq) use ($token) {
+                            $qq->where('judul', 'like', "%{$token}%")
+                                ->orWhere('instansi_tujuan', 'like', "%{$token}%")
+                                ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
+                        });
+                    }
+                })
+                ->tap($applyDateRangeSimple)
+                ->where('is_goal', true)
+                ->get()
+            : collect();
 
         foreach ($goalQuery as $pnw) {
             $gTotal = 0;
