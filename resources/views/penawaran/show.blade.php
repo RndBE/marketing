@@ -104,6 +104,15 @@
                     Total Penawaran setelah pajak dan diskon : Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}
                 </div>
             </div>
+
+            @if ($penawaran->is_goal)
+                <div class="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-800">
+                    🏆 Goal / Project
+                    @if ($penawaran->goal_at)
+                        <span class="text-xs font-normal text-blue-600">sejak {{ $penawaran->goal_at->format('d M Y') }}</span>
+                    @endif
+                </div>
+            @endif
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -153,6 +162,23 @@
                     <button
                         class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
                 </form>
+
+                {{-- Toggle Goal / Project --}}
+                <form method="POST" action="{{ route('penawaran.toggle-goal', $penawaran->id) }}"
+                    onsubmit="return confirm('{{ $penawaran->is_goal ? 'Cabut status Goal / Project?' : 'Tandai penawaran ini sebagai Goal / Project?' }}')">
+                    @csrf
+                    @if ($penawaran->is_goal)
+                        <button type="submit"
+                            class="rounded-xl border border-blue-300 bg-blue-100 px-4 py-2.5 text-sm font-semibold text-blue-800 hover:bg-blue-200">
+                            ✓ Goal
+                        </button>
+                    @else
+                        <button type="submit"
+                            class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
+                            🏆 Tandai Goal
+                        </button>
+                    @endif
+                </form>
             @else
                 <button disabled
                     class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
@@ -173,6 +199,7 @@
                 </form>
             @endif
         </div>
+
 
     </div>
 

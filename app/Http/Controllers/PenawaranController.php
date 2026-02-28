@@ -35,8 +35,28 @@ class PenawaranController extends Controller
         $user = auth()->user();
         $canViewAll = $user && $user->hasPermission('view-all-penawaran');
 
+        // ── Rentang tanggal (default: tahun berjalan) ──
+        $currentYear = now()->year;
+        $dateFrom = $request->query('date_from', "{$currentYear}-01-01");
+        $dateTo = $request->query('date_to', "{$currentYear}-12-31");
+
+        // Closure filter tanggal untuk dipakai di semua query
+        $applyDateRange = function ($query) use ($dateFrom, $dateTo) {
+            $query->whereBetween('penawaran.updated_at', [
+                $dateFrom . ' 00:00:00',
+                $dateTo . ' 23:59:59',
+            ]);
+        };
+
+        $applyDateRangeSimple = function ($query) use ($dateFrom, $dateTo) {
+            $query->whereBetween('updated_at', [
+                $dateFrom . ' 00:00:00',
+                $dateTo . ' 23:59:59',
+            ]);
+        };
+
         $data = Penawaran::query()
-            ->with(['docNumber', 'approval'])
+            ->with(['docNumber', 'approval', 'pic', 'items.details'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
             ->when(!$canViewAll, function ($query) use ($user) {
                 $query->where('id_user', $user->id);
@@ -48,13 +68,156 @@ class PenawaranController extends Controller
                         ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
                 });
             })
+            ->tap($applyDateRange)
             ->orderByDesc('dn.seq')
             ->orderByDesc('penawaran.id')
             ->select('penawaran.*')
             ->paginate(15)
             ->withQueryString();
 
-        return view('penawaran.index', compact('data', 'q'));
+        // ── Hitung total semua penawaran yang sudah disetujui ──
+        $calcBundleUnit = function ($item): int {
+            $unit = 0;
+            foreach ($item->details as $d) {
+                $detailSubtotal = (int) ($d->subtotal ?? 0);
+                if ($detailSubtotal <= 0) {
+                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
+                }
+                $unit += $detailSubtotal;
+            }
+            return $unit;
+        };
+
+        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
+            if ($item->tipe === 'bundle') {
+                $qtyBundle = (float) ($item->qty ?? 1);
+                if ($qtyBundle <= 0)
+                    $qtyBundle = 1;
+                $raw = (int) round($calcBundleUnit($item) * $qtyBundle);
+                if ($item->discount_enabled) {
+                    $dv = (float) ($item->discount_value ?? 0);
+                    $dt = $item->discount_type ?? 'percent';
+                    $disc = $dt === 'percent' ? (int) round($raw * ($dv / 100)) : (int) round($dv);
+                    return max(0, $raw - $disc);
+                }
+                return $raw;
+            }
+            $subtotal = (int) ($item->subtotal ?? 0);
+            if ($subtotal > 0)
+                return $subtotal;
+            $totalDetail = 0;
+            foreach ($item->details as $d) {
+                $detailSubtotal = (int) ($d->subtotal ?? 0);
+                if ($detailSubtotal <= 0) {
+                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
+                }
+                $totalDetail += $detailSubtotal;
+            }
+            return $totalDetail;
+        };
+
+        $totalDisetujui = 0;
+        $jumlahDisetujui = 0;
+
+        $approvedQuery = Penawaran::query()
+            ->with(['approval', 'items.details'])
+            ->when(!$canViewAll, function ($query) use ($user) {
+                $query->where('id_user', $user->id);
+            })
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($qq) use ($q) {
+                    $qq->where('judul', 'like', "%{$q}%")
+                        ->orWhere('instansi', 'like', "%{$q}%")
+                        ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
+                });
+            })
+            ->tap($applyDateRangeSimple)
+            ->whereHas('approval', function ($q) {
+                $q->where('status', 'disetujui')->where('module', 'penawaran');
+            })
+            ->get();
+
+        foreach ($approvedQuery as $pnw) {
+            $total = 0;
+            foreach ($pnw->items as $it) {
+                $total += $calcItemSubtotal($it);
+            }
+            $discountAmount = 0;
+            if ($pnw->discount_enabled) {
+                $dv = (float) ($pnw->discount_value ?? 0);
+                $dt = $pnw->discount_type ?? 'percent';
+                $discountAmount = $dt === 'percent' ? (int) round($total * ($dv / 100)) : (int) round($dv);
+                if ($discountAmount > $total)
+                    $discountAmount = $total;
+            }
+            $dpp = $total - $discountAmount;
+            $taxAmount = 0;
+            if ($pnw->tax_enabled) {
+                $tr = (float) ($pnw->tax_rate ?? 11);
+                $taxAmount = (int) round($dpp * ($tr / 100));
+            }
+            $totalDisetujui += ($dpp + $taxAmount);
+            $jumlahDisetujui++;
+        }
+
+        // ── Hitung total penawaran yang sudah Goal ──
+        $totalGoal = 0;
+        $jumlahGoal = 0;
+
+        $goalQuery = Penawaran::query()
+            ->with(['items.details'])
+            ->when(!$canViewAll, function ($query) use ($user) {
+                $query->where('id_user', $user->id);
+            })
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($qq) use ($q) {
+                    $qq->where('judul', 'like', "%{$q}%")
+                        ->orWhere('instansi', 'like', "%{$q}%")
+                        ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$q}%"));
+                });
+            })
+            ->tap($applyDateRangeSimple)
+            ->where('is_goal', true)
+            ->get();
+
+        foreach ($goalQuery as $pnw) {
+            $gTotal = 0;
+            foreach ($pnw->items as $it) {
+                $gTotal += $calcItemSubtotal($it);
+            }
+            $gDisc = 0;
+            if ($pnw->discount_enabled) {
+                $dv = (float) ($pnw->discount_value ?? 0);
+                $dt = $pnw->discount_type ?? 'percent';
+                $gDisc = $dt === 'percent' ? (int) round($gTotal * ($dv / 100)) : (int) round($dv);
+                if ($gDisc > $gTotal)
+                    $gDisc = $gTotal;
+            }
+            $gDpp = $gTotal - $gDisc;
+            $gTax = 0;
+            if ($pnw->tax_enabled) {
+                $gTax = (int) round($gDpp * ((float) ($pnw->tax_rate ?? 11) / 100));
+            }
+            $totalGoal += ($gDpp + $gTax);
+            $jumlahGoal++;
+        }
+
+        // ── Persentase konversi disetujui → goal ──
+        $pctJumlah = $jumlahDisetujui > 0 ? round(($jumlahGoal / $jumlahDisetujui) * 100, 1) : 0;
+        $pctNilai = $totalDisetujui > 0 ? round(($totalGoal / $totalDisetujui) * 100, 1) : 0;
+
+        return view('penawaran.index', compact(
+            'data',
+            'q',
+            'dateFrom',
+            'dateTo',
+            'totalDisetujui',
+            'jumlahDisetujui',
+            'totalGoal',
+            'jumlahGoal',
+            'pctJumlah',
+            'pctNilai'
+        ));
     }
 
     public function create()
@@ -1539,5 +1702,18 @@ class PenawaranController extends Controller
         });
 
         return back()->with('success', 'Penghapusan diajukan dan menunggu persetujuan.');
+    }
+
+    public function toggleGoal(Penawaran $penawaran)
+    {
+        $penawaran->is_goal = !$penawaran->is_goal;
+        $penawaran->goal_at = $penawaran->is_goal ? now() : null;
+        $penawaran->save();
+
+        $msg = $penawaran->is_goal
+            ? 'Penawaran ditandai sebagai Goal / Project.'
+            : 'Status Goal / Project dicabut.';
+
+        return back()->with('success', $msg);
     }
 }

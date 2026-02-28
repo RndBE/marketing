@@ -26,6 +26,8 @@ class Penawaran extends Model
         'discount_value',
         'tax_enabled',
         'tax_rate',
+        'is_goal',
+        'goal_at',
     ];
     protected $casts = [
         'discount_enabled' => 'boolean',
@@ -33,6 +35,8 @@ class Penawaran extends Model
         'discount_value' => 'decimal:2',
         'tanggal_penawaran' => 'date',
         'tax_rate' => 'decimal:2',
+        'is_goal' => 'boolean',
+        'goal_at' => 'datetime',
     ];
 
     public function user()

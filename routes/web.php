@@ -82,6 +82,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/{penawaran}/attachments/{attachment}', [PenawaranController::class, 'deleteAttachment'])->name('attachments.delete');
             Route::put('/{penawaran}/pricing', [PenawaranController::class, 'upsertPricing'])->name('pricing.upsert');
             Route::post('/{penawaran}/keterangan', [PenawaranController::class, 'upsertKeterangan'])->name('keterangan.upsert');
+            Route::post('/{penawaran}/toggle-goal', [PenawaranController::class, 'toggleGoal'])->name('toggle-goal');
         });
 
         // Delete (butuh permission)
