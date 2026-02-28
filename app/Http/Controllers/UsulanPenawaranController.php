@@ -130,8 +130,12 @@ class UsulanPenawaranController extends Controller
 
     public function edit(UsulanPenawaran $usulan)
     {
-        if ($usulan->status !== 'draft') {
-            return redirect()->route('usulan.show', $usulan->id)->with('error', 'Hanya usulan draft yang bisa diedit');
+        $user = auth()->user();
+        $isOwnerOrAdmin = (int) $usulan->created_by === (int) $user->id
+            || $user->roles->contains('slug', 'admin');
+
+        if (!in_array($usulan->status, ['draft', 'menunggu']) || !$isOwnerOrAdmin) {
+            return redirect()->route('usulan.show', $usulan->id)->with('error', 'Usulan tidak bisa diedit');
         }
 
         $pics = Pic::orderBy('instansi')->get();
@@ -166,8 +170,12 @@ class UsulanPenawaranController extends Controller
 
     public function update(Request $request, UsulanPenawaran $usulan)
     {
-        if ($usulan->status !== 'draft') {
-            return redirect()->route('usulan.show', $usulan->id)->with('error', 'Hanya usulan draft yang bisa diedit');
+        $user = auth()->user();
+        $isOwnerOrAdmin = (int) $usulan->created_by === (int) $user->id
+            || $user->roles->contains('slug', 'admin');
+
+        if (!in_array($usulan->status, ['draft', 'menunggu']) || !$isOwnerOrAdmin) {
+            return redirect()->route('usulan.show', $usulan->id)->with('error', 'Usulan tidak bisa diedit');
         }
 
         $payload = $request->validate([

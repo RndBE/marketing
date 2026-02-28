@@ -126,7 +126,12 @@
             <a href="{{ route('usulan.index') }}"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Kembali</a>
 
-            @if ($usulan->status === 'draft')
+            @php
+                $isOwnerOrAdmin = (int) $usulan->created_by === (int) auth()->id()
+                    || auth()->user()->roles->contains('slug', 'admin');
+            @endphp
+
+            @if (in_array($usulan->status, ['draft', 'menunggu']) && $isOwnerOrAdmin)
                 <a href="{{ route('usulan.edit', $usulan->id) }}"
                     class="rounded-xl bg-amber-500 text-white px-4 py-2.5 text-sm font-semibold hover:bg-amber-600">Edit</a>
             @endif
