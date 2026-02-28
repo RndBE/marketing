@@ -59,7 +59,7 @@
                         </td>
 
                         <td class="px-4 py-3 text-center">{{ $p->satuan }}</td>
-                        <td class="px-4 py-3 text-right">Rp
+                        <td class="px-4 py-3 text-right whitespace-nowrap">Rp
                             {{ number_format((int) ($p->details_sum_subtotal ?? 0), 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-center">
                             <span
