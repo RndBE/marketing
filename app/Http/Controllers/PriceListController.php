@@ -14,6 +14,9 @@ class PriceListController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $perPage = (int) $request->query('per_page', 15);
+        if (!in_array($perPage, [10, 15, 25, 50, 100]))
+            $perPage = 15;
 
         $data = Product::query()
             ->withCount('details')
@@ -25,10 +28,10 @@ class PriceListController extends Controller
             ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('price_list.index', compact('data', 'q'));
+        return view('price_list.index', compact('data', 'q', 'perPage'));
     }
 
     public function create()
@@ -171,7 +174,8 @@ class PriceListController extends Controller
 
     public function updateDetail(Request $request, Product $product, ProductDetail $detail)
     {
-        if ((int) $detail->product_id !== (int) $product->id) abort(404);
+        if ((int) $detail->product_id !== (int) $product->id)
+            abort(404);
 
         $payload = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
@@ -203,7 +207,8 @@ class PriceListController extends Controller
 
     public function deleteDetail(Product $product, ProductDetail $detail)
     {
-        if ((int) $detail->product_id !== (int) $product->id) abort(404);
+        if ((int) $detail->product_id !== (int) $product->id)
+            abort(404);
 
         $detail->delete();
 
@@ -394,11 +399,16 @@ class PriceListController extends Controller
         $map = [];
         foreach ($header as $i => $col) {
             $key = strtolower(trim((string) $col));
-            if ($key === 'kode') $map['kode'] = $i;
-            if ($key === 'nama') $map['nama'] = $i;
-            if ($key === 'satuan') $map['satuan'] = $i;
-            if ($key === 'deskripsi') $map['deskripsi'] = $i;
-            if (in_array($key, ['is_active', 'active', 'status'], true)) $map['is_active'] = $i;
+            if ($key === 'kode')
+                $map['kode'] = $i;
+            if ($key === 'nama')
+                $map['nama'] = $i;
+            if ($key === 'satuan')
+                $map['satuan'] = $i;
+            if ($key === 'deskripsi')
+                $map['deskripsi'] = $i;
+            if (in_array($key, ['is_active', 'active', 'status'], true))
+                $map['is_active'] = $i;
         }
 
         return $map;
@@ -428,9 +438,12 @@ class PriceListController extends Controller
     private function parseCsvBoolean(string $value): ?bool
     {
         $value = strtolower(trim($value));
-        if ($value === '') return null;
-        if (in_array($value, ['1', 'true', 'ya', 'yes', 'aktif', 'active'], true)) return true;
-        if (in_array($value, ['0', 'false', 'no', 'tidak', 'nonaktif', 'inactive'], true)) return false;
+        if ($value === '')
+            return null;
+        if (in_array($value, ['1', 'true', 'ya', 'yes', 'aktif', 'active'], true))
+            return true;
+        if (in_array($value, ['0', 'false', 'no', 'tidak', 'nonaktif', 'inactive'], true))
+            return false;
         return null;
     }
 

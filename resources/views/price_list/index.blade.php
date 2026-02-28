@@ -91,8 +91,19 @@
         </table>
     </div>
 
-    <div class="mt-4">
-        {{ $data->links() }}
+    <div class="mt-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500">Tampilkan</span>
+            <select onchange="window.location.href=this.value"
+                class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none">
+                @foreach([10, 15, 25, 50, 100] as $pp)
+                    <option value="{{ request()->fullUrlWithQuery(['per_page' => $pp, 'page' => 1]) }}"
+                        {{ $perPage == $pp ? 'selected' : '' }}>{{ $pp }}</option>
+                @endforeach
+            </select>
+            <span class="text-xs text-slate-500">per halaman</span>
+        </div>
+        <div>{{ $data->links() }}</div>
     </div>
 
     <div id="importModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50"

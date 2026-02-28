@@ -10,6 +10,9 @@ class KomponenController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $perPage = (int) $request->query('per_page', 20);
+        if (!in_array($perPage, [10, 15, 25, 50, 100]))
+            $perPage = 20;
 
         $komponen = Komponen::query()
             ->when($q !== '', function ($query) use ($q) {
@@ -19,10 +22,10 @@ class KomponenController extends Controller
             ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('komponen.index', compact('komponen', 'q'));
+        return view('komponen.index', compact('komponen', 'q', 'perPage'));
     }
 
     public function store(Request $request)
