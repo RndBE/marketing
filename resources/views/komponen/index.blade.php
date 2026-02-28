@@ -106,7 +106,7 @@
             <div class="flex items-center gap-2">
                 <span class="text-xs text-slate-500">Tampilkan</span>
                 <select onchange="window.location.href=this.value"
-                    class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none">
+                    class="rounded-lg border border-slate-200 bg-white pl-3 pr-8 py-1.5 text-xs focus:outline-none appearance-none min-w-[60px]">
                     @foreach([10, 15, 25, 50, 100] as $pp)
                         <option value="{{ request()->fullUrlWithQuery(['per_page' => $pp, 'page' => 1]) }}"
                             {{ $perPage == $pp ? 'selected' : '' }}>{{ $pp }}</option>
