@@ -839,6 +839,7 @@ class PenawaranController extends Controller
             'catatan' => ['nullable', 'string', 'max:255'],
             'qty' => ['required', 'numeric', 'min:0.01'],
             'satuan' => ['nullable', 'string', 'max:50'],
+            'markup' => ['nullable', 'numeric', 'min:0.01', 'max:99'],
         ];
 
         if ($item->tipe === 'bundle') {
@@ -854,6 +855,7 @@ class PenawaranController extends Controller
             'catatan' => $payload['catatan'] ?? $item->catatan,
             'qty' => (float) $payload['qty'],
             'satuan' => $payload['satuan'] ?? null,
+            'markup' => (float) ($payload['markup'] ?? $item->markup ?? 1),
         ];
 
         if ($item->tipe === 'bundle') {
@@ -971,13 +973,17 @@ class PenawaranController extends Controller
             'spesifikasi' => ['nullable', 'string'],
             'qty' => ['required', 'numeric', 'min:0.01'],
             'satuan' => ['nullable', 'string', 'max:50'],
-            'harga' => ['required', 'integer', 'min:0']
+            'harga' => ['required', 'integer', 'min:0'],
+            'markup' => ['nullable', 'numeric', 'min:0.01', 'max:99'],
         ]);
 
         return DB::transaction(function () use ($payload, $penawaran, $item, $detail) {
             $qty = (float) $payload['qty'];
             $harga = (int) $payload['harga'];
-            $subtotal = (int) round($qty * $harga);
+            $markup = (float) ($payload['markup'] ?? $detail->markup ?? 1);
+            if ($markup <= 0)
+                $markup = 1;
+            $subtotal = (int) round($qty * $harga * $markup);
 
             $detail->update([
                 'nama' => $payload['nama'],
@@ -985,7 +991,8 @@ class PenawaranController extends Controller
                 'qty' => $qty,
                 'satuan' => $payload['satuan'] ?? null,
                 'harga' => $harga,
-                'subtotal' => $subtotal
+                'subtotal' => $subtotal,
+                'markup' => $markup,
             ]);
 
 
@@ -1562,9 +1569,13 @@ class PenawaranController extends Controller
         if ($qtyBundle <= 0)
             $qtyBundle = 1;
 
+        $markup = (float) ($item->markup ?? 1);
+        if ($markup <= 0)
+            $markup = 1;
+
         if ($item->tipe === 'bundle') {
             $unit = $this->calcUnitPriceBundle($item);
-            $raw = (int) round($unit * $qtyBundle);
+            $raw = (int) round($unit * $qtyBundle * $markup);
 
             // Apply per-bundle discount
             if ($item->discount_enabled) {
@@ -1590,7 +1601,8 @@ class PenawaranController extends Controller
                 }
                 $total += $sub;
             }
-            $item->subtotal = $total > 0 ? $total : (int) ($item->subtotal ?? 0);
+            $markedUp = $total > 0 ? (int) round($total * $markup) : (int) ($item->subtotal ?? 0);
+            $item->subtotal = $markedUp;
         }
 
         $item->save();

@@ -112,7 +112,9 @@
                 if ($qtyBundle <= 0) {
                     $qtyBundle = 1;
                 }
-                $raw = (int) round($calcBundleUnit($item) * $qtyBundle);
+                $itemMarkup = (float) ($item->markup ?? 1);
+                if ($itemMarkup <= 0) $itemMarkup = 1;
+                $raw = (int) round($calcBundleUnit($item) * $qtyBundle * $itemMarkup);
 
                 // Apply per-bundle discount
                 if ($item->discount_enabled) {
@@ -141,8 +143,9 @@
                 }
                 $totalDetail += $detailSubtotal;
             }
-
-            return $totalDetail;
+            $itemMarkup = (float) ($item->markup ?? 1);
+            if ($itemMarkup <= 0) $itemMarkup = 1;
+            return (int) round($totalDetail * $itemMarkup);
         };
         $grand = 0;
         foreach ($penawaran->items as $it) {

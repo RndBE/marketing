@@ -16,7 +16,8 @@ class PenawaranItemDetail extends Model
         'qty',
         'satuan',
         'harga',
-        'subtotal'
+        'subtotal',
+        'markup',
     ];
 
     public function item()

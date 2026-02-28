@@ -20,7 +20,9 @@
                 if ($qtyBundle <= 0) {
                     $qtyBundle = 1;
                 }
-                $raw = (int) round($calcBundleUnit($item) * $qtyBundle);
+                $itemMarkup = (float) ($item->markup ?? 1);
+                if ($itemMarkup <= 0) $itemMarkup = 1;
+                $raw = (int) round($calcBundleUnit($item) * $qtyBundle * $itemMarkup);
 
                 // Apply per-bundle discount
                 if ($item->discount_enabled) {
@@ -49,7 +51,9 @@
                 }
                 $totalDetail += $detailSubtotal;
             }
-            return $totalDetail;
+            $itemMarkup = (float) ($item->markup ?? 1);
+            if ($itemMarkup <= 0) $itemMarkup = 1;
+            return (int) round($totalDetail * $itemMarkup);
         };
         $total = 0;
         foreach ($penawaran->items as $it) {
@@ -370,6 +374,12 @@
                                             <span class="text-slate-400">•</span>
                                             Satuan :
                                             <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                            @if (($item->markup ?? 1) != 1)
+                                                <span class="text-slate-400">•</span>
+                                                <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                    ×{{ rtrim(rtrim(number_format((float)$item->markup, 2, '.', ''), '0'), '.') }}
+                                                </span>
+                                            @endif
                                             <span class="text-slate-400">•</span>
                                             Total:
                                             <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
@@ -398,6 +408,12 @@
                                             <span class="text-slate-400">•</span>
                                             Satuan :
                                             <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                            @if (($item->markup ?? 1) != 1)
+                                                <span class="text-slate-400">•</span>
+                                                <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                    ×{{ rtrim(rtrim(number_format((float)$item->markup, 2, '.', ''), '0'), '.') }}
+                                                </span>
+                                            @endif
                                             <span class="text-slate-400">•</span>
                                             Total:
                                             <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
@@ -453,6 +469,12 @@
                                                 <label class="block text-xs font-semibold mb-1 text-slate-500">Satuan</label>
                                                 <input name="satuan" value="{{ $item->satuan ?? 'ls' }}"
                                                     class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                            </div>
+                                            <div class="w-24">
+                                                <label class="block text-xs font-semibold mb-1 text-amber-600">Markup ×</label>
+                                                <input name="markup" value="{{ $item->markup ?? '1.00' }}" inputmode="decimal" step="0.01"
+                                                    class="w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                                    placeholder="1.00">
                                             </div>
                                         </div>
 
@@ -533,7 +555,14 @@
                                             <td class="px-3 py-2 text-right whitespace-nowrap">{{ number_format((float) $d->qty, 2, ',', '.') }}</td>
                                             <td class="px-3 py-2 whitespace-nowrap">{{ $d->satuan }}</td>
                                             <td class="px-3 py-2 text-right whitespace-nowrap">Rp {{ number_format((int) $d->harga, 0, ',', '.') }}</td>
-                                            <td class="px-3 py-2 text-right font-semibold whitespace-nowrap">Rp {{ number_format((int) $d->subtotal, 0, ',', '.') }}</td>
+                                            <td class="px-3 py-2 text-right font-semibold whitespace-nowrap">
+                                                Rp {{ number_format((int) $d->subtotal, 0, ',', '.') }}
+                                                @if (($d->markup ?? 1) != 1)
+                                                    <span class="inline-flex items-center rounded-md bg-amber-50 px-1 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20 ml-1">
+                                                        ×{{ rtrim(rtrim(number_format((float)$d->markup, 2, '.', ''), '0'), '.') }}
+                                                    </span>
+                                                @endif
+                                            </td>
                                             <td class="px-3 py-2 text-right whitespace-nowrap">
                                                 @if ($canEdit)
                                                 <button type="button"
@@ -571,6 +600,11 @@
                                                                 placeholder="Harga"
                                                                 inputmode="numeric"
                                                                 class="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm rupiah-input focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                                            <input name="markup" value="{{ $d->markup ?? '1.00' }}"
+                                                                placeholder="×1.00"
+                                                                inputmode="decimal" step="0.01"
+                                                                title="Markup"
+                                                                class="w-16 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm font-semibold text-amber-800 focus:outline-none focus:ring-1 focus:ring-amber-400">
                                                         </div>
                                                     </div>
                                                 </form>
