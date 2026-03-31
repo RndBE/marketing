@@ -17,7 +17,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('price_list.store') }}" class="space-y-3">
+            <form method="POST" action="{{ route('price_list.store') }}" class="space-y-3" enctype="multipart/form-data">
                 @csrf
                 <div>
                     <label class="block text-xs font-semibold mb-1">Kode </label>
@@ -54,6 +54,12 @@
                     @error('deskripsi')
                         <div class="mt-1 text-xs text-rose-600">{{ $message }}</div>
                     @enderror
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Foto</label>
+                    <input type="file" name="foto" accept="image/*"
+                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
                 </div>
 
                 <div class="flex items-center gap-2">

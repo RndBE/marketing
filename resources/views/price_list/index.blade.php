@@ -37,6 +37,7 @@
         <table class="min-w-full text-sm">
             <thead class="bg-slate-50">
                 <tr>
+                    <th class="px-4 py-3 text-center font-semibold w-16">Foto</th>
                     <th class="px-4 py-3 text-left font-semibold">Kode</th>
                     <th class="px-4 py-3 text-left font-semibold">Nama</th>
                     <th class="px-4 py-3 text-center font-semibold">Satuan</th>
@@ -49,6 +50,15 @@
             <tbody class="divide-y divide-slate-100">
                 @forelse ($data as $p)
                     <tr>
+                        <td class="px-4 py-3 text-center">
+                            @if ($p->foto)
+                                <img src="{{ Storage::url($p->foto) }}" alt="{{ $p->nama }}"
+                                    class="w-10 h-10 object-cover rounded-lg cursor-pointer hover:opacity-80 transition"
+                                    onclick="openLightbox(this.src)">
+                            @else
+                                <span class="inline-flex w-10 h-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400 text-xs">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3">{{ $p->kode ?? '-' }}</td>
                         <td class="px-4 py-3">
                             <a href="{{ route('price_list.show', $p->id) }}"
@@ -84,7 +94,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-10 text-center text-slate-500">Belum ada data.</td>
+                        <td colspan="7" class="px-4 py-10 text-center text-slate-500">Belum ada data.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -153,5 +163,25 @@
         function closeImportModal(e) {
             if (!e || e.target.id === 'importModal') document.getElementById('importModal').classList.add('hidden');
         }
+
+        function openLightbox(src) {
+            const lb = document.getElementById('lightboxModal');
+            document.getElementById('lightboxImg').src = src;
+            lb.classList.remove('hidden');
+        }
+
+        function closeLightbox(e) {
+            if (!e || e.target.id === 'lightboxModal') document.getElementById('lightboxModal').classList.add('hidden');
+        }
     </script>
+
+    {{-- Lightbox Modal --}}
+    <div id="lightboxModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+        onclick="closeLightbox(event)">
+        <div class="relative" onclick="event.stopPropagation()">
+            <img id="lightboxImg" src="" class="max-w-[90vw] max-h-[85vh] rounded-xl shadow-2xl">
+            <button onclick="closeLightbox()"
+                class="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center text-slate-700 hover:bg-slate-100 text-lg font-bold">&times;</button>
+        </div>
+    </div>
 @endsection

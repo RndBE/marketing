@@ -15,6 +15,7 @@ class Komponen extends Model
         'satuan',
         'harga',
         'is_active',
+        'foto',
     ];
 
     protected $casts = [

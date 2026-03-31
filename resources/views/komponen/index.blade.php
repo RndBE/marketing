@@ -44,6 +44,7 @@
                                 <input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)"
                                     class="rounded border-slate-300">
                             </th>
+                            <th class="px-4 py-3 text-center w-14">Foto</th>
                             <th class="px-4 py-3 text-left">Kode</th>
                             <th class="px-4 py-3 text-left">Nama</th>
                             <th class="px-4 py-3 text-left">Satuan</th>
@@ -58,6 +59,15 @@
                                 <td class="px-4 py-3 text-center">
                                     <input type="checkbox" name="ids[]" value="{{ $k->id }}" 
                                         class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if ($k->foto)
+                                        <img src="{{ Storage::url($k->foto) }}" alt="{{ $k->nama }}"
+                                            class="w-10 h-10 object-cover rounded-lg cursor-pointer hover:opacity-80 transition"
+                                            onclick="openLightbox(this.src)">
+                                    @else
+                                        <span class="inline-flex w-10 h-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400 text-xs">—</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     @if ($k->kode)
@@ -82,6 +92,7 @@
                                         data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
                                         data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
                                         data-is_active="{{ $k->is_active ? '1' : '0' }}"
+                                        data-foto="{{ $k->foto ? Storage::url($k->foto) : '' }}"
                                         onclick="openEditModal(this)">
                                         Edit
                                     </button>
@@ -94,7 +105,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -163,7 +174,7 @@
         onclick="closeCreateModal(event)">
         <div class="bg-white w-full max-w-xl rounded-xl p-6" onclick="event.stopPropagation()">
             <h2 class="text-lg font-semibold mb-4">Tambah Komponen</h2>
-            <form method="POST" action="{{ route('komponen.store') }}">
+            <form method="POST" action="{{ route('komponen.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="grid grid-cols-4 gap-4">
                     <div class="col-span-1">
@@ -191,8 +202,12 @@
                             <input type="hidden" name="harga" id="create_harga">
                         </div>
                     </div>
+                    <div class="col-span-4">
+                        <label class="block text-sm font-semibold mb-1">Foto</label>
+                        <input type="file" name="foto" accept="image/*"
+                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                    </div>
                 </div>
-                <div class="flex justify-end gap-2 mt-4">
                     <button type="button" onclick="closeCreateModal()" class="px-4 py-2 bg-slate-200 rounded-xl">Batal</button>
                     <button class="bg-slate-900 text-white px-4 py-2 rounded-xl">Simpan</button>
                 </div>
@@ -204,7 +219,7 @@
         onclick="closeEditModal(event)">
         <div class="bg-white w-full max-w-xl rounded-xl p-6" onclick="event.stopPropagation()">
             <h2 class="text-lg font-semibold mb-4">Edit Komponen</h2>
-            <form id="editForm" method="POST">
+            <form id="editForm" method="POST" enctype="multipart/form-data">
                 @csrf @method('PUT')
                 <div class="grid grid-cols-4 gap-4">
                     <div class="col-span-1">
@@ -233,8 +248,20 @@
                         </div>
                     </div>
                     <div class="col-span-4">
+                        <label class="block text-sm font-semibold mb-1">Foto</label>
+                        <div id="edit_foto_preview" class="mb-2 hidden">
+                            <img id="edit_foto_img" src="" class="w-20 h-20 object-cover rounded-lg cursor-pointer" onclick="openLightbox(this.src)">
+                            <label class="inline-flex items-center gap-1 mt-1 cursor-pointer">
+                                <input type="checkbox" name="hapus_foto" value="1" class="rounded border-slate-300">
+                                <span class="text-xs text-red-600">Hapus foto</span>
+                            </label>
+                        </div>
+                        <input type="file" name="foto" accept="image/*"
+                            class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                    </div>
+                    <div class="col-span-4">
                         <label class="inline-flex items-center gap-2">
-                            <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded border border-slate-300    ">
+                            <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded border border-slate-300">
                             <span class="text-sm">Aktif</span>
                         </label>
                     </div>
@@ -267,9 +294,27 @@
             document.getElementById('edit_display_harga').value = formatRupiah(harga);
 
             document.getElementById('edit_is_active').checked = btn.dataset.is_active === '1';
+            // foto preview
+            const fotoUrl = btn.dataset.foto || '';
+            const previewDiv = document.getElementById('edit_foto_preview');
+            if (fotoUrl) {
+                document.getElementById('edit_foto_img').src = fotoUrl;
+                previewDiv.classList.remove('hidden');
+            } else {
+                previewDiv.classList.add('hidden');
+            }
             document.getElementById('editForm').action = `{{ url('/komponen') }}/${btn.dataset.id}`;
         }
         function closeEditModal(e) { if (!e || e.target.id === 'editModal') document.getElementById('editModal').classList.add('hidden'); }
+
+        function openLightbox(src) {
+            const lb = document.getElementById('lightboxModal');
+            document.getElementById('lightboxImg').src = src;
+            lb.classList.remove('hidden');
+        }
+        function closeLightbox(e) {
+            if (!e || e.target.id === 'lightboxModal') document.getElementById('lightboxModal').classList.add('hidden');
+        }
       
         function handlePriceInput(input, targetId) {
             let value = input.value.replace(/\D/g, '');
@@ -321,4 +366,14 @@
             checkAll.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
         }
     </script>
+
+    {{-- Lightbox Modal --}}
+    <div id="lightboxModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+        onclick="closeLightbox(event)">
+        <div class="relative" onclick="event.stopPropagation()">
+            <img id="lightboxImg" src="" class="max-w-[90vw] max-h-[85vh] rounded-xl shadow-2xl">
+            <button onclick="closeLightbox()"
+                class="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center text-slate-700 hover:bg-slate-100 text-lg font-bold">&times;</button>
+        </div>
+    </div>
 @endsection

@@ -655,8 +655,18 @@ class InvoiceController extends Controller
             $qty = $item->qty ?: 1;
             $item->update(['subtotal' => $sum * $qty]);
         } else {
-            // Custom item logic is handled elsewhere usually, or static
-            // But if we need re-calc custom item, it's typically price * qty
+            // Custom item: sum all detail subtotals
+            $total = 0;
+            foreach ($item->details()->get() as $d) {
+                $sub = (int) ($d->subtotal ?? 0);
+                if ($sub <= 0) {
+                    $q = (float) ($d->qty ?? 0);
+                    $h = (int) ($d->harga ?? 0);
+                    $sub = (int) round($q * $h);
+                }
+                $total += $sub;
+            }
+            $item->update(['subtotal' => $total]);
         }
         $this->recalcGrandTotal($item->invoice);
     }

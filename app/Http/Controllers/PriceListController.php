@@ -7,6 +7,7 @@ use App\Models\ProductDetail;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PriceListController extends Controller
@@ -47,6 +48,7 @@ class PriceListController extends Controller
             'satuan' => ['nullable', 'string', 'max:50'],
             'deskripsi' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            'foto' => ['nullable', 'image', 'max:2048'],
         ], [
             'kode.unique' => 'Kode bundle sudah dipakai. Gunakan kode lain.',
         ]);
@@ -55,12 +57,18 @@ class PriceListController extends Controller
         $kode = $kode !== '' ? $kode : null;
 
         try {
+            $fotoPath = null;
+            if ($request->hasFile('foto')) {
+                $fotoPath = $request->file('foto')->store('products', 'public');
+            }
+
             $product = Product::create([
                 'kode' => $kode,
                 'nama' => $payload['nama'],
                 'satuan' => $payload['satuan'] ?? null,
                 'deskripsi' => $payload['deskripsi'] ?? null,
                 'is_active' => (bool) ($payload['is_active'] ?? true),
+                'foto' => $fotoPath,
             ]);
         } catch (QueryException $e) {
             if ($this->isDuplicateKodeError($e)) {
@@ -101,6 +109,8 @@ class PriceListController extends Controller
             'satuan' => ['nullable', 'string', 'max:50'],
             'deskripsi' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            'foto' => ['nullable', 'image', 'max:2048'],
+            'hapus_foto' => ['nullable', 'boolean'],
         ], [
             'kode.unique' => 'Kode bundle sudah dipakai. Gunakan kode lain.',
         ]);
@@ -109,13 +119,27 @@ class PriceListController extends Controller
         $kode = $kode !== '' ? $kode : null;
 
         try {
-            $product->update([
+            $updateData = [
                 'kode' => $kode,
                 'nama' => $payload['nama'],
                 'satuan' => $payload['satuan'] ?? null,
                 'deskripsi' => $payload['deskripsi'] ?? null,
                 'is_active' => (bool) ($payload['is_active'] ?? true),
-            ]);
+            ];
+
+            if ($request->hasFile('foto')) {
+                if ($product->foto) {
+                    Storage::disk('public')->delete($product->foto);
+                }
+                $updateData['foto'] = $request->file('foto')->store('products', 'public');
+            } elseif ($request->input('hapus_foto')) {
+                if ($product->foto) {
+                    Storage::disk('public')->delete($product->foto);
+                }
+                $updateData['foto'] = null;
+            }
+
+            $product->update($updateData);
         } catch (QueryException $e) {
             if ($this->isDuplicateKodeError($e)) {
                 return back()->withInput()->withErrors([

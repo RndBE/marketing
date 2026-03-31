@@ -8,7 +8,7 @@ class Product extends Model
 {
     protected $table = 'products';
 
-    protected $fillable = ['kode', 'nama', 'deskripsi', 'satuan', 'is_active'];
+    protected $fillable = ['kode', 'nama', 'deskripsi', 'satuan', 'is_active', 'foto'];
 
     protected $casts = [
         'is_active' => 'boolean',

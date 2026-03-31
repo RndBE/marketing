@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Komponen;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class KomponenController extends Controller
 {
@@ -36,9 +37,15 @@ class KomponenController extends Controller
             'spesifikasi' => 'nullable|string',
             'satuan' => 'nullable|string|max:50',
             'harga' => 'required|integer|min:0',
+            'foto' => 'nullable|image|max:2048',
         ]);
 
-        Komponen::create($payload);
+        $fotoPath = null;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('komponen', 'public');
+        }
+
+        Komponen::create(array_merge($payload, ['foto' => $fotoPath]));
 
         return redirect()->route('komponen.index')->with('success', 'Komponen berhasil ditambahkan');
     }
@@ -52,10 +59,25 @@ class KomponenController extends Controller
             'satuan' => 'nullable|string|max:50',
             'harga' => 'required|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'foto' => 'nullable|image|max:2048',
+            'hapus_foto' => 'nullable|boolean',
         ]);
 
         $payload['is_active'] = (bool) ($payload['is_active'] ?? true);
 
+        if ($request->hasFile('foto')) {
+            if ($komponen->foto) {
+                Storage::disk('public')->delete($komponen->foto);
+            }
+            $payload['foto'] = $request->file('foto')->store('komponen', 'public');
+        } elseif ($request->input('hapus_foto')) {
+            if ($komponen->foto) {
+                Storage::disk('public')->delete($komponen->foto);
+            }
+            $payload['foto'] = null;
+        }
+
+        unset($payload['hapus_foto']);
         $komponen->update($payload);
 
         return redirect()->route('komponen.index')->with('success', 'Komponen berhasil diupdate');
