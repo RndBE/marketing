@@ -1742,4 +1742,274 @@ class PenawaranController extends Controller
 
         return back()->with('success', $msg);
     }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // EXPORT EXCEL
+    // ───────────────────────────────────────────────────────────────────────
+    public function exportExcel(Request $request)
+    {
+        $q        = trim((string) $request->query('q', ''));
+        $user     = auth()->user();
+        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+
+        $currentYear = now()->year;
+        $dateFrom = $request->query('date_from', "{$currentYear}-01-01");
+        $dateTo   = $request->query('date_to',   "{$currentYear}-12-31");
+
+        $rows = Penawaran::query()
+            ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
+            ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
+            ->when(!$canViewAll, fn($q2) => $q2->where('id_user', $user->id))
+            ->when($q !== '', function ($query) use ($q) {
+                $tokens = array_filter(array_map('trim', explode(' ', $q)));
+                foreach ($tokens as $token) {
+                    $query->where(function ($qq) use ($token) {
+                        $qq->where('judul', 'like', "%{$token}%")
+                           ->orWhere('instansi_tujuan', 'like', "%{$token}%")
+                           ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
+                    });
+                }
+            })
+            ->whereBetween('penawaran.updated_at', [
+                $dateFrom . ' 00:00:00',
+                $dateTo   . ' 23:59:59',
+            ])
+            ->orderByDesc('dn.seq')
+            ->orderByDesc('penawaran.id')
+            ->select('penawaran.*')
+            ->get();
+
+        // ── Helpers kalkulasi harga (sama dengan di index) ──
+        $calcBundleUnit = function ($item): int {
+            $unit = 0;
+            foreach ($item->details as $d) {
+                $sub = (int) ($d->subtotal ?? 0);
+                if ($sub <= 0) $sub = (int) round((float)($d->qty ?? 0) * (int)($d->harga ?? 0));
+                $unit += $sub;
+            }
+            return $unit;
+        };
+
+        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
+            if ($item->tipe === 'bundle') {
+                $qty = max((float)($item->qty ?? 1), 0.01);
+                $raw = (int) round($calcBundleUnit($item) * $qty);
+                if ($item->discount_enabled) {
+                    $dv   = (float)($item->discount_value ?? 0);
+                    $disc = $item->discount_type === 'percent'
+                        ? (int) round($raw * ($dv / 100))
+                        : (int) round($dv);
+                    return max(0, $raw - $disc);
+                }
+                return $raw;
+            }
+            $sub = (int)($item->subtotal ?? 0);
+            if ($sub > 0) return $sub;
+            $total = 0;
+            foreach ($item->details as $d) {
+                $ds = (int)($d->subtotal ?? 0);
+                if ($ds <= 0) $ds = (int) round((float)($d->qty ?? 0) * (int)($d->harga ?? 0));
+                $total += $ds;
+            }
+            return $total;
+        };
+
+        $calcGrandTotal = function ($penawaran) use ($calcItemSubtotal): int {
+            $total = 0;
+            foreach ($penawaran->items as $it) $total += $calcItemSubtotal($it);
+            $disc = 0;
+            if ($penawaran->discount_enabled) {
+                $dv   = (float)($penawaran->discount_value ?? 0);
+                $disc = $penawaran->discount_type === 'percent'
+                    ? (int) round($total * ($dv / 100))
+                    : (int) round($dv);
+                if ($disc > $total) $disc = $total;
+            }
+            $dpp = $total - $disc;
+            $tax = 0;
+            if ($penawaran->tax_enabled) {
+                $tax = (int) round($dpp * ((float)($penawaran->tax_rate ?? 11) / 100));
+            }
+            return $dpp + $tax;
+        };
+
+        // ── Tentukan label status ──
+        $statusLabel = function ($pnw): string {
+            $ap = $pnw->approval;
+            if (!$ap) return 'Draft';
+            $s = $ap->status ?? '';
+            $m = $ap->module ?? '';
+            if ($s === 'menunggu' && $m === 'penawaran')    return 'Menunggu Approval (Step ' . $ap->current_step . ')';
+            if ($s === 'disetujui' && $m === 'penawaran')   return 'Disetujui';
+            if ($s === 'ditolak' && $m === 'penawaran')     return 'Ditolak';
+            if ($s === 'menunggu' && $m === 'penghapusan')  return 'Menunggu Penghapusan (Step ' . $ap->current_step . ')';
+            if ($s === 'disetujui' && $m === 'penghapusan') return 'Disetujui Dihapus';
+            if ($s === 'dihapus')                           return 'Dihapus';
+            return 'Draft';
+        };
+
+        // ── Build rows ──
+        $exportRows = [];
+        $no = 1;
+        foreach ($rows as $pnw) {
+            // Skip yang dihapus / penghapusan
+            if ($pnw->approval?->status === 'dihapus' || $pnw->approval?->module === 'penghapusan') {
+                continue;
+            }
+            $docNo     = $pnw->docNumber?->doc_no ?? ('PNW-' . str_pad($pnw->id, 6, '0', STR_PAD_LEFT));
+            $picName   = trim(($pnw->pic?->honorific ? $pnw->pic->honorific . ' ' : '') . ($pnw->pic?->nama ?? '-'));
+            $instansi  = $pnw->pic?->instansi ?? $pnw->instansi_tujuan ?? '-';
+            $grand     = $calcGrandTotal($pnw);
+            $status    = $statusLabel($pnw);
+            $isGoal    = $pnw->is_goal ? 'Ya' : 'Tidak';
+            $goalAt    = $pnw->goal_at ? $pnw->goal_at->format('d/m/Y H:i') : '-';
+            $dibuatOleh= $pnw->user?->name ?? '-';
+            $tglUpdate = $pnw->updated_at?->format('d/m/Y H:i') ?? '-';
+            $tglPenawaran = $pnw->tanggal_penawaran?->format('d/m/Y') ?? '-';
+
+            $exportRows[] = [
+                $no++,
+                $docNo,
+                $pnw->judul ?? '-',
+                $picName,
+                $instansi,
+                $tglPenawaran,
+                $grand,
+                $status,
+                $isGoal,
+                $goalAt,
+                $dibuatOleh,
+                $tglUpdate,
+            ];
+        }
+
+        // ── Generate XLSX menggunakan XML SpreadsheetML ──
+        $filename = 'data-penawaran-' . now()->format('Ymd-His') . '.xlsx';
+
+        $headers = [
+            'No', 'No. Dokumen', 'Judul Penawaran', 'PIC', 'Instansi/Klien',
+            'Tgl. Penawaran', 'Total Nilai (Rp)', 'Status Approval',
+            'Goal', 'Tanggal Goal', 'Dibuat Oleh', 'Terakhir Update',
+        ];
+
+        return response()->streamDownload(function () use ($headers, $exportRows) {
+            $this->writeXlsx($headers, $exportRows);
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Generate a minimal valid XLSX (Office Open XML) file via ZipArchive.
+     */
+    private function writeXlsx(array $headers, array $rows): void
+    {
+        // ── shared strings ──
+        $strings  = [];
+        $strIndex = [];
+
+        $addStr = function (string $val) use (&$strings, &$strIndex): int {
+            if (!isset($strIndex[$val])) {
+                $strIndex[$val] = count($strings);
+                $strings[]      = $val;
+            }
+            return $strIndex[$val];
+        };
+
+        // ── Sheet XML ──
+        $sheetXmlRows = '';
+
+        // Header row (row 1)
+        $sheetXmlRows .= '<row r="1">';
+        foreach ($headers as $ci => $h) {
+            $col = $this->xlsxColName($ci);
+            $si  = $addStr((string) $h);
+            $sheetXmlRows .= "<c r=\"{$col}1\" t=\"s\"><v>{$si}</v></c>";
+        }
+        $sheetXmlRows .= '</row>';
+
+        // Data rows
+        foreach ($rows as $ri => $row) {
+            $rowNum = $ri + 2;
+            $sheetXmlRows .= "<row r=\"{$rowNum}\">";
+            foreach ($row as $ci => $val) {
+                $col = $this->xlsxColName($ci);
+                if (is_int($val) || is_float($val)) {
+                    $sheetXmlRows .= "<c r=\"{$col}{$rowNum}\"><v>{$val}</v></c>";
+                } else {
+                    $si = $addStr((string)($val ?? ''));
+                    $sheetXmlRows .= "<c r=\"{$col}{$rowNum}\" t=\"s\"><v>{$si}</v></c>";
+                }
+            }
+            $sheetXmlRows .= '</row>';
+        }
+
+        // ── Build XML files ──
+        $sharedStringsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="' . count($strings) . '" uniqueCount="' . count($strings) . '">';
+        foreach ($strings as $s) {
+            $sharedStringsXml .= '<si><t xml:space="preserve">' . htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</t></si>';
+        }
+        $sharedStringsXml .= '</sst>';
+
+        $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+            . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheetData>' . $sheetXmlRows . '</sheetData>'
+            . '</worksheet>';
+
+        $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+            . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheets><sheet name="Data Penawaran" sheetId="1" r:id="rId1"/></sheets>'
+            . '</workbook>';
+
+        $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
+            . '</Relationships>';
+
+        $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            . '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+            . '</Types>';
+
+        $rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            . '</Relationships>';
+
+        // ── Write XLSX (ZIP) directly to output ──
+        $tmpFile = tempnam(sys_get_temp_dir(), 'xlsxexp_');
+        $zip = new \ZipArchive();
+        $zip->open($tmpFile, \ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml',               $contentTypes);
+        $zip->addFromString('_rels/.rels',                       $rootRels);
+        $zip->addFromString('xl/workbook.xml',                   $workbookXml);
+        $zip->addFromString('xl/_rels/workbook.xml.rels',        $workbookRels);
+        $zip->addFromString('xl/worksheets/sheet1.xml',          $sheetXml);
+        $zip->addFromString('xl/sharedStrings.xml',              $sharedStringsXml);
+        $zip->close();
+
+        readfile($tmpFile);
+        @unlink($tmpFile);
+    }
+
+    /** Convert zero-based column index to Excel column letters (A, B, … Z, AA, AB …) */
+    private function xlsxColName(int $index): string
+    {
+        $name = '';
+        $index++;
+        while ($index > 0) {
+            $mod  = ($index - 1) % 26;
+            $name = chr(65 + $mod) . $name;
+            $index = (int)(($index - $mod) / 26);
+        }
+        return $name;
+    }
 }

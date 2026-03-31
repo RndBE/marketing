@@ -6,6 +6,14 @@
             <h1 class="text-xl font-semibold">Daftar Penawaran</h1>
         </div>
 
+        <a id="btn-export-excel"
+           href="{{ route('penawaran.export-excel', array_filter(['q' => $q, 'date_from' => $dateFrom, 'date_to' => $dateTo])) }}"
+           class="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export Excel
+        </a>
     </div>
 
     <form method="GET" class="mb-4" id="filter-form">
@@ -81,14 +89,32 @@
 
     <script>
     (function () {
-        var form = document.getElementById('filter-form');
+        var form    = document.getElementById('filter-form');
+        var btnExport = document.getElementById('btn-export-excel');
+        var exportBase = "{{ route('penawaran.export-excel') }}";
+
+        function syncExportBtn() {
+            var q    = document.getElementById('search-input').value;
+            var from = document.getElementById('date_from').value;
+            var to   = document.getElementById('date_to').value;
+            var params = new URLSearchParams();
+            if (q)    params.set('q', q);
+            if (from) params.set('date_from', from);
+            if (to)   params.set('date_to', to);
+            btnExport.href = exportBase + (params.toString() ? '?' + params.toString() : '');
+        }
 
         // Date range shortcuts
         window.setRange = function(from, to) {
             document.getElementById('date_from').value = from;
             document.getElementById('date_to').value = to;
+            syncExportBtn();
             form.submit();
         };
+
+        // Sync on every input change too
+        form.addEventListener('input', syncExportBtn);
+        syncExportBtn();
     })();
     </script>
 

@@ -46,6 +46,9 @@ Route::middleware(['auth'])->group(function () {
         // Index (semua user bisa lihat)
         Route::get('/', [PenawaranController::class, 'index'])->name('index');
 
+        // Export Excel
+        Route::get('/export-excel', [PenawaranController::class, 'exportExcel'])->name('export-excel');
+
         // Create (butuh permission) - HARUS sebelum /{penawaran}
         Route::middleware('permission:create-penawaran')->group(function () {
             Route::get('/create', [PenawaranController::class, 'create'])->name('create');
