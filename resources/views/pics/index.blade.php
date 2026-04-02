@@ -17,6 +17,13 @@
                     placeholder="Cari nama, jabatan, instansi, email, HP, atau alamat..."
                     class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
 
+                <select id="pic-sort-select" name="sort"
+                    class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+                    <option value="latest" @selected(($sort ?? 'latest') === 'latest')>Terbaru Ditambahkan</option>
+                    <option value="oldest" @selected(($sort ?? 'latest') === 'oldest')>Terlama Ditambahkan</option>
+                    <option value="name_asc" @selected(($sort ?? 'latest') === 'name_asc')>Nama A-Z</option>
+                </select>
+
                 <div class="flex gap-2">
                     <button type="submit"
                         class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-100">
@@ -41,27 +48,39 @@
         (() => {
             const form = document.getElementById('pic-search-form');
             const input = document.getElementById('pic-search-input');
+            const sortSelect = document.getElementById('pic-sort-select');
             const wrapper = document.getElementById('pic-table-wrapper');
             const resetButton = document.getElementById('pic-search-reset');
 
-            if (!form || !input || !wrapper || !resetButton) {
+            if (!form || !input || !sortSelect || !wrapper || !resetButton) {
                 return;
             }
 
             let timer = null;
             let lastFetchToken = 0;
 
-            const buildUrl = (baseUrl) => {
+            const buildUrl = (baseUrl, overrides = {}) => {
                 const url = new URL(baseUrl || form.action, window.location.origin);
                 const params = new URLSearchParams(new FormData(form));
+                const shouldResetPage = overrides.resetPage ?? !baseUrl;
+                const query = params.get('q') ?? '';
+                const sort = params.get('sort') ?? 'latest';
 
-                url.search = '';
+                if (query !== '') {
+                    url.searchParams.set('q', query);
+                } else {
+                    url.searchParams.delete('q');
+                }
 
-                params.forEach((value, key) => {
-                    if (value !== '') {
-                        url.searchParams.set(key, value);
-                    }
-                });
+                if (sort !== '' && sort !== 'latest') {
+                    url.searchParams.set('sort', sort);
+                } else {
+                    url.searchParams.delete('sort');
+                }
+
+                if (shouldResetPage) {
+                    url.searchParams.delete('page');
+                }
 
                 url.searchParams.set('_partial', '1');
 
@@ -74,9 +93,9 @@
                 window.history.replaceState({}, '', url);
             };
 
-            const fetchTable = async (baseUrl = null) => {
+            const fetchTable = async (baseUrl = null, options = {}) => {
                 const token = ++lastFetchToken;
-                const url = buildUrl(baseUrl);
+                const url = buildUrl(baseUrl, options);
 
                 wrapper.classList.add('opacity-60', 'pointer-events-none');
 
@@ -101,6 +120,9 @@
                     syncBrowserUrl(url);
                 } catch (error) {
                     console.error(error);
+                    const fallbackUrl = new URL(url.toString());
+                    fallbackUrl.searchParams.delete('_partial');
+                    window.location.href = fallbackUrl.toString();
                 } finally {
                     if (token === lastFetchToken) {
                         wrapper.classList.remove('opacity-60', 'pointer-events-none');
@@ -110,13 +132,17 @@
 
             input.addEventListener('input', () => {
                 window.clearTimeout(timer);
-                timer = window.setTimeout(() => fetchTable(), 300);
+                timer = window.setTimeout(() => fetchTable(null, {
+                    resetPage: true
+                }), 300);
             });
 
             form.addEventListener('submit', (event) => {
                 event.preventDefault();
                 window.clearTimeout(timer);
-                fetchTable();
+                fetchTable(null, {
+                    resetPage: true
+                });
             });
 
             wrapper.addEventListener('click', (event) => {
@@ -127,13 +153,25 @@
                 }
 
                 event.preventDefault();
-                fetchTable(link.href);
+                fetchTable(link.href, {
+                    resetPage: false
+                });
             });
 
             resetButton.addEventListener('click', () => {
                 input.value = '';
+                sortSelect.value = 'latest';
                 window.clearTimeout(timer);
-                fetchTable(form.action);
+                fetchTable(form.action, {
+                    resetPage: true
+                });
+            });
+
+            sortSelect.addEventListener('change', () => {
+                window.clearTimeout(timer);
+                fetchTable(null, {
+                    resetPage: true
+                });
             });
         })();
     </script>

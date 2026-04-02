@@ -10,6 +10,12 @@ class PicController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $sort = trim((string) $request->query('sort', 'latest'));
+        $allowedSorts = ['latest', 'oldest', 'name_asc'];
+
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'latest';
+        }
 
         $data = Pic::query()
             ->when($q !== '', function ($query) use ($q) {
@@ -23,7 +29,9 @@ class PicController extends Controller
                         ->orWhere('alamat', 'like', '%' . $q . '%');
                 });
             })
-            ->orderBy('nama')
+            ->when($sort === 'latest', fn($query) => $query->orderByDesc('id'))
+            ->when($sort === 'oldest', fn($query) => $query->orderBy('id'))
+            ->when($sort === 'name_asc', fn($query) => $query->orderBy('nama'))
             ->paginate(15)
             ->withQueryString();
 
@@ -31,7 +39,7 @@ class PicController extends Controller
             return view('pics._table', compact('data'));
         }
 
-        return view('pics.index', compact('data', 'q'));
+        return view('pics.index', compact('data', 'q', 'sort'));
     }
 
     public function create()
