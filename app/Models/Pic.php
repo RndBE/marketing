@@ -12,4 +12,9 @@ class Pic extends Model
     {
         return $this->hasMany(Penawaran::class, 'id_pic');
     }
+
+    public function prospects()
+    {
+        return $this->hasMany(Prospect::class);
+    }
 }

@@ -1,0 +1,97 @@
+<?php
+
+use App\Models\Permission;
+use App\Models\Prospect;
+use App\Models\Role;
+use App\Models\User;
+
+function prospectUserWithPermissions(array $permissionSlugs): User
+{
+    $user = User::factory()->create();
+    $role = Role::create([
+        'name' => 'Prospect Tester ' . uniqid(),
+        'slug' => 'prospect-tester-' . uniqid(),
+    ]);
+
+    foreach ($permissionSlugs as $slug) {
+        $permission = Permission::firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $slug, 'group' => 'Prospek']
+        );
+
+        $role->permissions()->syncWithoutDetaching([$permission->id]);
+    }
+
+    $user->roles()->attach($role->id);
+
+    return $user;
+}
+
+test('prospect index requires permission', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('prospects.index'))
+        ->assertForbidden();
+});
+
+test('authorized user can create prospect and append progress update', function () {
+    $user = prospectUserWithPermissions([
+        'view-prospect',
+        'create-prospect',
+        'edit-prospect',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('prospects.store'), [
+            'tanggal_lead' => '2026-04-02',
+            'judul' => 'Pengadaan Telemetri AWLR',
+            'instansi' => 'BBWS Serayu Opak',
+            'nama_pic' => 'Pak Idris',
+            'jabatan_pic' => 'PPK',
+            'no_hp' => '08123456788',
+            'email' => 'prospek@example.com',
+            'lokasi' => 'D.I. Yogyakarta',
+            'sumber_lead' => 'Referral',
+            'produk' => 'Telemetri AWLR',
+            'kebutuhan' => 'JIAT & ATAB',
+            'potensi_nilai' => 3000000000,
+            'status' => 'proposal_sent',
+            'hasil_akhir' => 'in_progress',
+            'next_follow_up_at' => '2026-04-05',
+            'catatan' => 'Proposal sudah dikirim.',
+        ])
+        ->assertRedirect();
+
+    $prospect = Prospect::first();
+
+    expect($prospect)->not()->toBeNull();
+    expect($prospect->judul)->toBe('Pengadaan Telemetri AWLR');
+    expect($prospect->instansi)->toBe('BBWS Serayu Opak');
+    expect($prospect->updates()->count())->toBe(1);
+
+    $this->actingAs($user)
+        ->post(route('prospects.updates.store', $prospect), [
+            'tanggal' => '2026-04-03',
+            'aktivitas' => 'Follow up WhatsApp',
+            'status' => 'waiting_decision',
+            'hasil_akhir' => 'in_progress',
+            'next_follow_up_at' => '2026-04-07',
+            'catatan' => 'Menunggu review dari pihak instansi.',
+        ])
+        ->assertRedirect(route('prospects.show', $prospect));
+
+    $prospect->refresh();
+
+    $this->assertDatabaseHas('prospects', [
+        'id' => $prospect->id,
+        'status' => 'waiting_decision',
+        'hasil_akhir' => 'in_progress',
+    ]);
+
+    $this->assertDatabaseHas('prospect_updates', [
+        'prospect_id' => $prospect->id,
+        'aktivitas' => 'Follow up WhatsApp',
+        'status' => 'waiting_decision',
+    ]);
+});

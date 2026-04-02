@@ -7,10 +7,31 @@ use Illuminate\Http\Request;
 
 class PicController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = Pic::orderBy('nama')->paginate(15);
-        return view('pics.index', compact('data'));
+        $q = trim((string) $request->query('q', ''));
+
+        $data = Pic::query()
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($nested) use ($q) {
+                    $nested->where('nama', 'like', '%' . $q . '%')
+                        ->orWhere('honorific', 'like', '%' . $q . '%')
+                        ->orWhere('jabatan', 'like', '%' . $q . '%')
+                        ->orWhere('instansi', 'like', '%' . $q . '%')
+                        ->orWhere('email', 'like', '%' . $q . '%')
+                        ->orWhere('no_hp', 'like', '%' . $q . '%')
+                        ->orWhere('alamat', 'like', '%' . $q . '%');
+                });
+            })
+            ->orderBy('nama')
+            ->paginate(15)
+            ->withQueryString();
+
+        if ($request->boolean('_partial')) {
+            return view('pics._table', compact('data'));
+        }
+
+        return view('pics.index', compact('data', 'q'));
     }
 
     public function create()
@@ -61,6 +82,10 @@ class PicController extends Controller
     {
         if ($pic->penawaran()->exists()) {
             return back()->withErrors('PIC tidak bisa dihapus karena sudah dipakai di penawaran.');
+        }
+
+        if ($pic->prospects()->exists()) {
+            return back()->withErrors('PIC tidak bisa dihapus karena masih dipakai di prospek.');
         }
 
         $pic->delete();

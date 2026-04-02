@@ -1,4 +1,4 @@
-<x-guest-layout>
+<x-guest-layout :title="'Daftar Akun - Arsol Marketing'">
     <h2 class="text-xl font-semibold text-center mb-6">Daftar Akun</h2>
 
     <form method="POST" action="{{ route('register') }}">

@@ -37,6 +37,22 @@
             </div>
         </div>
 
+        @if ($usulan->prospect)
+            <div class="bg-sky-50 rounded-xl border border-sky-200 p-5 mb-4">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <div class="text-xs font-semibold text-sky-700">Terhubung ke Prospek</div>
+                        <div class="text-sm font-medium text-slate-900 mt-1">{{ $usulan->prospect->display_title }}</div>
+                        <div class="text-xs text-slate-500 mt-1">{{ $usulan->prospect->display_instansi }}</div>
+                    </div>
+                    <a href="{{ route('prospects.show', $usulan->prospect) }}"
+                        class="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700">
+                        Lihat Prospek
+                    </a>
+                </div>
+            </div>
+        @endif
+
         <div class="bg-white rounded-xl border border-slate-200 p-5 mb-4">
             <div class="text-xs font-semibold text-slate-500 mb-2">Deskripsi</div>
             <div class="text-sm whitespace-pre-wrap">{{ $usulan->deskripsi ?: '-' }}</div>

@@ -19,12 +19,17 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\LaporanPerjalananMarketingController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\ProspectController;
 
 
 
 Route::get('/', function () {
     return redirect()->route('penawaran.index');
 })->middleware('auth');
+
+Route::get('/dashboard', function () {
+    return redirect()->route('penawaran.index');
+})->middleware('auth')->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
     /*
@@ -175,6 +180,26 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{pic}/edit', [PicController::class, 'edit'])->name('edit');
         Route::put('/{pic}', [PicController::class, 'update'])->name('update');
         Route::delete('/{pic}', [PicController::class, 'destroy'])->name('destroy');
+    });
+
+    /*
+    |---------------- PROSPEK -------------------|
+    */
+    Route::prefix('prospek')->name('prospects.')->group(function () {
+        Route::get('/', [ProspectController::class, 'index'])->name('index')->middleware('permission:view-prospect');
+        Route::get('/export-excel', [ProspectController::class, 'exportExcel'])->name('export-excel')->middleware('permission:view-prospect');
+        Route::get('/create', [ProspectController::class, 'create'])->name('create')->middleware('permission:create-prospect');
+        Route::post('/', [ProspectController::class, 'store'])->name('store')->middleware('permission:create-prospect');
+        Route::get('/{prospect}', [ProspectController::class, 'show'])->name('show')->middleware('permission:view-prospect');
+        Route::get('/{prospect}/edit', [ProspectController::class, 'edit'])->name('edit')->middleware('permission:edit-prospect');
+        Route::put('/{prospect}', [ProspectController::class, 'update'])->name('update')->middleware('permission:edit-prospect');
+        Route::post('/{prospect}/updates', [ProspectController::class, 'storeUpdate'])->name('updates.store')->middleware('permission:edit-prospect');
+        Route::post('/{prospect}/attach-penawaran', [ProspectController::class, 'attachPenawaran'])->name('attach-penawaran')->middleware('permission:edit-prospect');
+        Route::delete('/{prospect}/penawarans/{penawaran}', [ProspectController::class, 'detachPenawaran'])->name('detach-penawaran')->middleware('permission:edit-prospect');
+        Route::post('/{prospect}/attach-usulan', [ProspectController::class, 'attachUsulan'])->name('attach-usulan')->middleware('permission:edit-prospect');
+        Route::delete('/{prospect}/usulans/{usulan}', [ProspectController::class, 'detachUsulan'])->name('detach-usulan')->middleware('permission:edit-prospect');
+        Route::delete('/{prospect}', [ProspectController::class, 'destroy'])->name('destroy')->middleware('permission:delete-prospect');
+        Route::post('/{prospect}/buat-penawaran', [ProspectController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:create-penawaran');
     });
 
     /*

@@ -13,6 +13,7 @@ class UsulanPenawaran extends Model
     protected $fillable = [
         'judul',
         'pic_id',
+        'prospect_id',
         'deskripsi',
         'nilai_estimasi',
         'created_by',
@@ -48,6 +49,11 @@ class UsulanPenawaran extends Model
     public function penawaran(): BelongsTo
     {
         return $this->belongsTo(Penawaran::class);
+    }
+
+    public function prospect(): BelongsTo
+    {
+        return $this->belongsTo(Prospect::class, 'prospect_id');
     }
 
     public function attachments(): HasMany

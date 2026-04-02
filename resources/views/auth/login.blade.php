@@ -1,4 +1,4 @@
-<x-guest-layout>
+<x-guest-layout :title="'Login - Arsol Marketing'">
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
@@ -17,10 +17,20 @@
         </div>
 
         <!-- Password -->
-        <div class="mt-4">
+        <div class="mt-4" x-data="{ showPassword: false }">
             <label for="password" class="block text-sm font-semibold text-slate-700 mb-1">Password</label>
-            <input id="password" type="password" name="password" required autocomplete="current-password"
-                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent">
+            <div class="relative">
+                <input id="password" :type="showPassword ? 'text' : 'password'" name="password" required
+                    autocomplete="current-password"
+                    class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent">
+                <button type="button" @click="showPassword = !showPassword"
+                    class="absolute inset-y-0 right-0 inline-flex items-center px-3 text-slate-500 hover:text-slate-900"
+                    :aria-label="showPassword ? 'Sembunyikan password' : 'Lihat password'"
+                    :title="showPassword ? 'Sembunyikan password' : 'Lihat password'">
+                    <i x-show="!showPassword" class="ri-eye-line text-lg"></i>
+                    <i x-show="showPassword" class="ri-eye-off-line text-lg"></i>
+                </button>
+            </div>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 

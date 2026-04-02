@@ -77,6 +77,11 @@ class DatabaseSeeder extends Seeder
             ['id' => 22, 'name' => 'Buat Laporan Marketing', 'slug' => 'create-marketing-report', 'description' => 'Buat laporan perjalanan marketing', 'group' => 'Laporan Marketing'],
             ['id' => 23, 'name' => 'Edit Laporan Marketing', 'slug' => 'edit-marketing-report', 'description' => 'Edit laporan perjalanan marketing', 'group' => 'Laporan Marketing'],
             ['id' => 24, 'name' => 'Hapus Laporan Marketing', 'slug' => 'delete-marketing-report', 'description' => 'Hapus laporan perjalanan marketing', 'group' => 'Laporan Marketing'],
+            ['id' => 26, 'name' => 'Lihat Prospek', 'slug' => 'view-prospect', 'description' => 'Lihat daftar lead atau prospek', 'group' => 'Prospek'],
+            ['id' => 27, 'name' => 'Lihat Semua Prospek', 'slug' => 'view-all-prospect', 'description' => 'Lihat semua lead atau prospek', 'group' => 'Prospek'],
+            ['id' => 28, 'name' => 'Buat Prospek', 'slug' => 'create-prospect', 'description' => 'Tambah lead atau prospek baru', 'group' => 'Prospek'],
+            ['id' => 29, 'name' => 'Edit Prospek', 'slug' => 'edit-prospect', 'description' => 'Edit lead atau prospek', 'group' => 'Prospek'],
+            ['id' => 30, 'name' => 'Hapus Prospek', 'slug' => 'delete-prospect', 'description' => 'Hapus lead atau prospek', 'group' => 'Prospek'],
         ];
 
         foreach ($permissions as $permission) {
@@ -113,6 +118,11 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 23, 'role_id' => 1],
             ['permission_id' => 24, 'role_id' => 1],
             ['permission_id' => 25, 'role_id' => 1],
+            ['permission_id' => 26, 'role_id' => 1],
+            ['permission_id' => 27, 'role_id' => 1],
+            ['permission_id' => 28, 'role_id' => 1],
+            ['permission_id' => 29, 'role_id' => 1],
+            ['permission_id' => 30, 'role_id' => 1],
 
             // Corporate Account Manager (role_id: 2)
             ['permission_id' => 4, 'role_id' => 2],
@@ -128,6 +138,10 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 22, 'role_id' => 2],
             ['permission_id' => 23, 'role_id' => 2],
             ['permission_id' => 24, 'role_id' => 2],
+            ['permission_id' => 26, 'role_id' => 2],
+            ['permission_id' => 28, 'role_id' => 2],
+            ['permission_id' => 29, 'role_id' => 2],
+            ['permission_id' => 30, 'role_id' => 2],
 
             // Bussines Development (role_id: 4)
             ['permission_id' => 4, 'role_id' => 4],
@@ -139,6 +153,10 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 22, 'role_id' => 4],
             ['permission_id' => 23, 'role_id' => 4],
             ['permission_id' => 24, 'role_id' => 4],
+            ['permission_id' => 26, 'role_id' => 4],
+            ['permission_id' => 28, 'role_id' => 4],
+            ['permission_id' => 29, 'role_id' => 4],
+            ['permission_id' => 30, 'role_id' => 4],
 
             // Direktur (role_id: 5)
             ['permission_id' => 4, 'role_id' => 5],
@@ -155,6 +173,8 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 19, 'role_id' => 5],
             ['permission_id' => 20, 'role_id' => 5],
             ['permission_id' => 21, 'role_id' => 5],
+            ['permission_id' => 26, 'role_id' => 5],
+            ['permission_id' => 27, 'role_id' => 5],
         ];
 
         foreach ($permissionRole as $pr) {

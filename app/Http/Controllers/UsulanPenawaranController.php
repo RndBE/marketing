@@ -31,7 +31,7 @@ class UsulanPenawaranController extends Controller
         $status = $request->query('status', '');
 
         $usulan = UsulanPenawaran::query()
-            ->with(['pic', 'creator', 'penawaran'])
+            ->with(['pic', 'creator', 'penawaran', 'prospect'])
             ->when($status, fn($q) => $q->where('status', $status))
             ->orderByDesc('id')
             ->paginate(15)
@@ -124,7 +124,7 @@ class UsulanPenawaranController extends Controller
 
     public function show(UsulanPenawaran $usulan)
     {
-        $usulan->load(['pic', 'creator', 'responder', 'attachments', 'items', 'penawaran']);
+        $usulan->load(['pic', 'creator', 'responder', 'attachments', 'items', 'penawaran.docNumber', 'prospect']);
         return view('usulan.show', compact('usulan'));
     }
 
@@ -355,6 +355,7 @@ class UsulanPenawaranController extends Controller
         $penawaran = Penawaran::create([
             'id_pic' => $usulan->pic_id,
             'id_user' => auth()->id(),
+            'prospect_id' => $usulan->prospect_id,
             'doc_number_id' => $docNumber->id,
             'approval_id' => null,
             'judul' => $usulan->judul,

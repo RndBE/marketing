@@ -16,6 +16,7 @@
         marketing_report: {{ request()->routeIs('marketing-reports.*') ? 'true' : 'false' }},
         penawaran: {{ request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*') ? 'true' : 'false' }},
         usulan: {{ request()->routeIs('usulan.*') ? 'true' : 'false' }},
+        prospect: {{ request()->routeIs('prospects.*') ? 'true' : 'false' }},
         pricelist: {{ request()->routeIs('price_list.*', 'komponen.*') ? 'true' : 'false' }},
         pic: {{ request()->routeIs('pics.*') ? 'true' : 'false' }},
         users: {{ request()->routeIs('users.*') ? 'true' : 'false' }},
@@ -27,8 +28,9 @@
                 :class="penawaran ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                 class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                 <span class="inline-flex items-center gap-2">
-                    <i :class="penawaran ? 'ri-file-text-fill' : 'ri-file-text-line'"
-                        class="text-[19px] leading-none"></i>
+                    <span class="inline-flex w-5 justify-center">
+                        <i class="fa-regular fa-file-lines fa-fw text-[18px] leading-none"></i>
+                    </span>
                     <span>Penawaran</span>
                 </span>
                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': penawaran }" fill="none"
@@ -85,7 +87,9 @@
                 <button @click="invoice = !invoice" :class="invoice ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="invoice ? 'ri-bill-fill' : 'ri-bill-line'" class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-credit-card fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>Invoice</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': invoice }" fill="none"
@@ -120,8 +124,9 @@
                     :class="purchase_order ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="purchase_order ? 'ri-shopping-cart-2-fill' : 'ri-shopping-cart-2-line'"
-                            class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-clipboard fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>Purchase Order</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': purchase_order }" fill="none"
@@ -156,8 +161,9 @@
                     :class="marketing_report ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="marketing_report ? 'ri-bar-chart-box-fill' : 'ri-bar-chart-box-line'"
-                            class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-chart-bar fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>Marketing BD</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': marketing_report }" fill="none"
@@ -192,7 +198,9 @@
                 <button @click="usulan = !usulan" :class="usulan ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="usulan ? 'ri-lightbulb-fill' : 'ri-lightbulb-line'" class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-lightbulb fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>Usulan</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': usulan }" fill="none"
@@ -219,14 +227,50 @@
             </div>
         @endif
 
+        @if(auth()->user()->hasPermission('view-prospect'))
+            <div class="mb-4">
+                <button @click="prospect = !prospect"
+                    :class="prospect ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-compass fa-fw text-[18px] leading-none"></i>
+                        </span>
+                        <span>Prospek</span>
+                    </span>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': prospect }" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+
+                <div x-show="prospect" x-collapse class="mt-1 space-y-1">
+                    <a href="{{ route('prospects.index') }}"
+                        class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                            {{ request()->routeIs('prospects.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                        <span>Daftar Prospek</span>
+                    </a>
+
+                    @if(auth()->user()->hasPermission('create-prospect'))
+                        <a href="{{ route('prospects.create') }}"
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                                {{ request()->routeIs('prospects.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                            <span>Tambah Prospek</span>
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @if(auth()->user()->hasPermission('manage-pricelist'))
             <div class="mb-4">
                 <button @click="pricelist = !pricelist"
                     :class="pricelist ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="pricelist ? 'ri-price-tag-3-fill' : 'ri-price-tag-3-line'"
-                            class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-bookmark fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>Price List</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': pricelist }" fill="none"
@@ -262,7 +306,9 @@
                 <button @click="pic = !pic" :class="pic ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="pic ? 'ri-id-card-fill' : 'ri-id-card-line'" class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-address-card fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>PIC</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': pic }" fill="none"
@@ -286,7 +332,9 @@
                 <button @click="users = !users" :class="users ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="users ? 'ri-group-fill' : 'ri-group-line'" class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-user fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>User Management</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': users }" fill="none"
@@ -310,8 +358,9 @@
                 <button @click="rbac = !rbac" :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
-                        <i :class="rbac ? 'ri-shield-user-fill' : 'ri-shield-user-line'"
-                            class="text-[19px] leading-none"></i>
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-id-badge fa-fw text-[18px] leading-none"></i>
+                        </span>
                         <span>RBAC</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': rbac }" fill="none"

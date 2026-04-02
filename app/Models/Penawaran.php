@@ -11,6 +11,7 @@ class Penawaran extends Model
     protected $fillable = [
         'id_pic',
         'id_user',
+        'prospect_id',
         'doc_number_id',
         'approval_id',
         'judul',
@@ -102,5 +103,10 @@ class Penawaran extends Model
     public function usulan()
     {
         return $this->hasOne(UsulanPenawaran::class, 'penawaran_id');
+    }
+
+    public function prospect()
+    {
+        return $this->belongsTo(Prospect::class, 'prospect_id');
     }
 }

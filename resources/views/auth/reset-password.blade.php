@@ -1,4 +1,4 @@
-<x-guest-layout>
+<x-guest-layout :title="'Reset Password - Arsol Marketing'">
     <form method="POST" action="{{ route('password.store') }}">
         @csrf
 

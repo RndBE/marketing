@@ -1,4 +1,4 @@
-<x-guest-layout>
+<x-guest-layout :title="'Lupa Password - Arsol Marketing'">
     <h2 class="text-xl font-semibold text-center mb-4">Lupa Password</h2>
 
     <div class="mb-4 text-sm text-slate-600">
