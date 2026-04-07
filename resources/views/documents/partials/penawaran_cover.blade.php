@@ -32,7 +32,7 @@
         position: relative;
         width: 210mm;
         height: 297mm;
-        margin: 0;
+        margin: -10mm;
         overflow: hidden;
         page-break-after: always;
         font-family: 'Montserrat', Arial, Helvetica, sans-serif;

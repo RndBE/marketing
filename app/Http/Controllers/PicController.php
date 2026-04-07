@@ -98,6 +98,7 @@ class PicController extends Controller
 
         $pic->delete();
 
+        
         return redirect()->route('pics.index')->with('success', 'PIC berhasil dihapus');
     }
 }

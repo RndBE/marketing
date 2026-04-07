@@ -6,7 +6,7 @@
     <title>{{ $docNo }}</title>
     <style>
         @page {
-            margin: 0;
+            margin: 10mm;
         }
 
         body {
@@ -18,7 +18,6 @@
         }
 
         .page-content {
-            padding: 10mm;
             box-sizing: border-box;
         }
 
