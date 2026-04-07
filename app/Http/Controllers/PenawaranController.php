@@ -79,46 +79,6 @@ class PenawaranController extends Controller
             ->withQueryString();
 
         // ── Hitung total semua penawaran yang sudah disetujui ──
-        $calcBundleUnit = function ($item): int {
-            $unit = 0;
-            foreach ($item->details as $d) {
-                $detailSubtotal = (int) ($d->subtotal ?? 0);
-                if ($detailSubtotal <= 0) {
-                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
-                }
-                $unit += $detailSubtotal;
-            }
-            return $unit;
-        };
-
-        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
-            if ($item->tipe === 'bundle') {
-                $qtyBundle = (float) ($item->qty ?? 1);
-                if ($qtyBundle <= 0)
-                    $qtyBundle = 1;
-                $raw = (int) round($calcBundleUnit($item) * $qtyBundle);
-                if ($item->discount_enabled) {
-                    $dv = (float) ($item->discount_value ?? 0);
-                    $dt = $item->discount_type ?? 'percent';
-                    $disc = $dt === 'percent' ? (int) round($raw * ($dv / 100)) : (int) round($dv);
-                    return max(0, $raw - $disc);
-                }
-                return $raw;
-            }
-            $subtotal = (int) ($item->subtotal ?? 0);
-            if ($subtotal > 0)
-                return $subtotal;
-            $totalDetail = 0;
-            foreach ($item->details as $d) {
-                $detailSubtotal = (int) ($d->subtotal ?? 0);
-                if ($detailSubtotal <= 0) {
-                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
-                }
-                $totalDetail += $detailSubtotal;
-            }
-            return $totalDetail;
-        };
-
         $totalDisetujui = 0;
         $jumlahDisetujui = 0;
 
@@ -144,25 +104,7 @@ class PenawaranController extends Controller
             ->get();
 
         foreach ($approvedQuery as $pnw) {
-            $total = 0;
-            foreach ($pnw->items as $it) {
-                $total += $calcItemSubtotal($it);
-            }
-            $discountAmount = 0;
-            if ($pnw->discount_enabled) {
-                $dv = (float) ($pnw->discount_value ?? 0);
-                $dt = $pnw->discount_type ?? 'percent';
-                $discountAmount = $dt === 'percent' ? (int) round($total * ($dv / 100)) : (int) round($dv);
-                if ($discountAmount > $total)
-                    $discountAmount = $total;
-            }
-            $dpp = $total - $discountAmount;
-            $taxAmount = 0;
-            if ($pnw->tax_enabled) {
-                $tr = (float) ($pnw->tax_rate ?? 11);
-                $taxAmount = (int) round($dpp * ($tr / 100));
-            }
-            $totalDisetujui += ($dpp + $taxAmount);
+            $totalDisetujui += $pnw->calcGrandTotal();
             $jumlahDisetujui++;
         }
 
@@ -195,24 +137,7 @@ class PenawaranController extends Controller
             : collect();
 
         foreach ($goalQuery as $pnw) {
-            $gTotal = 0;
-            foreach ($pnw->items as $it) {
-                $gTotal += $calcItemSubtotal($it);
-            }
-            $gDisc = 0;
-            if ($pnw->discount_enabled) {
-                $dv = (float) ($pnw->discount_value ?? 0);
-                $dt = $pnw->discount_type ?? 'percent';
-                $gDisc = $dt === 'percent' ? (int) round($gTotal * ($dv / 100)) : (int) round($dv);
-                if ($gDisc > $gTotal)
-                    $gDisc = $gTotal;
-            }
-            $gDpp = $gTotal - $gDisc;
-            $gTax = 0;
-            if ($pnw->tax_enabled) {
-                $gTax = (int) round($gDpp * ((float) ($pnw->tax_rate ?? 11) / 100));
-            }
-            $totalGoal += ($gDpp + $gTax);
+            $totalGoal += $pnw->calcGrandTotal();
             $jumlahGoal++;
         }
 
@@ -1543,68 +1468,10 @@ class PenawaranController extends Controller
         return response()->json(['message' => 'Keterangan penawaran disimpan']);
     }
 
-    private function calcUnitPriceBundle($item): int
-    {
-        $unit = 0;
-
-        foreach ($item->details as $d) {
-            $sub = (int) ($d->subtotal ?? 0);
-            if ($sub <= 0) {
-                $qty = (float) ($d->qty ?? 0);
-                $harga = (int) ($d->harga ?? 0);
-                $sub = (int) round($qty * $harga);
-            }
-
-            $unit += $sub;
-        }
-
-        return $unit;
-    }
-
     private function recalcItemSubtotal($item): void
     {
         $item->loadMissing('details');
-
-        $qtyBundle = (float) ($item->qty ?? 1);
-        if ($qtyBundle <= 0)
-            $qtyBundle = 1;
-
-        $markup = (float) ($item->markup ?? 1);
-        if ($markup <= 0)
-            $markup = 1;
-
-        if ($item->tipe === 'bundle') {
-            $unit = $this->calcUnitPriceBundle($item);
-            $raw = (int) round($unit * $qtyBundle * $markup);
-
-            // Apply per-bundle discount
-            if ($item->discount_enabled) {
-                $dv = (float) ($item->discount_value ?? 0);
-                $dt = $item->discount_type ?? 'percent';
-                if ($dt === 'percent') {
-                    $disc = (int) round($raw * ($dv / 100));
-                } else {
-                    $disc = (int) round($dv);
-                }
-                $item->subtotal = max(0, $raw - $disc);
-            } else {
-                $item->subtotal = $raw;
-            }
-        } else {
-            $total = 0;
-            foreach ($item->details as $d) {
-                $sub = (int) ($d->subtotal ?? 0);
-                if ($sub <= 0) {
-                    $q = (float) ($d->qty ?? 0);
-                    $h = (int) ($d->harga ?? 0);
-                    $sub = (int) round($q * $h);
-                }
-                $total += $sub;
-            }
-            $markedUp = $total > 0 ? (int) round($total * $markup) : (int) ($item->subtotal ?? 0);
-            $item->subtotal = $markedUp;
-        }
-
+        $item->subtotal = $item->calcSubtotal();
         $item->save();
     }
 
@@ -1780,58 +1647,7 @@ class PenawaranController extends Controller
             ->get();
 
         // ── Helpers kalkulasi harga (sama dengan di index) ──
-        $calcBundleUnit = function ($item): int {
-            $unit = 0;
-            foreach ($item->details as $d) {
-                $sub = (int) ($d->subtotal ?? 0);
-                if ($sub <= 0) $sub = (int) round((float)($d->qty ?? 0) * (int)($d->harga ?? 0));
-                $unit += $sub;
-            }
-            return $unit;
-        };
-
-        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
-            if ($item->tipe === 'bundle') {
-                $qty = max((float)($item->qty ?? 1), 0.01);
-                $raw = (int) round($calcBundleUnit($item) * $qty);
-                if ($item->discount_enabled) {
-                    $dv   = (float)($item->discount_value ?? 0);
-                    $disc = $item->discount_type === 'percent'
-                        ? (int) round($raw * ($dv / 100))
-                        : (int) round($dv);
-                    return max(0, $raw - $disc);
-                }
-                return $raw;
-            }
-            $sub = (int)($item->subtotal ?? 0);
-            if ($sub > 0) return $sub;
-            $total = 0;
-            foreach ($item->details as $d) {
-                $ds = (int)($d->subtotal ?? 0);
-                if ($ds <= 0) $ds = (int) round((float)($d->qty ?? 0) * (int)($d->harga ?? 0));
-                $total += $ds;
-            }
-            return $total;
-        };
-
-        $calcGrandTotal = function ($penawaran) use ($calcItemSubtotal): int {
-            $total = 0;
-            foreach ($penawaran->items as $it) $total += $calcItemSubtotal($it);
-            $disc = 0;
-            if ($penawaran->discount_enabled) {
-                $dv   = (float)($penawaran->discount_value ?? 0);
-                $disc = $penawaran->discount_type === 'percent'
-                    ? (int) round($total * ($dv / 100))
-                    : (int) round($dv);
-                if ($disc > $total) $disc = $total;
-            }
-            $dpp = $total - $disc;
-            $tax = 0;
-            if ($penawaran->tax_enabled) {
-                $tax = (int) round($dpp * ((float)($penawaran->tax_rate ?? 11) / 100));
-            }
-            return $dpp + $tax;
-        };
+        $calcGrandTotal = fn($penawaran): int => $penawaran->calcGrandTotal();
 
         // ── Tentukan label status ──
         $statusLabel = function ($pnw): string {

@@ -109,4 +109,43 @@ class Penawaran extends Model
     {
         return $this->belongsTo(Prospect::class, 'prospect_id');
     }
+
+    public function calcItemsSubtotal(): int
+    {
+        return (int) $this->items->sum(fn($item) => $item->calcSubtotal());
+    }
+
+    public function calcDiscountAmount(): int
+    {
+        if (!$this->discount_enabled) {
+            return 0;
+        }
+
+        $subtotal = $this->calcItemsSubtotal();
+        $value = (float) ($this->discount_value ?? 0);
+        $discount = ($this->discount_type ?? 'percent') === 'percent'
+            ? (int) round($subtotal * ($value / 100))
+            : (int) round($value);
+
+        return min($discount, $subtotal);
+    }
+
+    public function calcDppTotal(): int
+    {
+        return $this->calcItemsSubtotal() - $this->calcDiscountAmount();
+    }
+
+    public function calcTaxAmount(): int
+    {
+        if (!$this->tax_enabled) {
+            return 0;
+        }
+
+        return (int) round($this->calcDppTotal() * ((float) ($this->tax_rate ?? 11) / 100));
+    }
+
+    public function calcGrandTotal(): int
+    {
+        return $this->calcDppTotal() + $this->calcTaxAmount();
+    }
 }

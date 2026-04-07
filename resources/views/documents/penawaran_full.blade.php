@@ -94,89 +94,11 @@
     @php
         $cover = $penawaran->cover;
         $valid = $penawaran->validity;
-        $calcBundleUnit = function ($item): int {
-            $unit = 0;
-            foreach ($item->details as $d) {
-                $detailSubtotal = (int) ($d->subtotal ?? 0);
-                if ($detailSubtotal <= 0) {
-                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
-                }
-                $unit += $detailSubtotal;
-            }
-            return $unit;
-        };
-        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
-            if ($item->tipe === 'bundle') {
-                $qtyBundle = (float) ($item->qty ?? 1);
-                if ($qtyBundle <= 0) {
-                    $qtyBundle = 1;
-                }
-                $itemMarkup = (float) ($item->markup ?? 1);
-                if ($itemMarkup <= 0) $itemMarkup = 1;
-                $raw = (int) round($calcBundleUnit($item) * $qtyBundle * $itemMarkup);
-
-                // Apply per-bundle discount
-                if ($item->discount_enabled) {
-                    $dv = (float) ($item->discount_value ?? 0);
-                    $dt = $item->discount_type ?? 'percent';
-                    if ($dt === 'percent') {
-                        $disc = (int) round($raw * ($dv / 100));
-                    } else {
-                        $disc = (int) round($dv);
-                    }
-                    return max(0, $raw - $disc);
-                }
-                return $raw;
-            }
-
-            $subtotal = (int) ($item->subtotal ?? 0);
-            if ($subtotal > 0) {
-                return $subtotal;
-            }
-
-            $totalDetail = 0;
-            foreach ($item->details as $d) {
-                $detailSubtotal = (int) ($d->subtotal ?? 0);
-                if ($detailSubtotal <= 0) {
-                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
-                }
-                $totalDetail += $detailSubtotal;
-            }
-            $itemMarkup = (float) ($item->markup ?? 1);
-            if ($itemMarkup <= 0) $itemMarkup = 1;
-            return (int) round($totalDetail * $itemMarkup);
-        };
-        $grand = 0;
-        foreach ($penawaran->items as $it) {
-            $grand += $calcItemSubtotal($it);
-        }
-
-        $discountAmount = 0;
-
-        if ($penawaran->discount_enabled) {
-            $dv = (float) ($penawaran->discount_value ?? 0);
-            $dt = $penawaran->discount_type ?? 'percent';
-
-            if ($dt === 'percent') {
-                $discountAmount = (int) round($grand * ($dv / 100));
-            } else {
-                $discountAmount = (int) round($dv);
-            }
-
-            if ($discountAmount > $grand) {
-                $discountAmount = $grand;
-            }
-        }
-
-        $dpp = $grand - $discountAmount;
-
-        $taxAmount = 0;
-        if ($penawaran->tax_enabled) {
-            $tr = (float) ($penawaran->tax_rate ?? 11);
-            $taxAmount = (int) round($dpp * ($tr / 100));
-        }
-
-        $grandTotal = $dpp + $taxAmount;
+        $grand = $penawaran->calcItemsSubtotal();
+        $discountAmount = $penawaran->calcDiscountAmount();
+        $dpp = $penawaran->calcDppTotal();
+        $taxAmount = $penawaran->calcTaxAmount();
+        $grandTotal = $penawaran->calcGrandTotal();
     @endphp
 
     @include('documents.partials.penawaran_cover', [
@@ -301,14 +223,11 @@
                 @foreach ($penawaran->items as $i => $item)
                     @php
                         $detailCount = $item->details ? $item->details->count() : 0;
-                        $volume = (float) ($item->qty ?? 1);
-                        if ($volume <= 0) {
-                            $volume = 1;
-                        }
-
-                        $totalItem = $calcItemSubtotal($item);
-                        // Harga satuan = total setelah diskon ÷ qty (berlaku untuk bundle maupun custom)
-                        $hargaSatuanBundle = $volume > 0 ? (int) round($totalItem / $volume) : $totalItem;
+                        $volume = $item->resolvedQty();
+                        $totalItem = $item->calcSubtotal();
+                        $hargaSatuanBundle = $item->tipe === 'bundle'
+                            ? (int) round($item->calcBundleUnitSubtotal() * $item->resolvedMarkup())
+                            : ($volume > 0 ? (int) round($totalItem / $volume) : $totalItem);
 
                         $grand += $totalItem;
                     @endphp

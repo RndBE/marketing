@@ -3,89 +3,11 @@
 @section('content')
     @php
         $docNo = $penawaran->docNumber?->doc_no ?? 'PNW-' . str_pad((string) $penawaran->id, 6, '0', STR_PAD_LEFT);
-        $calcBundleUnit = function ($item): int {
-            $unit = 0;
-            foreach ($item->details as $d) {
-                $detailSubtotal = (int) ($d->subtotal ?? 0);
-                if ($detailSubtotal <= 0) {
-                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
-                }
-                $unit += $detailSubtotal;
-            }
-            return $unit;
-        };
-        $calcItemSubtotal = function ($item) use ($calcBundleUnit): int {
-            if ($item->tipe === 'bundle') {
-                $qtyBundle = (float) ($item->qty ?? 1);
-                if ($qtyBundle <= 0) {
-                    $qtyBundle = 1;
-                }
-                $itemMarkup = (float) ($item->markup ?? 1);
-                if ($itemMarkup <= 0) $itemMarkup = 1;
-                $raw = (int) round($calcBundleUnit($item) * $qtyBundle * $itemMarkup);
-
-                // Apply per-bundle discount
-                if ($item->discount_enabled) {
-                    $dv = (float) ($item->discount_value ?? 0);
-                    $dt = $item->discount_type ?? 'percent';
-                    if ($dt === 'percent') {
-                        $disc = (int) round($raw * ($dv / 100));
-                    } else {
-                        $disc = (int) round($dv);
-                    }
-                    return max(0, $raw - $disc);
-                }
-                return $raw;
-            }
-
-            $subtotal = (int) ($item->subtotal ?? 0);
-            if ($subtotal > 0) {
-                return $subtotal;
-            }
-
-            $totalDetail = 0;
-            foreach ($item->details as $d) {
-                $detailSubtotal = (int) ($d->subtotal ?? 0);
-                if ($detailSubtotal <= 0) {
-                    $detailSubtotal = (int) round((float) ($d->qty ?? 0) * (int) ($d->harga ?? 0));
-                }
-                $totalDetail += $detailSubtotal;
-            }
-            $itemMarkup = (float) ($item->markup ?? 1);
-            if ($itemMarkup <= 0) $itemMarkup = 1;
-            return (int) round($totalDetail * $itemMarkup);
-        };
-        $total = 0;
-        foreach ($penawaran->items as $it) {
-            $total += $calcItemSubtotal($it);
-        }
-
-        $discountAmount = 0;
-
-        if ($penawaran->discount_enabled) {
-            $dv = (float) ($penawaran->discount_value ?? 0);
-            $dt = $penawaran->discount_type ?? 'percent';
-
-            if ($dt === 'percent') {
-                $discountAmount = (int) round($total * ($dv / 100));
-            } else {
-                $discountAmount = (int) round($dv);
-            }
-
-            if ($discountAmount > $total) {
-                $discountAmount = $total;
-            }
-        }
-
-        $dpp = $total - $discountAmount;
-
-        $taxAmount = 0;
-        if ($penawaran->tax_enabled) {
-            $tr = (float) ($penawaran->tax_rate ?? 11);
-            $taxAmount = (int) round($dpp * ($tr / 100));
-        }
-
-        $grandTotal = $dpp + $taxAmount;
+        $total = $penawaran->calcItemsSubtotal();
+        $discountAmount = $penawaran->calcDiscountAmount();
+        $dpp = $penawaran->calcDppTotal();
+        $taxAmount = $penawaran->calcTaxAmount();
+        $grandTotal = $penawaran->calcGrandTotal();
     @endphp
 
     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-5">
@@ -342,28 +264,15 @@
                                         <div class="text-sm text-slate-600 mt-1">{{ $item->catatan }}</div>
                                     @endif
                                     @php
-                                        $qtyBundle = (float) ($item->qty ?? 1);
-                                        $itemSubtotal = $calcItemSubtotal($item);
-                                        $unitPrice = 0;
-                                        if ($item->tipe === 'bundle') {
-                                            $unitPrice = $calcBundleUnit($item);
-                                        }
+                                        $qtyBundle = $item->resolvedQty();
+                                        $itemSubtotal = $item->calcSubtotal();
+                                        $unitPrice = $item->tipe === 'bundle' ? $item->calcBundleUnitSubtotal() : 0;
                                     @endphp
 
                                     @if ($item->tipe === 'bundle')
                                         @php
-                                            $bundleRaw = (int) round($unitPrice * $qtyBundle);
-                                            $bundleDiscAmount = 0;
-                                            if ($item->discount_enabled) {
-                                                $bdv = (float) ($item->discount_value ?? 0);
-                                                $bdt = $item->discount_type ?? 'percent';
-                                                if ($bdt === 'percent') {
-                                                    $bundleDiscAmount = (int) round($bundleRaw * ($bdv / 100));
-                                                } else {
-                                                    $bundleDiscAmount = (int) round($bdv);
-                                                }
-                                                $bundleDiscAmount = min($bundleDiscAmount, $bundleRaw);
-                                            }
+                                            $bundleRaw = $item->calcRawSubtotal();
+                                            $bundleDiscAmount = $item->calcDiscountAmount();
                                         @endphp
                                         <div class="mt-2 text-sm text-slate-600">
                                             Harga Satuan :
@@ -401,10 +310,10 @@
                                     @else
                                         <div class="mt-2 text-sm text-slate-600">
                                             Harga Satuan :
-                                            <span class="font-semibold">Rp {{ number_format((int) (($item->qty ?? 1) > 0 ? round($itemSubtotal / ($item->qty ?? 1)) : $itemSubtotal), 0, ',', '.') }}</span>
+                                            <span class="font-semibold">Rp {{ number_format((int) ($qtyBundle > 0 ? round($itemSubtotal / $qtyBundle) : $itemSubtotal), 0, ',', '.') }}</span>
                                             <span class="text-slate-400">•</span>
                                             Qty :
-                                            <span class="font-semibold">{{ number_format((float) ($item->qty ?? 1), 2, ',', '.') }}</span>
+                                            <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
                                             <span class="text-slate-400">•</span>
                                             Satuan :
                                             <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
@@ -543,6 +452,7 @@
                                 <tbody class="border border-slate-200 divide-y divide-slate-100 detail-sortable"
                                     data-item-id="{{ $item->id }}">
                                     @forelse($item->details as $d)
+                                        @php $detailSubtotal = $d->calcSubtotal(); @endphp
                                         {{-- VIEW ROW --}}
                                         <tr class="detail-row detail-view-{{ $d->id }}" draggable="true" data-detail-id="{{ $d->id }}">
                                             <td class="px-3 py-2 text-slate-500 text-xs">{{ $d->urutan }}</td>
@@ -556,7 +466,7 @@
                                             <td class="px-3 py-2 whitespace-nowrap">{{ $d->satuan }}</td>
                                             <td class="px-3 py-2 text-right whitespace-nowrap">Rp {{ number_format((int) $d->harga, 0, ',', '.') }}</td>
                                             <td class="px-3 py-2 text-right font-semibold whitespace-nowrap">
-                                                Rp {{ number_format((int) $d->subtotal, 0, ',', '.') }}
+                                                Rp {{ number_format($detailSubtotal, 0, ',', '.') }}
                                                 @if (($d->markup ?? 1) != 1)
                                                     <span class="inline-flex items-center rounded-md bg-amber-50 px-1 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20 ml-1">
                                                         ×{{ rtrim(rtrim(number_format((float)$d->markup, 2, '.', ''), '0'), '.') }}
@@ -610,7 +520,7 @@
                                                 </form>
                                             </td>
                                             <td class="px-2 py-1.5 text-right font-semibold text-slate-400 whitespace-nowrap align-top pt-3">
-                                                Rp {{ number_format((int) $d->subtotal, 0, ',', '.') }}
+                                                Rp {{ number_format($detailSubtotal, 0, ',', '.') }}
                                             </td>
                                             <td class="px-2 py-1.5 align-top whitespace-nowrap">
                                                 <div class="flex flex-col gap-1 items-end">
