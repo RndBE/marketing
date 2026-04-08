@@ -56,28 +56,38 @@ class PenawaranItem extends Model
         return $markup > 0 ? $markup : 1.0;
     }
 
+    public function calcBaseUnitSubtotal(): int
+    {
+        $detailTotal = (int) $this->details->sum(fn($detail) => $detail->calcSubtotal());
+        if ($detailTotal > 0) {
+            return $detailTotal;
+        }
+
+        if ($this->relationLoaded('details') && $this->details->count() === 0) {
+            return 0;
+        }
+
+        return max((int) ($this->subtotal ?? 0), 0);
+    }
+
+    public function calcUnitSubtotal(): int
+    {
+        return (int) round($this->calcBaseUnitSubtotal() * $this->resolvedMarkup());
+    }
+
     public function calcBundleUnitSubtotal(): int
     {
-        return (int) $this->details->sum(fn($detail) => $detail->calcSubtotal());
+        return $this->calcUnitSubtotal();
     }
 
     public function calcRawSubtotal(): int
     {
-        if ($this->tipe === 'bundle') {
-            return (int) round($this->calcBundleUnitSubtotal() * $this->resolvedQty() * $this->resolvedMarkup());
-        }
-
-        $detailTotal = (int) $this->details->sum(fn($detail) => $detail->calcSubtotal());
-        if ($detailTotal > 0) {
-            return (int) round($detailTotal * $this->resolvedMarkup());
-        }
-
-        return (int) ($this->subtotal ?? 0);
+        return (int) round($this->calcUnitSubtotal() * $this->resolvedQty());
     }
 
     public function calcDiscountAmount(): int
     {
-        if ($this->tipe !== 'bundle' || !$this->discount_enabled) {
+        if (!$this->discount_enabled) {
             return 0;
         }
 
@@ -93,11 +103,6 @@ class PenawaranItem extends Model
     public function calcSubtotal(): int
     {
         $raw = $this->calcRawSubtotal();
-
-        if ($this->tipe === 'bundle') {
-            return max(0, $raw - $this->calcDiscountAmount());
-        }
-
-        return $raw;
+        return max(0, $raw - $this->calcDiscountAmount());
     }
 }

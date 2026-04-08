@@ -225,9 +225,7 @@
                         $detailCount = $item->details ? $item->details->count() : 0;
                         $volume = $item->resolvedQty();
                         $totalItem = $item->calcSubtotal();
-                        $hargaSatuanBundle = $item->tipe === 'bundle'
-                            ? (int) round($item->calcBundleUnitSubtotal() * $item->resolvedMarkup())
-                            : ($volume > 0 ? (int) round($totalItem / $volume) : $totalItem);
+                        $hargaSatuanBundle = $item->calcUnitSubtotal();
 
                         $grand += $totalItem;
                     @endphp

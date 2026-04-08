@@ -526,6 +526,7 @@ class PenawaranController extends Controller
                     'qty' => $item->qty,
                     'satuan' => $item->satuan,
                     'subtotal' => $item->subtotal,
+                    'markup' => $item->markup,
                     'discount_enabled' => $item->discount_enabled,
                     'discount_type' => $item->discount_type,
                     'discount_value' => $item->discount_value,
@@ -542,6 +543,7 @@ class PenawaranController extends Controller
                         'satuan' => $detail->satuan,
                         'harga' => $detail->harga,
                         'subtotal' => $detail->subtotal,
+                        'markup' => $detail->markup,
                     ]);
                 }
             }
@@ -693,16 +695,19 @@ class PenawaranController extends Controller
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);
         $product = Product::with('details')->findOrFail($request->product_id);
+        $urutan = $this->nextItemOrder($penawaran->id);
 
         $item = PenawaranItem::create([
             'penawaran_id' => $penawaran->id,
             'product_id' => $product->id,
             'tipe' => 'bundle',
+            'urutan' => $urutan,
             'judul' => $request->judul ?: ($product->nama ?? 'Bundle'),
             'catatan' => $request->catatan,
             'qty' => (float) ($request->qty ?: 1),
             'satuan' => $product->satuan ?? null,
             'subtotal' => 0,
+            'markup' => 1,
         ]);
 
         $urutan = 1;
@@ -735,8 +740,7 @@ class PenawaranController extends Controller
             'catatan' => ['nullable', 'string']
         ]);
 
-        $urutan = (int) PenawaranItem::where('penawaran_id', $penawaran->id)->max('urutan');
-        $urutan = $urutan > 0 ? $urutan + 1 : 1;
+        $urutan = $this->nextItemOrder($penawaran->id);
 
         PenawaranItem::create([
             'penawaran_id' => $penawaran->id,
@@ -745,7 +749,10 @@ class PenawaranController extends Controller
             'urutan' => $urutan,
             'judul' => $payload['judul'],
             'catatan' => $payload['catatan'] ?? null,
-            'subtotal' => 0
+            'qty' => 1,
+            'satuan' => 'ls',
+            'subtotal' => 0,
+            'markup' => 1,
         ]);
 
         $penawaran->update(['date_updated' => now()->timestamp]);
@@ -765,13 +772,10 @@ class PenawaranController extends Controller
             'qty' => ['required', 'numeric', 'min:0.01'],
             'satuan' => ['nullable', 'string', 'max:50'],
             'markup' => ['nullable', 'numeric', 'min:0.01', 'max:99'],
+            'discount_enabled' => ['nullable', 'boolean'],
+            'discount_type' => ['nullable', 'string', 'in:percent,fixed'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
         ];
-
-        if ($item->tipe === 'bundle') {
-            $rules['discount_enabled'] = ['nullable', 'boolean'];
-            $rules['discount_type'] = ['nullable', 'string', 'in:percent,fixed'];
-            $rules['discount_value'] = ['nullable', 'numeric', 'min:0'];
-        }
 
         $payload = $request->validate($rules);
 
@@ -783,16 +787,14 @@ class PenawaranController extends Controller
             'markup' => (float) ($payload['markup'] ?? $item->markup ?? 1),
         ];
 
-        if ($item->tipe === 'bundle') {
-            $discountEnabled = (bool) ($request->input('discount_enabled') == 1);
-            $update['discount_enabled'] = $discountEnabled;
-            if ($discountEnabled) {
-                $update['discount_type'] = $payload['discount_type'] ?? 'percent';
-                $update['discount_value'] = $payload['discount_value'] ?? 0;
-            } else {
-                $update['discount_type'] = null;
-                $update['discount_value'] = null;
-            }
+        $discountEnabled = (bool) ($request->input('discount_enabled') == 1);
+        $update['discount_enabled'] = $discountEnabled;
+        if ($discountEnabled) {
+            $update['discount_type'] = $payload['discount_type'] ?? 'percent';
+            $update['discount_value'] = $payload['discount_value'] ?? 0;
+        } else {
+            $update['discount_type'] = null;
+            $update['discount_value'] = null;
         }
 
         $item->update($update);
@@ -1473,6 +1475,13 @@ class PenawaranController extends Controller
         $item->loadMissing('details');
         $item->subtotal = $item->calcSubtotal();
         $item->save();
+    }
+
+    private function nextItemOrder(int $penawaranId): int
+    {
+        $max = (int) PenawaranItem::where('penawaran_id', $penawaranId)->max('urutan');
+
+        return $max > 0 ? $max + 1 : 1;
     }
 
     public function upsertPricing(Request $request, Penawaran $penawaran)

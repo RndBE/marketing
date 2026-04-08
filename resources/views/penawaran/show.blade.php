@@ -266,66 +266,42 @@
                                     @php
                                         $qtyBundle = $item->resolvedQty();
                                         $itemSubtotal = $item->calcSubtotal();
-                                        $unitPrice = $item->tipe === 'bundle' ? $item->calcBundleUnitSubtotal() : 0;
+                                        $unitPrice = $item->calcUnitSubtotal();
+                                        $itemRawSubtotal = $item->calcRawSubtotal();
+                                        $itemDiscAmount = $item->calcDiscountAmount();
                                     @endphp
 
-                                    @if ($item->tipe === 'bundle')
-                                        @php
-                                            $bundleRaw = $item->calcRawSubtotal();
-                                            $bundleDiscAmount = $item->calcDiscountAmount();
-                                        @endphp
-                                        <div class="mt-2 text-sm text-slate-600">
-                                            Harga Satuan :
-                                            <span class="font-semibold">Rp {{ number_format((int) $unitPrice, 0, ',', '.') }}</span>
+                                    <div class="mt-2 text-sm text-slate-600">
+                                        Harga Satuan :
+                                        <span class="font-semibold">Rp {{ number_format((int) $unitPrice, 0, ',', '.') }}</span>
+                                        <span class="text-slate-400">•</span>
+                                        Qty :
+                                        <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
+                                        <span class="text-slate-400">•</span>
+                                        Satuan :
+                                        <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
+                                        @if (($item->markup ?? 1) != 1)
                                             <span class="text-slate-400">•</span>
-                                            Qty :
-                                            <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
-                                            <span class="text-slate-400">•</span>
-                                            Satuan :
-                                            <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
-                                            @if (($item->markup ?? 1) != 1)
-                                                <span class="text-slate-400">•</span>
-                                                <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                                                    ×{{ rtrim(rtrim(number_format((float)$item->markup, 2, '.', ''), '0'), '.') }}
-                                                </span>
-                                            @endif
-                                            <span class="text-slate-400">•</span>
-                                            Total:
-                                            <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
-                                        </div>
-                                        @if ($item->discount_enabled && $bundleDiscAmount > 0)
-                                            <div class="mt-1 flex items-center gap-2 text-xs">
-                                                <span class="text-slate-400 line-through">Rp {{ number_format($bundleRaw, 0, ',', '.') }}</span>
-                                                <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
-                                                    Diskon
-                                                    @if (($item->discount_type ?? 'percent') === 'percent')
-                                                        {{ number_format((float) $item->discount_value, 0, ',', '.') }}%
-                                                    @else
-                                                        Rp {{ number_format((int) $item->discount_value, 0, ',', '.') }}
-                                                    @endif
-                                                    &minus; Rp {{ number_format($bundleDiscAmount, 0, ',', '.') }}
-                                                </span>
-                                            </div>
+                                            <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                ×{{ rtrim(rtrim(number_format((float)$item->markup, 2, '.', ''), '0'), '.') }}
+                                            </span>
                                         @endif
-                                    @else
-                                        <div class="mt-2 text-sm text-slate-600">
-                                            Harga Satuan :
-                                            <span class="font-semibold">Rp {{ number_format((int) ($qtyBundle > 0 ? round($itemSubtotal / $qtyBundle) : $itemSubtotal), 0, ',', '.') }}</span>
-                                            <span class="text-slate-400">•</span>
-                                            Qty :
-                                            <span class="font-semibold">{{ number_format($qtyBundle, 2, ',', '.') }}</span>
-                                            <span class="text-slate-400">•</span>
-                                            Satuan :
-                                            <span class="font-semibold">{{ $item->satuan ?? 'ls' }}</span>
-                                            @if (($item->markup ?? 1) != 1)
-                                                <span class="text-slate-400">•</span>
-                                                <span class="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                                                    ×{{ rtrim(rtrim(number_format((float)$item->markup, 2, '.', ''), '0'), '.') }}
-                                                </span>
-                                            @endif
-                                            <span class="text-slate-400">•</span>
-                                            Total:
-                                            <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
+                                        <span class="text-slate-400">•</span>
+                                        Total:
+                                        <span class="font-semibold">Rp {{ number_format((int) $itemSubtotal, 0, ',', '.') }}</span>
+                                    </div>
+                                    @if ($item->discount_enabled && $itemDiscAmount > 0)
+                                        <div class="mt-1 flex items-center gap-2 text-xs">
+                                            <span class="text-slate-400 line-through">Rp {{ number_format($itemRawSubtotal, 0, ',', '.') }}</span>
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                                Diskon
+                                                @if (($item->discount_type ?? 'percent') === 'percent')
+                                                    {{ number_format((float) $item->discount_value, 0, ',', '.') }}%
+                                                @else
+                                                    Rp {{ number_format((int) $item->discount_value, 0, ',', '.') }}
+                                                @endif
+                                                &minus; Rp {{ number_format($itemDiscAmount, 0, ',', '.') }}
+                                            </span>
                                         </div>
                                     @endif
                                 </div>
@@ -362,11 +338,9 @@
                                             placeholder="Judul{{ $item->tipe === 'bundle' ? ' Bundle' : ' Item' }}"
                                             class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-semibold focus:outline-none focus:ring-1 focus:ring-slate-400">
 
-                                        @if ($item->tipe === 'custom')
-                                            <input name="catatan" value="{{ $item->catatan }}"
-                                                placeholder="Catatan (opsional)"
-                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400">
-                                        @endif
+                                        <input name="catatan" value="{{ $item->catatan }}"
+                                            placeholder="Catatan (opsional)"
+                                            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400">
 
                                         <div class="flex gap-2">
                                             <div class="flex-1">
@@ -387,38 +361,35 @@
                                             </div>
                                         </div>
 
-                                        @if ($item->tipe === 'bundle')
-                                            {{-- Diskon Per Bundle --}}
-                                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 relative">
-                                                <input id="bundle_disc_{{ $item->id }}" type="checkbox"
-                                                    name="discount_enabled" value="1"
-                                                    class="peer absolute left-3 top-3.5 h-4 w-4 rounded border-slate-300 accent-slate-900"
-                                                    {{ $item->discount_enabled ? 'checked' : '' }}>
-                                                <div class="pl-7">
-                                                    <label for="bundle_disc_{{ $item->id }}"
-                                                        class="cursor-pointer text-xs font-semibold select-none">
-                                                        Aktifkan Diskon Bundle
-                                                    </label>
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 relative">
+                                            <input id="item_disc_{{ $item->id }}" type="checkbox"
+                                                name="discount_enabled" value="1"
+                                                class="peer absolute left-3 top-3.5 h-4 w-4 rounded border-slate-300 accent-slate-900"
+                                                {{ $item->discount_enabled ? 'checked' : '' }}>
+                                            <div class="pl-7">
+                                                <label for="item_disc_{{ $item->id }}"
+                                                    class="cursor-pointer text-xs font-semibold select-none">
+                                                    Aktifkan Diskon Item
+                                                </label>
+                                            </div>
+                                            <div class="mt-2 hidden peer-checked:flex gap-2 pl-2">
+                                                <div class="flex-1">
+                                                    <label class="block text-xs font-semibold mb-1">Tipe</label>
+                                                    <select name="discount_type"
+                                                        class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
+                                                        <option value="percent" {{ ($item->discount_type ?? 'percent') === 'percent' ? 'selected' : '' }}>%</option>
+                                                        <option value="fixed" {{ ($item->discount_type ?? '') === 'fixed' ? 'selected' : '' }}>Rp</option>
+                                                    </select>
                                                 </div>
-                                                <div class="mt-2 hidden peer-checked:flex gap-2 pl-2">
-                                                    <div class="flex-1">
-                                                        <label class="block text-xs font-semibold mb-1">Tipe</label>
-                                                        <select name="discount_type"
-                                                            class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
-                                                            <option value="percent" {{ ($item->discount_type ?? 'percent') === 'percent' ? 'selected' : '' }}>%</option>
-                                                            <option value="fixed" {{ ($item->discount_type ?? '') === 'fixed' ? 'selected' : '' }}>Rp</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="flex-1">
-                                                        <label class="block text-xs font-semibold mb-1">Nilai</label>
-                                                        <input name="discount_value"
-                                                            value="{{ $item->discount_value ?? 0 }}"
-                                                            inputmode="decimal"
-                                                            class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
-                                                    </div>
+                                                <div class="flex-1">
+                                                    <label class="block text-xs font-semibold mb-1">Nilai</label>
+                                                    <input name="discount_value"
+                                                        value="{{ $item->discount_value ?? 0 }}"
+                                                        inputmode="decimal"
+                                                        class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
                                                 </div>
                                             </div>
-                                        @endif
+                                        </div>
                                     </div>
 
                                     <div class="flex flex-col gap-1.5 shrink-0 pt-1">
