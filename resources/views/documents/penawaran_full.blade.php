@@ -96,6 +96,11 @@
         $valid = $penawaran->validity;
         $grand = $penawaran->calcItemsSubtotal();
         $discountAmount = $penawaran->calcDiscountAmount();
+        $discountType = $penawaran->discount_type ?? 'percent';
+        $discountValue = (float) ($penawaran->discount_value ?? 0);
+        $discountLabel = $discountType === 'percent'
+            ? rtrim(rtrim(number_format($discountValue, 2, ',', '.'), '0'), ',') . '%'
+            : 'Rp ' . number_format((int) round($discountValue), 0, ',', '.');
         $dpp = $penawaran->calcDppTotal();
         $taxAmount = $penawaran->calcTaxAmount();
         $grandTotal = $penawaran->calcGrandTotal();
@@ -306,7 +311,7 @@
                 @if ($penawaran->discount_enabled && $discountAmount > 0)
                     <tr>
                         <td colspan="4" style="text-align:right">
-                            <strong>Diskon ({{ $dv }} %)</strong>
+                            <strong>Diskon ({{ $discountLabel }})</strong>
                         </td>
                         <td class="right" style="white-space:nowrap">
                             <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
