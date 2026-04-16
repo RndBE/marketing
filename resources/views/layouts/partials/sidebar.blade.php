@@ -217,7 +217,7 @@
                     <span>Daftar Report</span>
                 </a>
 
-                @if(auth()->user()->isSuperadmin())
+                @if(auth()->user()->hasRole('superadmin'))
                     <a href="{{ route('lead-reports.create') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                             {{ request()->routeIs('lead-reports.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -388,7 +388,7 @@
             </div>
         @endif
 
-        @if(auth()->user()->hasPermission('manage-roles') && auth()->user()->isSuperadmin())
+        @if(auth()->user()->hasPermission('manage-roles') && auth()->user()->hasRole('superadmin'))
             <div class="mb-4">
                 <button @click="rbac = !rbac" :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
@@ -423,7 +423,7 @@
                         <span>User Roles</span>
                     </a>
 
-                    @if(auth()->user()->hasPermission('view-audit-logs') && auth()->user()->isSuperadmin())
+                    @if(auth()->user()->hasPermission('view-audit-logs') && auth()->user()->hasRole('superadmin'))
                         <a href="{{ route('audit-logs.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                             {{ request()->routeIs('audit-logs.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
