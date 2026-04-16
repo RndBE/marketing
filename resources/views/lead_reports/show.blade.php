@@ -21,7 +21,7 @@
                 Download .md
             </a>
 
-            @if(auth()->user()->isSuperadmin())
+            @if(auth()->user()->hasRole('superadmin'))
                 <form method="POST" action="{{ route('lead-reports.destroy', $leadReport) }}"
                       onsubmit="return confirm('Yakin ingin menghapus report ini?')">
                     @csrf @method('DELETE')
