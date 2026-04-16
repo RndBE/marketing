@@ -10,7 +10,7 @@
             <p class="text-sm text-slate-500 mt-1">Hasil scrapping lead yang telah diupload dalam format Markdown</p>
         </div>
 
-        @if(auth()->user()->hasRole('superadmin'))
+        @if(auth()->user()->hasRole('admin'))
             <a href="{{ route('lead-reports.create') }}"
                class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl
                       hover:bg-slate-800 transition-all duration-200 shadow-sm hover:shadow-md">
@@ -173,7 +173,7 @@
                     Report lead dari hasil scrapping akan muncul di sini setelah diupload.
                 @endif
             </p>
-            @if(auth()->user()->hasRole('superadmin') && !($q || $dateFrom || $dateTo))
+            @if(auth()->user()->hasRole('admin') && !($q || $dateFrom || $dateTo))
                 <a href="{{ route('lead-reports.create') }}"
                    class="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl
                           hover:bg-slate-800 transition-all duration-200">

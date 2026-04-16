@@ -12,7 +12,7 @@ class EnsureSuperadmin
     {
         $user = $request->user();
 
-        if (!$user || !$user->hasRole('superadmin')) {
+        if (!$user || !$user->hasRole('admin')) {
             abort(403, 'Superadmin access required.');
         }
 

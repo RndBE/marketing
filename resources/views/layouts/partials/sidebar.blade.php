@@ -217,7 +217,7 @@
                     <span>Daftar Report</span>
                 </a>
 
-                @if(auth()->user()->hasRole('superadmin'))
+                @if(auth()->user()->hasRole('admin'))
                     <a href="{{ route('lead-reports.create') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                             {{ request()->routeIs('lead-reports.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">

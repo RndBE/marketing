@@ -18,7 +18,7 @@ abstract class Controller
     {
         $user ??= $this->authUser();
 
-        return $user?->hasRole('superadmin') ?? false;
+        return $user?->hasRole('admin') ?? false;
     }
 
     protected function currentCompanyId(?User $user = null): ?int
