@@ -62,6 +62,10 @@ class LeadReportController extends Controller
      */
     public function create()
     {
+        if (!$this->isSuperadmin()) {
+            abort(403, 'Hanya admin yang dapat mengupload report.');
+        }
+
         return view('lead_reports.create');
     }
 
@@ -70,6 +74,10 @@ class LeadReportController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$this->isSuperadmin()) {
+            abort(403, 'Hanya admin yang dapat mengupload report.');
+        }
+
         $request->validate([
             'title'       => ['required', 'string', 'max:255'],
             'md_file'     => ['required', 'file', 'max:10240'], // max 10MB
@@ -109,6 +117,10 @@ class LeadReportController extends Controller
      */
     public function destroy(LeadReport $leadReport)
     {
+        if (!$this->isSuperadmin()) {
+            abort(403, 'Hanya admin yang dapat menghapus report.');
+        }
+
         // Delete the stored file
         $disk = \Illuminate\Support\Facades\Storage::disk('local');
         if ($disk->exists($leadReport->file_path)) {

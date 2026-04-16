@@ -367,15 +367,9 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::prefix('lead-reports')->name('lead-reports.')->group(function () {
         Route::get('/', [LeadReportController::class, 'index'])->name('index');
-
-        // Superadmin only: upload & delete
-        Route::middleware('superadmin')->group(function () {
-            Route::get('/upload/create', [LeadReportController::class, 'create'])->name('create');
-            Route::post('/', [LeadReportController::class, 'store'])->name('store');
-            Route::delete('/{leadReport}', [LeadReportController::class, 'destroy'])->name('destroy');
-        });
-
-        // These go AFTER static routes to avoid wildcard catching "upload"
+        Route::get('/upload/create', [LeadReportController::class, 'create'])->name('create');
+        Route::post('/', [LeadReportController::class, 'store'])->name('store');
+        Route::delete('/{leadReport}', [LeadReportController::class, 'destroy'])->name('destroy');
         Route::get('/{leadReport}', [LeadReportController::class, 'show'])->name('show');
         Route::get('/{leadReport}/download', [LeadReportController::class, 'download'])->name('download');
     });
