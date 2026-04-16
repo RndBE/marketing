@@ -17,6 +17,7 @@
         penawaran: {{ request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*') ? 'true' : 'false' }},
         usulan: {{ request()->routeIs('usulan.*') ? 'true' : 'false' }},
         prospect: {{ request()->routeIs('prospects.*') ? 'true' : 'false' }},
+        lead_report: {{ request()->routeIs('lead-reports.*') ? 'true' : 'false' }},
         pricelist: {{ request()->routeIs('price_list.*', 'komponen.*') ? 'true' : 'false' }},
         pic: {{ request()->routeIs('pics.*') ? 'true' : 'false' }},
         users: {{ request()->routeIs('users.*') ? 'true' : 'false' }},
@@ -192,6 +193,40 @@
             </div>
         @endif
 
+        {{-- Lead Reports --}}
+        <div class="mb-4">
+            <button @click="lead_report = !lead_report"
+                :class="lead_report ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                <span class="inline-flex items-center gap-2">
+                    <span class="inline-flex w-5 justify-center">
+                        <i class="ri-file-search-line text-[18px] leading-none"></i>
+                    </span>
+                    <span>Lead Reports</span>
+                </span>
+                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': lead_report }" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+
+            <div x-show="lead_report" x-collapse class="mt-1 space-y-1">
+                <a href="{{ route('lead-reports.index') }}"
+                    class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                        {{ request()->routeIs('lead-reports.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                    <span>Daftar Report</span>
+                </a>
+
+                @if(auth()->user()->isSuperadmin())
+                    <a href="{{ route('lead-reports.create') }}"
+                        class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                            {{ request()->routeIs('lead-reports.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                        <span>Upload Report</span>
+                    </a>
+                @endif
+            </div>
+        </div>
+
         {{-- Usulan Penawaran --}}
         @if(auth()->user()->hasPermission('view-usulan'))
             <div class="mb-4">
@@ -353,7 +388,7 @@
             </div>
         @endif
 
-        @if(auth()->user()->hasPermission('manage-roles'))
+        @if(auth()->user()->hasPermission('manage-roles') && auth()->user()->isSuperadmin())
             <div class="mb-4">
                 <button @click="rbac = !rbac" :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
@@ -388,7 +423,7 @@
                         <span>User Roles</span>
                     </a>
 
-                    @if(auth()->user()->hasPermission('view-audit-logs'))
+                    @if(auth()->user()->hasPermission('view-audit-logs') && auth()->user()->isSuperadmin())
                         <a href="{{ route('audit-logs.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                             {{ request()->routeIs('audit-logs.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">

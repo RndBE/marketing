@@ -20,6 +20,7 @@ use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\LaporanPerjalananMarketingController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\ProspectController;
+use App\Http\Controllers\LeadReportController;
 
 
 
@@ -237,13 +238,13 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
-        ->middleware('permission:view-audit-logs')
+        ->middleware(['permission:view-audit-logs', 'superadmin'])
         ->name('audit-logs.index');
 
     /*
     |---------------- RBAC ----------------------|
     */
-    Route::middleware('permission:manage-roles')->group(function () {
+    Route::middleware(['permission:manage-roles', 'superadmin'])->group(function () {
         Route::prefix('roles')->name('roles.')->group(function () {
             Route::get('/', [RoleController::class, 'index'])->name('index');
             Route::post('/', [RoleController::class, 'store'])->name('store');
@@ -359,6 +360,24 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{marketingReport}', [LaporanPerjalananMarketingController::class, 'destroy'])
             ->middleware('permission:delete-marketing-report')
             ->name('destroy');
+    });
+
+    /*
+    |---------------- LEAD REPORTS ----------------|
+    */
+    Route::prefix('lead-reports')->name('lead-reports.')->group(function () {
+        Route::get('/', [LeadReportController::class, 'index'])->name('index');
+
+        // Superadmin only: upload & delete
+        Route::middleware('superadmin')->group(function () {
+            Route::get('/upload/create', [LeadReportController::class, 'create'])->name('create');
+            Route::post('/', [LeadReportController::class, 'store'])->name('store');
+            Route::delete('/{leadReport}', [LeadReportController::class, 'destroy'])->name('destroy');
+        });
+
+        // These go AFTER static routes to avoid wildcard catching "upload"
+        Route::get('/{leadReport}', [LeadReportController::class, 'show'])->name('show');
+        Route::get('/{leadReport}/download', [LeadReportController::class, 'download'])->name('download');
     });
 
 });
