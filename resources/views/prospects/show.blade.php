@@ -269,6 +269,13 @@
                 <div class="text-sm font-medium">{{ $prospect->next_follow_up_at?->format('d M Y') ?? '-' }}</div>
             </div>
 
+            @include('partials.company_visibility_card', [
+                'ownerCompany' => $prospect->company,
+                'visibilityCompanies' => $visibilityCompanies,
+                'selectedSharedCompanyIds' => $prospect->sharedCompanies->pluck('id')->all(),
+                'action' => route('prospects.visibility.update', $prospect),
+            ])
+
             <div class="rounded-2xl border border-slate-200 bg-white p-4">
                 <div class="text-xs text-slate-500">Dibuat Oleh</div>
                 <div class="text-sm font-medium">{{ $prospect->creator?->name ?? '-' }}</div>

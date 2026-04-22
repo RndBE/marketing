@@ -274,15 +274,11 @@ class InvoiceController extends Controller
             ->get();
 
         $products = Product::query()
-            ->where('company_id', $invoice->company_id)
             ->where('is_active', true)
             ->orderBy('nama')
             ->get(['id', 'kode', 'nama']);
 
-        $pics = Pic::query()
-            ->where('company_id', $invoice->company_id)
-            ->orderBy('nama')
-            ->get();
+        $pics = Pic::query()->orderBy('nama')->get();
 
         return view('invoices.show', compact('invoice', 'signatureTemplates', 'termTemplates', 'products', 'pics'));
     }
@@ -311,9 +307,7 @@ class InvoiceController extends Controller
         ]);
 
         if (!empty($payload['pic_id'])) {
-            Pic::query()
-                ->where('company_id', $invoice->company_id)
-                ->findOrFail((int) $payload['pic_id']);
+            Pic::query()->findOrFail((int) $payload['pic_id']);
         }
 
         $invoice->update([
@@ -351,9 +345,7 @@ class InvoiceController extends Controller
             'qty' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
-        $product = Product::with('details')
-            ->where('company_id', $invoice->company_id)
-            ->findOrFail((int) $request->product_id);
+        $product = Product::with('details')->findOrFail((int) $request->product_id);
 
         $qty = (float) ($request->qty ?: 1);
 

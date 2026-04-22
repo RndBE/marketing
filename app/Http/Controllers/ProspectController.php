@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AlurPenawaran;
 use App\Models\Approval;
 use App\Models\ApprovalStep;
+use App\Models\Company;
 use App\Models\DocNumber;
 use App\Models\Penawaran;
 use App\Models\PenawaranCover;
@@ -188,8 +189,11 @@ class ProspectController extends Controller
         $user = $request->user();
         $canViewAllPenawaran = $user->hasPermission('view-all-penawaran');
         $canViewUsulan = $user->hasPermission('view-usulan');
+        $companyId = $this->currentCompanyId($user);
 
         $prospect->load([
+            'company',
+            'sharedCompanies',
             'pic',
             'assignedTo',
             'creator',
@@ -199,15 +203,35 @@ class ProspectController extends Controller
             'penawarans.docNumber',
             'penawarans.pic',
             'penawarans.approval',
+            'penawarans.sharedCompanies',
             'usulans.pic',
             'usulans.creator',
+            'usulans.sharedCompanies',
             'usulans.penawaran.docNumber',
         ]);
 
+        $prospect->setRelation(
+            'penawarans',
+            $prospect->penawarans->filter(fn($penawaran) => $penawaran->isVisibleToCompany($companyId))->values()
+        );
+
+        $prospect->setRelation(
+            'usulans',
+            $prospect->usulans->filter(fn($usulan) => $usulan->isVisibleToCompany($companyId))->values()
+        );
+
         $availablePenawarans = Penawaran::query()
             ->with(['docNumber', 'pic', 'prospect'])
-            ->where('company_id', $prospect->company_id)
-            ->when(!$canViewAllPenawaran && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
+            ->visibleToCompany($companyId)
+            ->when(!$canViewAllPenawaran && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
+                $query->where(function ($nested) use ($user, $companyId) {
+                    $nested->where('id_user', $user->id);
+
+                    if ($companyId) {
+                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                    }
+                });
+            })
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->get();
@@ -215,16 +239,19 @@ class ProspectController extends Controller
         $availableUsulans = $canViewUsulan
             ? UsulanPenawaran::query()
                 ->with(['pic', 'prospect', 'penawaran.docNumber'])
-                ->where('company_id', $prospect->company_id)
+                ->visibleToCompany($companyId)
                 ->orderByDesc('updated_at')
                 ->orderByDesc('id')
                 ->get()
             : collect();
 
+        $visibilityCompanies = Company::query()->orderBy('name')->get(['id', 'name', 'code']);
+
         return view('prospects.show', [
             'prospect' => $prospect,
             'statusOptions' => Prospect::statusOptions(),
             'outcomeOptions' => Prospect::outcomeOptions(),
+            'visibilityCompanies' => $visibilityCompanies,
             'attachPenawaranOptions' => $availablePenawarans->map(function ($penawaran) use ($prospect) {
                 $number = $penawaran->docNumber?->doc_no ?? ('Draft #' . $penawaran->id);
                 $label = $number . ' - ' . ($penawaran->judul ?: $penawaran->instansi_tujuan ?: 'Tanpa judul');
@@ -374,8 +401,18 @@ class ProspectController extends Controller
         ]);
 
         $penawaran = Penawaran::query()
-            ->where('company_id', $prospect->company_id)
-            ->when(!$canViewAllPenawaran && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
+            ->visibleToCompany($this->currentCompanyId($user))
+            ->when(!$canViewAllPenawaran && !$this->isSuperadmin($user), function ($query) use ($user) {
+                $companyId = $this->currentCompanyId($user);
+
+                $query->where(function ($nested) use ($user, $companyId) {
+                    $nested->where('id_user', $user->id);
+
+                    if ($companyId) {
+                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                    }
+                });
+            })
             ->findOrFail($payload['attach_penawaran_id']);
 
         DB::transaction(function () use ($prospect, $penawaran, $user) {
@@ -436,7 +473,7 @@ class ProspectController extends Controller
         ]);
 
         $usulan = UsulanPenawaran::with(['penawaran.docNumber'])
-            ->where('company_id', $prospect->company_id)
+            ->visibleToCompany($this->currentCompanyId($user))
             ->findOrFail($payload['attach_usulan_id']);
 
         DB::transaction(function () use ($prospect, $usulan, $user) {
@@ -578,7 +615,6 @@ class ProspectController extends Controller
     private function formData(?Prospect $prospect = null): array
     {
         $pics = Pic::query()
-            ->where('company_id', $prospect?->company_id ?? $this->currentCompanyId())
             ->orderBy('instansi')
             ->orderBy('nama')
             ->get([
@@ -641,11 +677,15 @@ class ProspectController extends Controller
 
         return Prospect::query()
             ->with(['pic', 'assignedTo', 'creator'])
-            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
-            ->when(!$canViewAll, function ($query) use ($user) {
-                $query->where(function ($nested) use ($user) {
+            ->visibleToCompany($companyId)
+            ->when(!$canViewAll, function ($query) use ($user, $companyId) {
+                $query->where(function ($nested) use ($user, $companyId) {
                     $nested->where('created_by', $user->id)
                         ->orWhere('assigned_to', $user->id);
+
+                    if ($companyId) {
+                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                    }
                 });
             })
             ->when($status !== '', fn($query) => $query->where('status', $status))
@@ -695,9 +735,7 @@ class ProspectController extends Controller
             return $payload;
         }
 
-        $pic = Pic::query()
-            ->where('company_id', $this->currentCompanyId())
-            ->find($picId);
+        $pic = Pic::query()->find($picId);
         if (!$pic) {
             return $payload;
         }
@@ -748,7 +786,11 @@ class ProspectController extends Controller
 
     private function ensureViewAccess($user, Prospect $prospect): void
     {
-        $this->ensureCompanyAccess($prospect, 'company_id', $user);
+        $companyId = $this->currentCompanyId($user);
+
+        if (!$this->isSuperadmin($user) && !$prospect->isVisibleToCompany($companyId)) {
+            abort(403);
+        }
 
         if ($this->isSuperadmin($user)) {
             return;
@@ -758,12 +800,37 @@ class ProspectController extends Controller
             return;
         }
 
+        if ($companyId && (int) $prospect->company_id !== (int) $companyId && $prospect->isVisibleToCompany($companyId)) {
+            return;
+        }
+
         $canAccess = (int) $prospect->created_by === (int) $user->id
             || (int) $prospect->assigned_to === (int) $user->id;
 
         if (!$canAccess) {
             abort(403);
         }
+    }
+
+    public function updateVisibility(Request $request, Prospect $prospect)
+    {
+        abort_unless($this->isSuperadmin($request->user()), 403);
+
+        $payload = $request->validate([
+            'company_ids' => ['nullable', 'array'],
+            'company_ids.*' => ['integer', 'exists:companies,id'],
+        ]);
+
+        $companyIds = collect($payload['company_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0 && $id !== (int) $prospect->company_id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $prospect->sharedCompanies()->sync($companyIds);
+
+        return back()->with('success', 'Visibility prospek diperbarui.');
     }
 
     private function ensureEditAccess($user, Prospect $prospect): void

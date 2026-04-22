@@ -129,6 +129,13 @@
 
     </div>
 
+    @include('partials.company_visibility_card', [
+        'ownerCompany' => $penawaran->company,
+        'visibilityCompanies' => $visibilityCompanies,
+        'selectedSharedCompanyIds' => $penawaran->sharedCompanies->pluck('id')->all(),
+        'action' => route('penawaran.visibility.update', $penawaran),
+    ])
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 space-y-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 relative">

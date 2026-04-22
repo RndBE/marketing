@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\UsulanPenawaran;
+use App\Models\Company;
 use App\Models\UsulanAttachment;
 use App\Models\UsulanItem;
 use App\Models\Pic;
@@ -33,7 +34,7 @@ class UsulanPenawaranController extends Controller
 
         $usulan = UsulanPenawaran::query()
             ->with(['pic', 'creator', 'penawaran', 'prospect'])
-            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->visibleToCompany($companyId)
             ->when($status, fn($q) => $q->where('status', $status))
             ->orderByDesc('id')
             ->paginate(15)
@@ -44,9 +45,8 @@ class UsulanPenawaranController extends Controller
 
     public function create()
     {
-        $pics = Pic::where('company_id', $this->currentCompanyId())->orderBy('instansi')->get();
+        $pics = Pic::query()->orderBy('instansi')->get();
         $products = Product::query()
-            ->where('company_id', $this->currentCompanyId())
             ->where('is_active', true)
             ->orderBy('nama')
             ->with('details')
@@ -98,7 +98,7 @@ class UsulanPenawaranController extends Controller
             $companyId = (int) $this->currentCompanyId($request->user());
 
             if (!empty($payload['pic_id'])) {
-                $this->ensureCompanyAccess(Pic::findOrFail($payload['pic_id']));
+                Pic::findOrFail($payload['pic_id']);
             }
 
             $usulan = UsulanPenawaran::create([
@@ -135,8 +135,32 @@ class UsulanPenawaranController extends Controller
     public function show(UsulanPenawaran $usulan)
     {
         $this->ensureUsulanViewAccess($usulan);
-        $usulan->load(['pic', 'creator', 'responder', 'attachments', 'items', 'penawaran.docNumber', 'prospect']);
-        return view('usulan.show', compact('usulan'));
+        $companyId = $this->currentCompanyId();
+        $usulan->load([
+            'pic',
+            'company',
+            'creator',
+            'responder',
+            'attachments',
+            'items',
+            'sharedCompanies',
+            'penawaran.docNumber',
+            'penawaran.sharedCompanies',
+            'prospect.sharedCompanies',
+            'prospect',
+        ]);
+
+        $visibilityCompanies = Company::query()->orderBy('name')->get(['id', 'name', 'code']);
+
+        $canViewLinkedProspect = $usulan->prospect
+            ? ($this->isSuperadmin() || $usulan->prospect->isVisibleToCompany($companyId))
+            : false;
+
+        $canViewLinkedPenawaran = $usulan->penawaran
+            ? ($this->isSuperadmin() || $usulan->penawaran->isVisibleToCompany($companyId))
+            : false;
+
+        return view('usulan.show', compact('usulan', 'visibilityCompanies', 'canViewLinkedProspect', 'canViewLinkedPenawaran'));
     }
 
     public function edit(UsulanPenawaran $usulan)
@@ -147,10 +171,9 @@ class UsulanPenawaranController extends Controller
             return redirect()->route('usulan.show', $usulan->id)->with('error', 'Usulan tidak bisa diedit');
         }
 
-        $pics = Pic::where('company_id', $usulan->company_id)->orderBy('instansi')->get();
+        $pics = Pic::query()->orderBy('instansi')->get();
         $usulan->load(['attachments', 'items']);
         $products = Product::query()
-            ->where('company_id', $usulan->company_id)
             ->where('is_active', true)
             ->orderBy('nama')
             ->with('details')
@@ -206,7 +229,7 @@ class UsulanPenawaranController extends Controller
 
         return DB::transaction(function () use ($payload, $request, $usulan) {
             if (!empty($payload['pic_id'])) {
-                $this->ensureCompanyAccess(Pic::findOrFail($payload['pic_id']));
+                Pic::findOrFail($payload['pic_id']);
             }
 
             $usulan->update([
@@ -346,9 +369,7 @@ class UsulanPenawaranController extends Controller
             $sub = (int) round($q * $h);
             $normalizedProductId = null;
             if (isset($productId[$i]) && is_numeric($productId[$i])) {
-                $candidate = Product::query()
-                    ->where('company_id', $usulan->company_id)
-                    ->find((int) $productId[$i]);
+                $candidate = Product::query()->find((int) $productId[$i]);
                 $normalizedProductId = $candidate?->id;
             }
 
@@ -703,13 +724,41 @@ class UsulanPenawaranController extends Controller
         return redirect()->route('usulan.index')->with('success', 'Usulan dihapus');
     }
 
+    public function updateVisibility(Request $request, UsulanPenawaran $usulan)
+    {
+        abort_unless($this->isSuperadmin($request->user()), 403);
+
+        $payload = $request->validate([
+            'company_ids' => ['nullable', 'array'],
+            'company_ids.*' => ['integer', 'exists:companies,id'],
+        ]);
+
+        $companyIds = collect($payload['company_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0 && $id !== (int) $usulan->company_id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $usulan->sharedCompanies()->sync($companyIds);
+
+        return back()->with('success', 'Visibility usulan diperbarui.');
+    }
+
     private function ensureUsulanViewAccess(UsulanPenawaran $usulan, $user = null): void
     {
         $user ??= auth()->user();
+        $companyId = $this->currentCompanyId($user);
 
-        $this->ensureCompanyAccess($usulan, 'company_id', $user);
+        if (!$this->isSuperadmin($user) && !$usulan->isVisibleToCompany($companyId)) {
+            abort(403);
+        }
 
         if ($this->isSuperadmin($user) || $user->hasRole('admin') || (int) $usulan->created_by === (int) $user->id) {
+            return;
+        }
+
+        if ($companyId && (int) $usulan->company_id !== (int) $companyId && $usulan->isVisibleToCompany($companyId)) {
             return;
         }
 

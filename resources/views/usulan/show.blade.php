@@ -22,6 +22,13 @@
             <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
         @endif
 
+        @include('partials.company_visibility_card', [
+            'ownerCompany' => $usulan->company,
+            'visibilityCompanies' => $visibilityCompanies,
+            'selectedSharedCompanyIds' => $usulan->sharedCompanies->pluck('id')->all(),
+            'action' => route('usulan.visibility.update', $usulan),
+        ])
+
         <div class="grid grid-cols-3 gap-4 mb-4">
             <div class="bg-white rounded-xl border border-slate-200 p-4">
                 <div class="text-xs text-slate-500">PIC/Klien</div>
@@ -45,10 +52,16 @@
                         <div class="text-sm font-medium text-slate-900 mt-1">{{ $usulan->prospect->display_title }}</div>
                         <div class="text-xs text-slate-500 mt-1">{{ $usulan->prospect->display_instansi }}</div>
                     </div>
-                    <a href="{{ route('prospects.show', $usulan->prospect) }}"
-                        class="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700">
-                        Lihat Prospek
-                    </a>
+                    @if ($canViewLinkedProspect)
+                        <a href="{{ route('prospects.show', $usulan->prospect) }}"
+                            class="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700">
+                            Lihat Prospek
+                        </a>
+                    @else
+                        <span class="rounded-xl bg-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500">
+                            Prospek tidak visible di company ini
+                        </span>
+                    @endif
                 </div>
             </div>
         @endif
@@ -131,8 +144,14 @@
                         <div class="text-xs font-semibold text-green-600">Penawaran Sudah Dibuat</div>
                         <div class="text-sm">{{ $usulan->penawaran?->nomor ?? 'Draft' }}</div>
                     </div>
-                    <a href="{{ route('penawaran.show', $usulan->penawaran_id) }}"
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Lihat Penawaran</a>
+                    @if ($canViewLinkedPenawaran)
+                        <a href="{{ route('penawaran.show', $usulan->penawaran_id) }}"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Lihat Penawaran</a>
+                    @else
+                        <span class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-500">
+                            Penawaran tidak visible di company ini
+                        </span>
+                    @endif
                 </div>
             </div>
         @endif

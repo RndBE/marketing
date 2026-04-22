@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use App\Models\Company;
 use App\Models\DocNumber;
 use App\Models\Penawaran;
 use App\Models\PenawaranAttachment;
@@ -59,8 +60,16 @@ class PenawaranController extends Controller
         $data = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->when($companyId, fn($query) => $query->where('penawaran.company_id', $companyId))
-            ->when(!$canViewAll && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
+            ->visibleToCompany($companyId)
+            ->when(!$canViewAll && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
+                $query->where(function ($nested) use ($user, $companyId) {
+                    $nested->where('id_user', $user->id);
+
+                    if ($companyId) {
+                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                    }
+                });
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -84,8 +93,16 @@ class PenawaranController extends Controller
 
         $approvedQuery = Penawaran::query()
             ->with(['approval', 'items.details'])
-            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
-            ->when(!$canViewAll && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
+            ->visibleToCompany($companyId)
+            ->when(!$canViewAll && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
+                $query->where(function ($nested) use ($user, $companyId) {
+                    $nested->where('id_user', $user->id);
+
+                    if ($companyId) {
+                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                    }
+                });
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -117,8 +134,16 @@ class PenawaranController extends Controller
         $goalQuery = $hasGoalColumn
             ? Penawaran::query()
                 ->with(['items.details'])
-                ->when($companyId, fn($query) => $query->where('company_id', $companyId))
-                ->when(!$canViewAll && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
+                ->visibleToCompany($companyId)
+                ->when(!$canViewAll && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
+                    $query->where(function ($nested) use ($user, $companyId) {
+                        $nested->where('id_user', $user->id);
+
+                        if ($companyId) {
+                            $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                        }
+                    });
+                })
                 ->when($q !== '', function ($query) use ($q) {
                     $tokens = array_filter(array_map('trim', explode(' ', $q)));
                     foreach ($tokens as $token) {
@@ -159,7 +184,7 @@ class PenawaranController extends Controller
 
     public function create()
     {
-        $pics = Pic::where('company_id', $this->currentCompanyId())
+        $pics = Pic::query()
             ->orderBy('nama')
             ->get(['id', 'nama', 'instansi']);
         return view('penawaran.create', compact('pics'));
@@ -179,7 +204,7 @@ class PenawaranController extends Controller
             $company = $this->currentCompany($user);
 
             if (!empty($payload['id_pic'])) {
-                $this->ensureCompanyAccess(Pic::findOrFail($payload['id_pic']));
+                Pic::findOrFail($payload['id_pic']);
             }
 
             $docNumber = $this->createDocNumber($companyId, $user->id);
@@ -321,19 +346,22 @@ class PenawaranController extends Controller
 
         $penawaran->load([
             'docNumber',
+            'company',
             'cover',
             'validity',
             'terms' => function ($q) {
                 $q->orderByRaw('COALESCE(parent_id, 0), urutan, id');
             },
             'signatures',
+            'sharedCompanies',
             'attachments',
             'items.details',
             'approval.steps'
         ]);
 
+        $visibilityCompanies = Company::query()->orderBy('name')->get(['id', 'name', 'code']);
+
         $products = Product::query()
-            ->where('company_id', $penawaran->company_id)
             ->where('is_active', true)
             ->orderBy('nama')
             ->get(['id', 'kode', 'nama']);
@@ -367,7 +395,8 @@ class PenawaranController extends Controller
             'approval',
             'stepAktif',
             'bolehApproveStep',
-            'm' // 🔥 KIRIM KE VIEW
+            'm',
+            'visibilityCompanies'
         ));
     }
 
@@ -376,7 +405,7 @@ class PenawaranController extends Controller
     {
         $this->ensurePenawaranEditAccess($penawaran);
         $penawaran->load(['cover', 'validity']);
-        $pics = Pic::where('company_id', $penawaran->company_id)->orderBy('nama')->get();
+        $pics = Pic::query()->orderBy('nama')->get();
         return view('penawaran.edit', compact('penawaran', 'pics'));
     }
 
@@ -391,7 +420,7 @@ class PenawaranController extends Controller
         ]);
 
         if (!empty($payload['id_pic'])) {
-            $this->ensureCompanyAccess(Pic::findOrFail($payload['id_pic']));
+            Pic::findOrFail($payload['id_pic']);
         }
 
         $penawaran->update([
@@ -736,9 +765,7 @@ class PenawaranController extends Controller
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);
-        $product = Product::with('details')
-            ->where('company_id', $penawaran->company_id)
-            ->findOrFail($request->product_id);
+        $product = Product::with('details')->findOrFail($request->product_id);
         $urutan = $this->nextItemOrder($penawaran->id);
 
         $item = PenawaranItem::create([
@@ -1518,10 +1545,17 @@ class PenawaranController extends Controller
     private function ensurePenawaranViewAccess(Penawaran $penawaran, $user = null): void
     {
         $user ??= auth()->user();
+        $companyId = $this->currentCompanyId($user);
 
-        $this->ensureCompanyAccess($penawaran, 'company_id', $user);
+        if (!$this->isSuperadmin($user) && !$penawaran->isVisibleToCompany($companyId)) {
+            abort(403);
+        }
 
         if ($this->isSuperadmin($user) || $user->hasRole('admin') || $user->hasPermission('view-all-penawaran')) {
+            return;
+        }
+
+        if ($companyId && (int) $penawaran->company_id !== (int) $companyId && $penawaran->isVisibleToCompany($companyId)) {
             return;
         }
 
@@ -1672,7 +1706,7 @@ class PenawaranController extends Controller
         $deleted = PenghapusanPenawaran::with(['penawaran', 'user', 'dibuat'])
             ->when(
                 !$this->isSuperadmin(),
-                fn($query) => $query->whereHas('penawaran', fn($penawaranQuery) => $penawaranQuery->where('company_id', $this->currentCompanyId()))
+                fn($query) => $query->whereHas('penawaran', fn($penawaranQuery) => $penawaranQuery->visibleToCompany($this->currentCompanyId()))
             )
             ->latest()
             ->paginate(15);
@@ -1763,8 +1797,16 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->when($companyId, fn($q2) => $q2->where('penawaran.company_id', $companyId))
-            ->when(!$canViewAll && !$this->isSuperadmin($user), fn($q2) => $q2->where('id_user', $user->id))
+            ->visibleToCompany($companyId)
+            ->when(!$canViewAll && !$this->isSuperadmin($user), function ($q2) use ($user, $companyId) {
+                $q2->where(function ($nested) use ($user, $companyId) {
+                    $nested->where('id_user', $user->id);
+
+                    if ($companyId) {
+                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                    }
+                });
+            })
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -1851,6 +1893,27 @@ class PenawaranController extends Controller
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    public function updateVisibility(Request $request, Penawaran $penawaran)
+    {
+        abort_unless($this->isSuperadmin($request->user()), 403);
+
+        $payload = $request->validate([
+            'company_ids' => ['nullable', 'array'],
+            'company_ids.*' => ['integer', 'exists:companies,id'],
+        ]);
+
+        $companyIds = collect($payload['company_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0 && $id !== (int) $penawaran->company_id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $penawaran->sharedCompanies()->sync($companyIds);
+
+        return back()->with('success', 'Visibility penawaran diperbarui.');
     }
 
     /**

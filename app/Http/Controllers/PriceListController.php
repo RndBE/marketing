@@ -20,7 +20,6 @@ class PriceListController extends Controller
             $perPage = 15;
 
         $data = Product::query()
-            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->withCount('details')
             ->withSum('details', 'subtotal')
             ->when($q !== '', function ($query) use ($q) {
@@ -52,7 +51,7 @@ class PriceListController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('products', 'kode')->where(fn($query) => $query->where('company_id', $companyId)),
+                Rule::unique('products', 'kode'),
             ],
             'nama' => ['required', 'string', 'max:255'],
             'satuan' => ['nullable', 'string', 'max:50'],
@@ -96,7 +95,6 @@ class PriceListController extends Controller
 
     public function show(Product $product)
     {
-        $this->ensureCompanyAccess($product);
         $product->load(['details' => fn($q) => $q->orderBy('urutan')]);
 
         $unitPrice = 0;
@@ -109,23 +107,18 @@ class PriceListController extends Controller
 
     public function edit(Product $product)
     {
-        $this->ensureCompanyAccess($product);
         $product->load(['details' => fn($q) => $q->orderBy('urutan')->orderBy('id')]);
         return view('price_list.edit', compact('product'));
     }
 
     public function update(Request $request, Product $product)
     {
-        $this->ensureCompanyAccess($product);
-
         $payload = $request->validate([
             'kode' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('products', 'kode')
-                    ->where(fn($query) => $query->where('company_id', $product->company_id))
-                    ->ignore($product->id),
+                Rule::unique('products', 'kode')->ignore($product->id),
             ],
             'nama' => ['required', 'string', 'max:255'],
             'satuan' => ['nullable', 'string', 'max:50'],
@@ -177,15 +170,12 @@ class PriceListController extends Controller
 
     public function destroy(Product $product)
     {
-        $this->ensureCompanyAccess($product);
         $product->delete();
         return redirect()->route('price_list.index');
     }
 
     public function addDetail(Request $request, Product $product)
     {
-        $this->ensureCompanyAccess($product);
-
         $payload = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
             'spesifikasi' => ['nullable', 'string'],
@@ -223,8 +213,6 @@ class PriceListController extends Controller
 
     public function updateDetail(Request $request, Product $product, ProductDetail $detail)
     {
-        $this->ensureCompanyAccess($product);
-
         if ((int) $detail->product_id !== (int) $product->id)
             abort(404);
 
@@ -258,8 +246,6 @@ class PriceListController extends Controller
 
     public function deleteDetail(Product $product, ProductDetail $detail)
     {
-        $this->ensureCompanyAccess($product);
-
         if ((int) $detail->product_id !== (int) $product->id)
             abort(404);
 
@@ -276,7 +262,6 @@ class PriceListController extends Controller
 
     public function duplicate(Product $product)
     {
-        $this->ensureCompanyAccess($product);
         $product->load('details');
 
         return DB::transaction(function () use ($product) {
@@ -319,7 +304,6 @@ class PriceListController extends Controller
 
     public function detailsPartial(Product $product)
     {
-        $this->ensureCompanyAccess($product);
         $product->load(['details' => fn($q) => $q->orderBy('urutan')->orderBy('id')]);
 
         $unitPrice = 0;
@@ -337,8 +321,6 @@ class PriceListController extends Controller
 
     public function reorderDetail(Request $request, Product $product)
     {
-        $this->ensureCompanyAccess($product);
-
         $payload = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer'],
@@ -404,9 +386,7 @@ class PriceListController extends Controller
             try {
                 $isActive = $this->parseCsvBoolean($data['is_active']);
                 if ($payload['kode']) {
-                        $existing = Product::where('company_id', $this->currentCompanyId($request->user()))
-                            ->where('kode', $payload['kode'])
-                            ->first();
+                    $existing = Product::where('kode', $payload['kode'])->first();
                     if ($existing) {
                         if ($isActive !== null) {
                             $payload['is_active'] = $isActive;

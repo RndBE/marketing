@@ -67,6 +67,9 @@ Route::middleware(['auth'])->group(function () {
         // View specific (setelah /create)
         Route::get('/{penawaran}', [PenawaranController::class, 'show'])->name('show');
         Route::get('/{penawaran}/pdf', [PenawaranController::class, 'downloadPdf'])->name('pdf');
+        Route::post('/{penawaran}/visibility', [PenawaranController::class, 'updateVisibility'])
+            ->middleware('superadmin')
+            ->name('visibility.update');
 
         // Edit (butuh permission)
         Route::middleware('permission:edit-penawaran')->group(function () {
@@ -118,6 +121,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{usulan}', [UsulanPenawaranController::class, 'show'])->name('show')->middleware('permission:view-usulan');
         Route::get('/{usulan}/edit', [UsulanPenawaranController::class, 'edit'])->name('edit')->middleware('permission:edit-usulan');
         Route::put('/{usulan}', [UsulanPenawaranController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
+        Route::post('/{usulan}/visibility', [UsulanPenawaranController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
         Route::post('/{usulan}/tanggapi', [UsulanPenawaranController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
         Route::post('/{usulan}/buat-penawaran', [UsulanPenawaranController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:respond-usulan');
         Route::delete('/{usulan}', [UsulanPenawaranController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
@@ -194,6 +198,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/create', [ProspectController::class, 'create'])->name('create')->middleware('permission:create-prospect');
         Route::post('/', [ProspectController::class, 'store'])->name('store')->middleware('permission:create-prospect');
         Route::get('/{prospect}', [ProspectController::class, 'show'])->name('show')->middleware('permission:view-prospect');
+        Route::post('/{prospect}/visibility', [ProspectController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
         Route::get('/{prospect}/edit', [ProspectController::class, 'edit'])->name('edit')->middleware('permission:edit-prospect');
         Route::put('/{prospect}', [ProspectController::class, 'update'])->name('update')->middleware('permission:edit-prospect');
         Route::post('/{prospect}/updates', [ProspectController::class, 'storeUpdate'])->name('updates.store')->middleware('permission:edit-prospect');
