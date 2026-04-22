@@ -175,16 +175,17 @@ class PenawaranController extends Controller
 
         return DB::transaction(function () use ($payload) {
             $user = auth()->user();
-            $company = $user->company;
+            $companyId = (int) $this->currentCompanyId($user);
+            $company = $this->currentCompany($user);
 
             if (!empty($payload['id_pic'])) {
                 $this->ensureCompanyAccess(Pic::findOrFail($payload['id_pic']));
             }
 
-            $docNumber = $this->createDocNumber($user->company_id, $user->id);
+            $docNumber = $this->createDocNumber($companyId, $user->id);
 
             $penawaran = Penawaran::create([
-                'company_id' => $user->company_id,
+                'company_id' => $companyId,
                 'id_pic' => $payload['id_pic'] ?? null,
                 'id_user' => $user->id,
                 'doc_number_id' => $docNumber->id,
@@ -215,7 +216,7 @@ class PenawaranController extends Controller
             ]);
 
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
-                ->where('company_id', $user->company_id)
+                ->where('company_id', $companyId)
                 ->where('status', 'aktif')
                 ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
                 ->first();
@@ -267,7 +268,7 @@ class PenawaranController extends Controller
             ]);
 
             $templates = PenawaranTermTemplate::query()
-                ->where('company_id', $user->company_id)
+                ->where('company_id', $companyId)
                 ->whereNull('parent_id')
                 ->orderBy('urutan')
                 ->orderBy('id')
@@ -1753,6 +1754,7 @@ class PenawaranController extends Controller
         $q        = trim((string) $request->query('q', ''));
         $user     = auth()->user();
         $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+        $companyId = $this->currentCompanyId($user);
 
         $currentYear = now()->year;
         $dateFrom = $request->query('date_from', "{$currentYear}-01-01");
@@ -1761,7 +1763,7 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->when(!$this->isSuperadmin($user), fn($q2) => $q2->where('penawaran.company_id', $user->company_id))
+            ->when($companyId, fn($q2) => $q2->where('penawaran.company_id', $companyId))
             ->when(!$canViewAll && !$this->isSuperadmin($user), fn($q2) => $q2->where('id_user', $user->id))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
