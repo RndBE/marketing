@@ -11,14 +11,21 @@ class AlurPenawaranController extends Controller
 {
     public function index()
     {
-        $data = AlurPenawaran::with('langkah')->get();
-        $users = User::orderBy('name')->get();
+        $companyId = $this->currentCompanyId();
+
+        $data = AlurPenawaran::with('langkah')
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->get();
+        $users = $this->companyUsersQuery()->orderBy('name')->get();
         return view('alurpenawaran.index', compact('data', 'users'));
     }
 
     public function store(Request $request)
     {
+        $companyId = $this->currentCompanyId();
+
         $alur = AlurPenawaran::create([
+            'company_id' => $companyId,
             'nama' => $request->nama,
             'berlaku_untuk' => $request->berlaku_untuk,
             'status' => $request->status,
@@ -28,11 +35,13 @@ class AlurPenawaranController extends Controller
         ]);
 
         foreach ($request->langkah as $i => $step) {
+            $user = $this->ensureUserBelongsToCompany($step['user_id'] ?? null, $companyId);
+
             LangkahAlurPenawaran::create([
                 'alur_penawaran_id' => $alur->id,
                 'no_langkah' => $i,
                 'nama_langkah' => $step['nama_langkah'],
-                'user_id' => $step['user_id'] ?? null,
+                'user_id' => $user?->id,
                 'harus_semua' => $step['harus_semua'] ?? 0,
                 'kondisi' => $step['kondisi'] ?? null,
                 'dibuat_pada' => now(),
@@ -46,6 +55,7 @@ class AlurPenawaranController extends Controller
     public function update(Request $request, $id)
     {
         $alur = AlurPenawaran::findOrFail($id);
+        $this->ensureCompanyAccess($alur);
 
         $alur->update([
             'nama' => $request->nama,
@@ -62,13 +72,15 @@ class AlurPenawaranController extends Controller
             ->delete();
 
         foreach ($steps as $i => $step) {
+            $user = $this->ensureUserBelongsToCompany($step['user_id'] ?? null, $alur->company_id);
+
             LangkahAlurPenawaran::updateOrCreate(
                 ['id' => $step['id'] ?? null],
                 [
                     'alur_penawaran_id' => $alur->id,
                     'no_langkah' => $i + 1,
                     'nama_langkah' => $step['nama_langkah'],
-                    'user_id' => $step['user_id'] ?? null,
+                    'user_id' => $user?->id,
                     'harus_semua' => $step['harus_semua'] ?? 0,
                     'diubah_pada' => now(),
                     'dibuat_pada' => now(),
@@ -81,7 +93,9 @@ class AlurPenawaranController extends Controller
 
     public function destroy($id)
     {
-        AlurPenawaran::findOrFail($id)->delete();
+        $alur = AlurPenawaran::findOrFail($id);
+        $this->ensureCompanyAccess($alur);
+        $alur->delete();
         return back();
     }
 }

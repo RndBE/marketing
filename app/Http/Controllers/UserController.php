@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
@@ -17,10 +18,13 @@ class UserController extends Controller
         $q = trim((string) $request->query('q', ''));
 
         $users = User::query()
-            ->with('roles')
+            ->with(['roles', 'company'])
+            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->when($q, function ($query) use ($q) {
-                $query->where('name', 'like', "%{$q}%")
-                    ->orWhere('email', 'like', "%{$q}%");
+                $query->where(function ($nested) use ($q) {
+                    $nested->where('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%");
+                });
             })
             ->orderBy('name')
             ->paginate(15)
@@ -29,27 +33,44 @@ class UserController extends Controller
         return view('users.index', compact('users', 'q'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $roles = Role::orderBy('name')->get();
-        return view('users.create', compact('roles'));
+        $roles = $this->availableRoles($request->user());
+        $companies = $this->availableCompanies($request->user());
+
+        return view('users.create', compact('roles', 'companies'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $actor = $request->user();
+
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id'],
             'ttd' => ['nullable', 'image', 'max:2048'],
+            'company_id' => ['nullable', 'exists:companies,id'],
         ]);
 
+        $companyId = $this->isSuperadmin($actor)
+            ? ((int) ($validated['company_id'] ?? 0) ?: null)
+            : $actor->company_id;
+
+        if (!$companyId) {
+            return back()->withInput()->withErrors(['company_id' => 'Perusahaan wajib dipilih.']);
+        }
+
+        $roleIds = collect($validated['roles'])->map(fn($id) => (int) $id)->all();
+        $this->validateAssignableRoles($roleIds, $actor);
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'company_id' => $companyId,
         ]);
 
         if ($request->hasFile('ttd')) {
@@ -58,7 +79,7 @@ class UserController extends Controller
             $user->save();
         }
 
-        $user->roles()->sync($request->roles);
+        $user->roles()->sync($roleIds);
 
         return redirect()->route('users.index')->with('success', 'User berhasil dibuat.');
     }
@@ -70,29 +91,45 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $roles = Role::orderBy('name')->get();
+        $this->ensureCompanyAccess($user);
+
+        $roles = $this->availableRoles(auth()->user());
         $userRoles = $user->roles->pluck('id')->toArray();
-        return view('users.edit', compact('user', 'roles', 'userRoles'));
+        $companies = $this->availableCompanies(auth()->user());
+
+        return view('users.edit', compact('user', 'roles', 'userRoles', 'companies'));
     }
 
     public function update(Request $request, User $user)
     {
-        $request->validate([
+        $this->ensureCompanyAccess($user);
+
+        $actor = $request->user();
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id'],
             'ttd' => ['nullable', 'image', 'max:2048'],
+            'company_id' => ['nullable', 'exists:companies,id'],
         ]);
+
+        $companyId = $this->isSuperadmin($actor)
+            ? ((int) ($validated['company_id'] ?? 0) ?: $user->company_id)
+            : $user->company_id;
+
+        $roleIds = collect($validated['roles'])->map(fn($id) => (int) $id)->all();
+        $this->validateAssignableRoles($roleIds, $actor);
 
         $user->fill([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'company_id' => $companyId,
         ]);
 
-        if ($request->filled('password')) {
-            $user->password = Hash::make($request->password);
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
         }
 
         if ($request->hasFile('ttd')) {
@@ -103,18 +140,65 @@ class UserController extends Controller
         }
 
         $user->save();
-        $user->roles()->sync($request->roles);
+        $user->roles()->sync($roleIds);
 
         return redirect()->route('users.index')->with('success', 'User berhasil diupdate.');
     }
 
     public function destroy(User $user)
     {
+        $this->ensureCompanyAccess($user);
+
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Tidak bisa menghapus akun sendiri.');
         }
 
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User berhasil dihapus.');
+    }
+
+    private function availableRoles(User $actor)
+    {
+        $excludedSlugs = $this->isSuperadmin($actor)
+            ? ['superadmin']
+            : ['admin', 'superadmin'];
+
+        return Role::query()
+            ->whereNotIn('slug', $excludedSlugs)
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function availableCompanies(User $actor)
+    {
+        return Company::query()
+            ->when(!$this->isSuperadmin($actor), fn($query) => $query->where('id', $actor->company_id))
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function validateAssignableRoles(array $roleIds, User $actor): void
+    {
+        $hasLegacySuperadminRole = Role::query()
+            ->whereIn('id', $roleIds)
+            ->where('slug', 'superadmin')
+            ->exists();
+
+        if ($hasLegacySuperadminRole) {
+            abort(403, 'Role superadmin tidak lagi dipakai. Gunakan role admin.');
+        }
+
+        if ($this->isSuperadmin($actor)) {
+            return;
+        }
+
+        $hasAdminRole = Role::query()
+            ->whereIn('id', $roleIds)
+            ->where('slug', 'admin')
+            ->exists();
+
+        if ($hasAdminRole) {
+            abort(403);
+        }
     }
 }

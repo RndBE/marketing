@@ -150,9 +150,15 @@ class ProspectController extends Controller
     {
         $payload = $request->validate($this->rules());
         $payload = $this->normalizePayload($payload);
+        $companyId = (int) $this->currentCompanyId($request->user());
         $payload['potensi_nilai'] = (int) ($payload['potensi_nilai'] ?? 0);
         $payload['created_by'] = $request->user()->id;
         $payload['updated_by'] = $request->user()->id;
+        $payload['company_id'] = $companyId;
+
+        if (!empty($payload['assigned_to'])) {
+            $this->ensureUserBelongsToCompany((int) $payload['assigned_to'], $companyId);
+        }
 
         $prospect = DB::transaction(function () use ($payload, $request) {
             $prospect = Prospect::create($payload);
@@ -200,7 +206,8 @@ class ProspectController extends Controller
 
         $availablePenawarans = Penawaran::query()
             ->with(['docNumber', 'pic', 'prospect'])
-            ->when(!$canViewAllPenawaran, fn($query) => $query->where('id_user', $user->id))
+            ->where('company_id', $prospect->company_id)
+            ->when(!$canViewAllPenawaran && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->get();
@@ -208,6 +215,7 @@ class ProspectController extends Controller
         $availableUsulans = $canViewUsulan
             ? UsulanPenawaran::query()
                 ->with(['pic', 'prospect', 'penawaran.docNumber'])
+                ->where('company_id', $prospect->company_id)
                 ->orderByDesc('updated_at')
                 ->orderByDesc('id')
                 ->get()
@@ -265,6 +273,10 @@ class ProspectController extends Controller
         $payload = $this->normalizePayload($payload);
         $payload['potensi_nilai'] = (int) ($payload['potensi_nilai'] ?? 0);
         $payload['updated_by'] = $request->user()->id;
+
+        if (!empty($payload['assigned_to'])) {
+            $this->ensureUserBelongsToCompany((int) $payload['assigned_to'], $prospect->company_id);
+        }
 
         $prospect->update($payload);
 
@@ -362,7 +374,8 @@ class ProspectController extends Controller
         ]);
 
         $penawaran = Penawaran::query()
-            ->when(!$canViewAllPenawaran, fn($query) => $query->where('id_user', $user->id))
+            ->where('company_id', $prospect->company_id)
+            ->when(!$canViewAllPenawaran && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
             ->findOrFail($payload['attach_penawaran_id']);
 
         DB::transaction(function () use ($prospect, $penawaran, $user) {
@@ -422,7 +435,9 @@ class ProspectController extends Controller
             'attach_usulan_id' => ['required', 'exists:usulan_penawaran,id'],
         ]);
 
-        $usulan = UsulanPenawaran::with(['penawaran.docNumber'])->findOrFail($payload['attach_usulan_id']);
+        $usulan = UsulanPenawaran::with(['penawaran.docNumber'])
+            ->where('company_id', $prospect->company_id)
+            ->findOrFail($payload['attach_usulan_id']);
 
         DB::transaction(function () use ($prospect, $usulan, $user) {
             $oldProspectId = $usulan->prospect_id;
@@ -562,7 +577,11 @@ class ProspectController extends Controller
 
     private function formData(?Prospect $prospect = null): array
     {
-        $pics = Pic::orderBy('instansi')->orderBy('nama')->get([
+        $pics = Pic::query()
+            ->where('company_id', $prospect?->company_id ?? $this->currentCompanyId())
+            ->orderBy('instansi')
+            ->orderBy('nama')
+            ->get([
             'id',
             'honorific',
             'nama',
@@ -571,7 +590,9 @@ class ProspectController extends Controller
             'email',
             'no_hp',
         ]);
-        $users = User::orderBy('name')->get(['id', 'name']);
+        $users = $this->companyUsersQuery($prospect?->company_id ?? $this->currentCompanyId())
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return [
             'prospect' => $prospect,
@@ -616,9 +637,11 @@ class ProspectController extends Controller
         $status = trim((string) $request->query('status', ''));
         $user = $request->user();
         $canViewAll = $user->hasPermission('view-all-prospect');
+        $companyId = $this->currentCompanyId($user);
 
         return Prospect::query()
             ->with(['pic', 'assignedTo', 'creator'])
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->when(!$canViewAll, function ($query) use ($user) {
                 $query->where(function ($nested) use ($user) {
                     $nested->where('created_by', $user->id)
@@ -672,7 +695,9 @@ class ProspectController extends Controller
             return $payload;
         }
 
-        $pic = Pic::find($picId);
+        $pic = Pic::query()
+            ->where('company_id', $this->currentCompanyId())
+            ->find($picId);
         if (!$pic) {
             return $payload;
         }
@@ -723,6 +748,12 @@ class ProspectController extends Controller
 
     private function ensureViewAccess($user, Prospect $prospect): void
     {
+        $this->ensureCompanyAccess($prospect, 'company_id', $user);
+
+        if ($this->isSuperadmin($user)) {
+            return;
+        }
+
         if ($user->hasPermission('view-all-prospect')) {
             return;
         }
@@ -737,6 +768,12 @@ class ProspectController extends Controller
 
     private function ensureEditAccess($user, Prospect $prospect): void
     {
+        $this->ensureCompanyAccess($prospect, 'company_id', $user);
+
+        if ($this->isSuperadmin($user)) {
+            return;
+        }
+
         if ($user->hasPermission('view-all-prospect')) {
             return;
         }
@@ -751,7 +788,9 @@ class ProspectController extends Controller
 
     private function createPenawaranFromProspect(Prospect $prospect): Penawaran
     {
-        $docNumber = $this->createDocNumber();
+        $owner = $this->resolveCompanyUser((int) $prospect->company_id, (int) $prospect->created_by);
+        $company = $owner->company;
+        $docNumber = $this->createDocNumber((int) $prospect->company_id, (int) $owner->id);
 
         $judul = trim(implode(' - ', array_filter([
             $prospect->judul,
@@ -760,8 +799,9 @@ class ProspectController extends Controller
         ])));
 
         $penawaran = Penawaran::create([
+            'company_id' => $prospect->company_id,
             'id_pic' => $prospect->pic_id,
-            'id_user' => auth()->id(),
+            'id_user' => $owner->id,
             'prospect_id' => $prospect->id,
             'doc_number_id' => $docNumber->id,
             'approval_id' => null,
@@ -776,7 +816,11 @@ class ProspectController extends Controller
             'penawaran_id' => $penawaran->id,
             'judul_cover' => 'Dokumen Penawaran',
             'subjudul' => $penawaran->judul,
-            'perusahaan_nama' => config('app.name', 'CV Arta Solusindo'),
+            'perusahaan_nama' => $company?->name ?? 'CV. ARTA SOLUSINDO',
+            'perusahaan_alamat' => $company?->address,
+            'perusahaan_email' => $company?->email,
+            'perusahaan_telp' => $company?->phone,
+            'logo_path' => $company?->logo_path,
         ]);
 
         PenawaranValidity::create([
@@ -788,6 +832,7 @@ class ProspectController extends Controller
         ]);
 
         $templates = PenawaranTermTemplate::query()
+            ->where('company_id', $prospect->company_id)
             ->whereNull('parent_id')
             ->orderBy('urutan')
             ->orderBy('id')
@@ -799,6 +844,7 @@ class ProspectController extends Controller
         }
 
         $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
+            ->where('company_id', $prospect->company_id)
             ->where('status', 'aktif')
             ->with(['langkah' => fn($query) => $query->orderBy('no_langkah')])
             ->first();
@@ -835,17 +881,16 @@ class ProspectController extends Controller
             ]);
         }
 
-        $user = auth()->user();
-        $roleNames = $user->roles->pluck('name')->implode(', ');
+        $roleNames = $owner->roles->pluck('name')->implode(', ');
 
         PenawaranSignature::create([
             'penawaran_id' => $penawaran->id,
             'urutan' => 1,
-            'nama' => $user->name,
+            'nama' => $owner->name,
             'jabatan' => $roleNames ?: 'Staff',
             'kota' => 'Sleman',
             'tanggal' => now()->toDateString(),
-            'ttd_path' => $user->ttd,
+            'ttd_path' => $owner->ttd,
         ]);
 
         return $penawaran;
@@ -866,12 +911,16 @@ class ProspectController extends Controller
         }
     }
 
-    private function createDocNumber(): DocNumber
+    private function createDocNumber(?int $companyId = null, ?int $userId = null): DocNumber
     {
-        return DB::transaction(function () {
+        return DB::transaction(function () use ($companyId, $userId) {
             $now = now();
             $month = $now->month;
             $year = $now->year;
+            $companyId = $companyId ?: $this->currentCompanyId();
+            $company = \App\Models\Company::find($companyId);
+            $companyCode = strtoupper((string) ($company?->code ?: 'COMP'));
+            $userId = $userId ?: auth()->id();
 
             $romawi = [
                 1 => 'I',
@@ -888,14 +937,15 @@ class ProspectController extends Controller
                 12 => 'XII',
             ];
 
-            $last = DocNumber::orderByDesc('seq')->first();
+            $last = DocNumber::where('company_id', $companyId)->orderByDesc('seq')->first();
             $seq = $last ? $last->seq + 1 : 1;
 
-            $userCode = 'SPH' . str_pad((string) auth()->id(), 2, '0', STR_PAD_LEFT);
+            $userCode = 'SPH' . str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
             $docNo = str_pad((string) $seq, 3, '0', STR_PAD_LEFT)
-                . "/{$userCode}/AS/{$romawi[$month]}/{$year}";
+                . "/{$userCode}/{$companyCode}/{$romawi[$month]}/{$year}";
 
             return DocNumber::create([
+                'company_id' => $companyId,
                 'prefix' => $userCode,
                 'seq' => $seq,
                 'month' => $month,

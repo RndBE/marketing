@@ -29,6 +29,21 @@
                     @enderror
                 </div>
 
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Perusahaan</label>
+                    <select name="company_id" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" required>
+                        <option value="">Pilih perusahaan</option>
+                        @foreach ($companies as $company)
+                            <option value="{{ $company->id }}" {{ (string) old('company_id', $layoutActiveCompanyId ?? auth()->user()->company_id) === (string) $company->id ? 'selected' : '' }}>
+                                {{ $company->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('company_id')
+                        <div class="text-red-500 text-xs mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold mb-1">Password</label>

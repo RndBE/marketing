@@ -15,24 +15,31 @@ class ApprovalController extends Controller
     public function submitPenawaran($penawaranId)
     {
         $penawaran = Penawaran::findOrFail($penawaranId);
-        $alur = AlurPenawaran::where('is_active', true)->with('langkah')->first();
+        $this->ensureCompanyAccess($penawaran);
+
+        $alur = AlurPenawaran::query()
+            ->where('company_id', $penawaran->company_id)
+            ->where('berlaku_untuk', 'penawaran')
+            ->where('status', 'aktif')
+            ->with(['langkah' => fn($query) => $query->orderBy('no_langkah')])
+            ->firstOrFail();
+
+        $firstStep = $alur->langkah->first()?->no_langkah ?? 1;
 
         $approval = Approval::create([
             'module' => 'penawaran',
             'ref_id' => $penawaran->id,
             'status' => 'menunggu',
-            'current_step' => 1
+            'current_step' => $firstStep
         ]);
 
-        foreach ($alur->langkah->sortBy('urutan') as $step) {
+        foreach ($alur->langkah as $step) {
             ApprovalStep::create([
                 'approval_id' => $approval->id,
-                'step_order' => $step->urutan,
+                'step_order' => $step->no_langkah,
                 'step_name' => $step->nama_langkah,
-
-                // disesuaikan saja untuk kedepannya
                 'akses_approve' => [
-                    'user_id' => $step->user_id ?? null,
+                    'user_id' => $step->user_id ? (int) $step->user_id : null,
                 ],
             ]);
         }
@@ -125,6 +132,10 @@ class ApprovalController extends Controller
         ]);
 
         $approval = Approval::with('steps')->findOrFail($request->approval_id);
+        $penawaran = $this->resolveApprovalPenawaran($approval);
+        if ($penawaran) {
+            $this->ensureCompanyAccess($penawaran);
+        }
 
         $stepAktif = $approval->steps()
             ->where('step_order', $approval->current_step)
@@ -134,8 +145,10 @@ class ApprovalController extends Controller
             return back()->with('error', 'Langkah approval tidak valid.');
         }
 
-        // 🔒 Cek hak akses (kalau pakai user_id per step)
-        if ($stepAktif->user_id && auth()->id() != $stepAktif->user_id) {
+        $akses = $stepAktif->akses_approve ?? [];
+        $allowedUserId = (int) ($akses['user_id'] ?? 0);
+
+        if ($allowedUserId && auth()->id() !== $allowedUserId && !$this->isSuperadmin()) {
             return back()->with('error', 'Anda tidak berhak memproses langkah ini.');
         }
 
@@ -252,5 +265,18 @@ class ApprovalController extends Controller
                 $penawaran->update(['status' => $status]);
             }
         }
+    }
+
+    private function resolveApprovalPenawaran(Approval $approval): ?Penawaran
+    {
+        if (!$approval->ref_id) {
+            return null;
+        }
+
+        if (in_array($approval->module, ['penawaran', 'penghapusan'], true)) {
+            return Penawaran::find($approval->ref_id);
+        }
+
+        return null;
     }
 }

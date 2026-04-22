@@ -27,9 +27,11 @@ class AuditLogController extends Controller
         $statusCode = $filters['status_code'] ?? null;
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
+        $companyId = $this->currentCompanyId($request->user());
 
         $logs = AuditLog::query()
             ->with('user:id,name,email')
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('action', 'like', "%{$q}%")
@@ -53,6 +55,7 @@ class AuditLogController extends Controller
             ->withQueryString();
 
         $users = User::query()
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->whereIn('id', AuditLog::query()->whereNotNull('user_id')->distinct()->pluck('user_id'))
             ->orderBy('name')
             ->get(['id', 'name', 'email']);

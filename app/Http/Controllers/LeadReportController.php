@@ -22,10 +22,11 @@ class LeadReportController extends Controller
         $q        = trim((string) ($filters['q'] ?? ''));
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo   = $filters['date_to'] ?? null;
+        $companyId = $this->currentCompanyId();
 
         $reports = LeadReport::query()
             ->with('uploader:id,name')
-            ->when(!$this->isSuperadmin(), fn($query) => $query->where('company_id', $this->currentCompanyId()))
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('title', 'like', "%{$q}%")

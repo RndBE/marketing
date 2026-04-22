@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Prospect extends Model
 {
     protected $fillable = [
+        'company_id',
         'tanggal_lead',
         'judul',
         'instansi',
@@ -85,6 +86,11 @@ class Prospect extends Model
     public function pic(): BelongsTo
     {
         return $this->belongsTo(Pic::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function assignedTo(): BelongsTo

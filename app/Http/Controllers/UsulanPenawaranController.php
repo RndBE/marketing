@@ -29,9 +29,11 @@ class UsulanPenawaranController extends Controller
     public function index(Request $request)
     {
         $status = $request->query('status', '');
+        $companyId = $this->currentCompanyId($request->user());
 
         $usulan = UsulanPenawaran::query()
             ->with(['pic', 'creator', 'penawaran', 'prospect'])
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->when($status, fn($q) => $q->where('status', $status))
             ->orderByDesc('id')
             ->paginate(15)
@@ -42,8 +44,9 @@ class UsulanPenawaranController extends Controller
 
     public function create()
     {
-        $pics = Pic::orderBy('instansi')->get();
+        $pics = Pic::where('company_id', $this->currentCompanyId())->orderBy('instansi')->get();
         $products = Product::query()
+            ->where('company_id', $this->currentCompanyId())
             ->where('is_active', true)
             ->orderBy('nama')
             ->with('details')
@@ -92,7 +95,14 @@ class UsulanPenawaranController extends Controller
         ]);
 
         return DB::transaction(function () use ($payload, $request) {
+            $companyId = (int) $this->currentCompanyId($request->user());
+
+            if (!empty($payload['pic_id'])) {
+                $this->ensureCompanyAccess(Pic::findOrFail($payload['pic_id']));
+            }
+
             $usulan = UsulanPenawaran::create([
+                'company_id' => $companyId,
                 'judul' => $payload['judul'],
                 'pic_id' => $payload['pic_id'] ?? null,
                 'deskripsi' => $payload['deskripsi'] ?? null,
@@ -124,23 +134,23 @@ class UsulanPenawaranController extends Controller
 
     public function show(UsulanPenawaran $usulan)
     {
+        $this->ensureUsulanViewAccess($usulan);
         $usulan->load(['pic', 'creator', 'responder', 'attachments', 'items', 'penawaran.docNumber', 'prospect']);
         return view('usulan.show', compact('usulan'));
     }
 
     public function edit(UsulanPenawaran $usulan)
     {
-        $user = auth()->user();
-        $isOwnerOrAdmin = (int) $usulan->created_by === (int) $user->id
-            || $user->roles->contains('slug', 'admin');
+        $this->ensureUsulanEditAccess($usulan);
 
-        if (!in_array($usulan->status, ['draft', 'menunggu']) || !$isOwnerOrAdmin) {
+        if (!in_array($usulan->status, ['draft', 'menunggu'])) {
             return redirect()->route('usulan.show', $usulan->id)->with('error', 'Usulan tidak bisa diedit');
         }
 
-        $pics = Pic::orderBy('instansi')->get();
+        $pics = Pic::where('company_id', $usulan->company_id)->orderBy('instansi')->get();
         $usulan->load(['attachments', 'items']);
         $products = Product::query()
+            ->where('company_id', $usulan->company_id)
             ->where('is_active', true)
             ->orderBy('nama')
             ->with('details')
@@ -170,11 +180,9 @@ class UsulanPenawaranController extends Controller
 
     public function update(Request $request, UsulanPenawaran $usulan)
     {
-        $user = auth()->user();
-        $isOwnerOrAdmin = (int) $usulan->created_by === (int) $user->id
-            || $user->roles->contains('slug', 'admin');
+        $this->ensureUsulanEditAccess($usulan);
 
-        if (!in_array($usulan->status, ['draft', 'menunggu']) || !$isOwnerOrAdmin) {
+        if (!in_array($usulan->status, ['draft', 'menunggu'])) {
             return redirect()->route('usulan.show', $usulan->id)->with('error', 'Usulan tidak bisa diedit');
         }
 
@@ -197,6 +205,10 @@ class UsulanPenawaranController extends Controller
         ]);
 
         return DB::transaction(function () use ($payload, $request, $usulan) {
+            if (!empty($payload['pic_id'])) {
+                $this->ensureCompanyAccess(Pic::findOrFail($payload['pic_id']));
+            }
+
             $usulan->update([
                 'judul' => $payload['judul'],
                 'pic_id' => $payload['pic_id'] ?? null,
@@ -228,6 +240,8 @@ class UsulanPenawaranController extends Controller
 
     public function tanggapi(Request $request, UsulanPenawaran $usulan)
     {
+        $this->ensureUsulanViewAccess($usulan);
+
         $payload = $request->validate([
             'tanggapan' => 'required|string',
             'status' => 'required|in:ditanggapi,disetujui,ditolak',
@@ -274,6 +288,8 @@ class UsulanPenawaranController extends Controller
 
     public function buatPenawaran(Request $request, UsulanPenawaran $usulan)
     {
+        $this->ensureUsulanViewAccess($usulan);
+
         if ($usulan->penawaran_id) {
             return redirect()->route('penawaran.show', $usulan->penawaran_id);
         }
@@ -328,11 +344,22 @@ class UsulanPenawaranController extends Controller
             }
 
             $sub = (int) round($q * $h);
+            $normalizedProductId = null;
+            if (isset($productId[$i]) && is_numeric($productId[$i])) {
+                $candidate = Product::query()
+                    ->where('company_id', $usulan->company_id)
+                    ->find((int) $productId[$i]);
+                $normalizedProductId = $candidate?->id;
+            }
+
+            $resolvedType = ($tipe[$i] ?? 'custom') === 'bundle' && $normalizedProductId
+                ? 'bundle'
+                : 'custom';
 
             UsulanItem::create([
                 'usulan_id' => $usulan->id,
-                'product_id' => isset($productId[$i]) && is_numeric($productId[$i]) ? (int) $productId[$i] : null,
-                'tipe' => ($tipe[$i] ?? 'custom') === 'bundle' ? 'bundle' : 'custom',
+                'product_id' => $normalizedProductId,
+                'tipe' => $resolvedType,
                 'urutan' => $order++,
                 'judul' => $name,
                 'catatan' => $catatan[$i] ?? null,
@@ -350,11 +377,14 @@ class UsulanPenawaranController extends Controller
             return Penawaran::findOrFail($usulan->penawaran_id);
         }
 
-        $docNumber = $this->createDocNumber();
+        $owner = $this->resolveCompanyUser((int) $usulan->company_id, (int) $usulan->created_by);
+        $company = $owner->company;
+        $docNumber = $this->createDocNumber((int) $usulan->company_id, (int) $owner->id);
 
         $penawaran = Penawaran::create([
+            'company_id' => $usulan->company_id,
             'id_pic' => $usulan->pic_id,
-            'id_user' => auth()->id(),
+            'id_user' => $owner->id,
             'prospect_id' => $usulan->prospect_id,
             'doc_number_id' => $docNumber->id,
             'approval_id' => null,
@@ -370,7 +400,11 @@ class UsulanPenawaranController extends Controller
             'penawaran_id' => $penawaran->id,
             'judul_cover' => 'Dokumen Penawaran',
             'subjudul' => $penawaran->judul,
-            'perusahaan_nama' => config('app.name', 'CV Arta Solusindo'),
+            'perusahaan_nama' => $company?->name ?? 'CV. ARTA SOLUSINDO',
+            'perusahaan_alamat' => $company?->address,
+            'perusahaan_email' => $company?->email,
+            'perusahaan_telp' => $company?->phone,
+            'logo_path' => $company?->logo_path,
         ]);
 
         PenawaranValidity::create([
@@ -382,6 +416,7 @@ class UsulanPenawaranController extends Controller
         ]);
 
         $templates = PenawaranTermTemplate::query()
+            ->where('company_id', $usulan->company_id)
             ->whereNull('parent_id')
             ->orderBy('urutan')
             ->orderBy('id')
@@ -393,6 +428,7 @@ class UsulanPenawaranController extends Controller
         }
 
         $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
+            ->where('company_id', $usulan->company_id)
             ->where('status', 'aktif')
             ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
             ->first();
@@ -432,17 +468,16 @@ class UsulanPenawaranController extends Controller
             $this->copyUsulanItemsToPenawaran($usulan, $penawaran);
         }
 
-        $user = auth()->user();
-        $roleNames = $user->roles->pluck('name')->implode(', ');
+        $roleNames = $owner->roles->pluck('name')->implode(', ');
 
         PenawaranSignature::create([
             'penawaran_id' => $penawaran->id,
             'urutan' => 1,
-            'nama' => $user->name,
+            'nama' => $owner->name,
             'jabatan' => $roleNames ?: 'Staff',
             'kota' => 'Sleman',
             'tanggal' => now()->toDateString(),
-            'ttd_path' => $user->ttd,
+            'ttd_path' => $owner->ttd,
         ]);
 
         $update = [
@@ -458,7 +493,7 @@ class UsulanPenawaranController extends Controller
         }
 
         if (!$usulan->ditanggapi_oleh) {
-            $update['ditanggapi_oleh'] = auth()->id();
+            $update['ditanggapi_oleh'] = $owner->id;
         }
 
         $usulan->update($update);
@@ -478,7 +513,9 @@ class UsulanPenawaranController extends Controller
             }
 
             if ($item->tipe === 'bundle' && $item->product_id) {
-                $product = Product::with('details')->find($item->product_id);
+                    $product = Product::with('details')
+                        ->where('company_id', $penawaran->company_id)
+                        ->find($item->product_id);
                 if ($product && $product->details->count()) {
                     $pItem = PenawaranItem::create([
                         'penawaran_id' => $penawaran->id,
@@ -575,11 +612,15 @@ class UsulanPenawaranController extends Controller
         return (int) round($unit * $qtyBundle);
     }
 
-    private function createDocNumber(): DocNumber
+    private function createDocNumber(?int $companyId = null, ?int $userId = null): DocNumber
     {
         $now = Carbon::now();
         $month = $now->month;
         $year = $now->year;
+        $companyId = $companyId ?: $this->currentCompanyId();
+        $company = \App\Models\Company::find($companyId);
+        $companyCode = strtoupper((string) ($company?->code ?: 'COMP'));
+        $userId = $userId ?: auth()->id();
 
         $romawi = [
             1 => 'I',
@@ -596,13 +637,14 @@ class UsulanPenawaranController extends Controller
             12 => 'XII'
         ];
 
-        $last = DocNumber::orderByDesc('seq')->first();
+        $last = DocNumber::where('company_id', $companyId)->orderByDesc('seq')->first();
         $seq = $last ? $last->seq + 1 : 1;
 
-        $userCode = 'SPH' . str_pad(auth()->id(), 2, '0', STR_PAD_LEFT);
-        $docNo = str_pad($seq, 3, '0', STR_PAD_LEFT) . "/{$userCode}/AS/{$romawi[$month]}/{$year}";
+        $userCode = 'SPH' . str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
+        $docNo = str_pad($seq, 3, '0', STR_PAD_LEFT) . "/{$userCode}/{$companyCode}/{$romawi[$month]}/{$year}";
 
         return DocNumber::create([
+            'company_id' => $companyId,
             'prefix' => $userCode,
             'seq' => $seq,
             'month' => $month,
@@ -631,6 +673,7 @@ class UsulanPenawaranController extends Controller
     public function deleteAttachment(UsulanAttachment $attachment)
     {
         $usulan = $attachment->usulan;
+        $this->ensureUsulanEditAccess($usulan);
 
         if ($usulan->status !== 'draft') {
             return back()->with('error', 'Tidak bisa hapus attachment');
@@ -644,6 +687,8 @@ class UsulanPenawaranController extends Controller
 
     public function destroy(UsulanPenawaran $usulan)
     {
+        $this->ensureUsulanEditAccess($usulan);
+
         if (!in_array($usulan->status, ['draft', 'ditolak'])) {
             return back()->with('error', 'Usulan tidak bisa dihapus');
         }
@@ -656,5 +701,31 @@ class UsulanPenawaranController extends Controller
         $usulan->delete();
 
         return redirect()->route('usulan.index')->with('success', 'Usulan dihapus');
+    }
+
+    private function ensureUsulanViewAccess(UsulanPenawaran $usulan, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($usulan, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin') || (int) $usulan->created_by === (int) $user->id) {
+            return;
+        }
+
+        abort(403);
+    }
+
+    private function ensureUsulanEditAccess(UsulanPenawaran $usulan, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($usulan, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin') || (int) $usulan->created_by === (int) $user->id) {
+            return;
+        }
+
+        abort(403);
     }
 }

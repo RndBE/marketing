@@ -2,7 +2,7 @@
 
 @section('content')
     @php
-        $canEdit = auth()->user()->roles->contains('slug', 'admin') || $invoice->user_id === auth()->id();
+        $canEdit = auth()->user()->hasRole('admin') || $invoice->user_id === auth()->id();
     @endphp
     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-5">
         <div>
@@ -35,19 +35,21 @@
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
                 Download PDF
             </a>
-            <a href="{{ route('invoices.edit', $invoice->id) }}"
-                class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                Edit Invoice
-            </a>
-            <form method="POST" action="{{ route('invoices.destroy', $invoice->id) }}"
-                onsubmit="return confirm('Hapus invoice ini secara permanen?')">
-                @csrf
-                @method('DELETE')
-                <button
-                    class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">
-                    Hapus
-                </button>
-            </form>
+            @if ($canEdit)
+                <a href="{{ route('invoices.edit', $invoice->id) }}"
+                    class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                    Edit Invoice
+                </a>
+                <form method="POST" action="{{ route('invoices.destroy', $invoice->id) }}"
+                    onsubmit="return confirm('Hapus invoice ini secara permanen?')">
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+                        Hapus
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
 
@@ -68,7 +70,7 @@
                 </div>
             @endif
 
-            @if (is_null($invoice->parent_id))
+            @if (is_null($invoice->parent_id) && $canEdit)
                 <div class="rounded-2xl border border-slate-200 bg-white p-5">
                     <div class="">
                         <h3 class="font-semibold text-sm mb-2">Tambah Item</h3>

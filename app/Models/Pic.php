@@ -6,7 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pic extends Model
 {
-    protected $fillable = ['honorific', 'nama', 'jabatan', 'instansi', 'email', 'no_hp', 'alamat'];
+    protected $fillable = ['company_id', 'honorific', 'nama', 'jabatan', 'instansi', 'email', 'no_hp', 'alamat'];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     public function penawaran()
     {

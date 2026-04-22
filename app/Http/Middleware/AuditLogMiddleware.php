@@ -61,6 +61,7 @@ class AuditLogMiddleware
             $payload = $this->buildPayload($request, $route?->parameters() ?? []);
 
             AuditLog::create([
+                'company_id' => Auth::user()?->company_id,
                 'user_id' => $afterUserId ?? $beforeUserId,
                 'action' => $this->resolveAction($request, $routeName, $afterUserId),
                 'method' => $request->method(),

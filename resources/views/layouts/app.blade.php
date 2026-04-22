@@ -42,6 +42,28 @@
                 </div>
 
                 <div class="flex items-center gap-4" x-data="{ open: false }">
+                    @if (auth()->user()->hasRole('admin') && $layoutAvailableCompanies->isNotEmpty())
+                        <form method="POST" action="{{ route('active-company.update') }}" class="hidden md:block">
+                            @csrf
+                            <label class="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                                Perusahaan Aktif
+                            </label>
+                            <select name="company_id" onchange="this.form.submit()"
+                                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                                @foreach ($layoutAvailableCompanies as $company)
+                                    <option value="{{ $company->id }}" {{ (int) $layoutActiveCompanyId === (int) $company->id ? 'selected' : '' }}>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @elseif ($layoutActiveCompany)
+                        <div class="hidden md:block rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Perusahaan</div>
+                            <div class="text-sm font-medium text-slate-700">{{ $layoutActiveCompany->name }}</div>
+                        </div>
+                    @endif
+
                     <div class="relative">
                         <button @click="open = !open" class="flex items-center gap-3 focus:outline-none">
                             <span

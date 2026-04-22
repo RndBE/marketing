@@ -12,11 +12,15 @@ class PenawaranTermTemplateController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $companyId = $this->currentCompanyId($request->user());
 
         $data = PenawaranTermTemplate::query()
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->when($q !== '', function ($query) use ($q) {
-                $query->where('isi', 'like', "%{$q}%")
-                    ->orWhere('judul', 'like', "%{$q}%");
+                $query->where(function ($nested) use ($q) {
+                    $nested->where('isi', 'like', "%{$q}%")
+                        ->orWhere('judul', 'like', "%{$q}%");
+                });
             })
             ->orderByRaw('COALESCE(parent_id, 0) asc')
             ->orderBy('urutan')
@@ -61,14 +65,19 @@ class PenawaranTermTemplateController extends Controller
             $parentId = $payload['parent_id'] ?? null;
 
             if ($parentId !== null) {
-                $ok = PenawaranTermTemplate::where('id', $parentId)->exists();
+                $ok = PenawaranTermTemplate::where('company_id', $this->currentCompanyId())
+                    ->where('id', $parentId)
+                    ->exists();
                 if (!$ok) $parentId = null;
             }
 
-            $urutan = (int) PenawaranTermTemplate::where('parent_id', $parentId)->max('urutan');
+            $urutan = (int) PenawaranTermTemplate::where('company_id', $this->currentCompanyId())
+                ->where('parent_id', $parentId)
+                ->max('urutan');
             $urutan = $urutan > 0 ? $urutan + 1 : 1;
 
             PenawaranTermTemplate::create([
+                'company_id' => $this->currentCompanyId(),
                 'parent_id' => $parentId,
                 'urutan' => $urutan,
                 'judul' => $payload['judul'] ?? null,
@@ -83,7 +92,10 @@ class PenawaranTermTemplateController extends Controller
 
     public function edit(PenawaranTermTemplate $template)
     {
-        $all = PenawaranTermTemplate::orderByRaw('COALESCE(parent_id, 0) asc')
+        $this->ensureCompanyAccess($template);
+
+        $all = PenawaranTermTemplate::where('company_id', $template->company_id)
+            ->orderByRaw('COALESCE(parent_id, 0) asc')
             ->orderBy('urutan')->orderBy('id')->get();
 
         $termsByParent = $all->groupBy('parent_id');
@@ -107,6 +119,8 @@ class PenawaranTermTemplateController extends Controller
 
     public function update(Request $request, PenawaranTermTemplate $template)
     {
+        $this->ensureCompanyAccess($template);
+
         $payload = $request->validate([
             'parent_id' => ['nullable', 'integer'],
             'urutan' => ['required', 'integer', 'min:1'],
@@ -120,7 +134,9 @@ class PenawaranTermTemplateController extends Controller
 
         if ($parentId !== null) {
             if ((int) $parentId === (int) $template->id) $parentId = null;
-            $ok = PenawaranTermTemplate::where('id', $parentId)->exists();
+            $ok = PenawaranTermTemplate::where('company_id', $template->company_id)
+                ->where('id', $parentId)
+                ->exists();
             if (!$ok) $parentId = null;
         }
 
@@ -138,6 +154,7 @@ class PenawaranTermTemplateController extends Controller
 
     public function destroy(PenawaranTermTemplate $template)
     {
+        $this->ensureCompanyAccess($template);
         $template->delete();
         return redirect()->route('term_templates.index');
     }
@@ -155,11 +172,19 @@ class PenawaranTermTemplateController extends Controller
 
         $terms = PenawaranTermTemplate::query()
             ->whereIn('id', $ids)
-            ->get(['id', 'parent_id']);
+            ->get(['id', 'company_id', 'parent_id']);
 
         if ($terms->count() !== count($ids)) {
             return response()->json(['message' => 'Data template tidak valid.'], 422);
         }
+
+        $companyIds = $terms->pluck('company_id')->filter()->unique()->values();
+        if ($companyIds->count() !== 1) {
+            return response()->json(['message' => 'Template harus berasal dari perusahaan yang sama.'], 422);
+        }
+
+        $companyId = (int) $companyIds->first();
+        $this->ensureCompanyIdAccess($companyId);
 
         foreach ($terms as $t) {
             $p = $t->parent_id ? (int) $t->parent_id : null;
@@ -170,7 +195,9 @@ class PenawaranTermTemplateController extends Controller
 
         $n = 1;
         foreach ($ids as $id) {
-            PenawaranTermTemplate::where('id', $id)->update(['urutan' => $n++]);
+            PenawaranTermTemplate::where('company_id', $companyId)
+                ->where('id', $id)
+                ->update(['urutan' => $n++]);
         }
 
         return response()->json(['message' => 'Urutan template diperbarui']);

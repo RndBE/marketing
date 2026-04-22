@@ -9,10 +9,18 @@ use Illuminate\Support\Facades\Storage;
 
 class TemplateController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $signatures = InvoiceSignatureTemplate::latest()->get();
-        $terms = InvoiceTermTemplate::latest()->get();
+        $companyId = $this->currentCompanyId($request->user());
+
+        $signatures = InvoiceSignatureTemplate::query()
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->latest()
+            ->get();
+        $terms = InvoiceTermTemplate::query()
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->latest()
+            ->get();
         return view('templates.index', compact('signatures', 'terms'));
     }
 
@@ -30,13 +38,17 @@ class TemplateController extends Controller
             $payload['ttd_path'] = $request->file('ttd')->store('templates/signatures', 'public');
         }
 
-        InvoiceSignatureTemplate::create($payload);
+        InvoiceSignatureTemplate::create(array_merge($payload, [
+            'company_id' => $this->currentCompanyId($request->user()),
+        ]));
 
         return back()->with('success', 'Template Tanda Tangan berhasil dibuat.');
     }
 
     public function deleteSignature(InvoiceSignatureTemplate $template)
     {
+        $this->ensureCompanyAccess($template);
+
         if ($template->ttd_path) {
             Storage::disk('public')->delete($template->ttd_path);
         }
@@ -52,13 +64,16 @@ class TemplateController extends Controller
             'terms.*' => 'required|string',
         ]);
 
-        InvoiceTermTemplate::create($payload);
+        InvoiceTermTemplate::create(array_merge($payload, [
+            'company_id' => $this->currentCompanyId($request->user()),
+        ]));
 
         return back()->with('success', 'Template Terms berhasil dibuat.');
     }
 
     public function deleteTerm(InvoiceTermTemplate $template)
     {
+        $this->ensureCompanyAccess($template);
         $template->delete();
         return back()->with('success', 'Template dihapus.');
     }

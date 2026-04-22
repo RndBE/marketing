@@ -194,10 +194,10 @@
     <div class="cover-footer">
         <span class="footer-item"><span class="footer-icon"><img src="{{ public_path('templates/email.png') }}"
                     alt="" class="footer-icon-img"></span><span
-                class="footer-text">{{ $cover?->perusahaan_email ?? 'cv.artasolusindo@gmail.com' }}</span></span>
+                class="footer-text">{{ $kop['email'] ?? $cover?->perusahaan_email ?? 'cv.artasolusindo@gmail.com' }}</span></span>
         <span class="footer-item"><span class="footer-icon"><img src="{{ public_path('templates/wa.png') }}"
                     alt="" class="footer-icon-img"></span><span
-                class="footer-text">{{ $cover?->perusahaan_telp ?? '085727868505' }}</span></span>
+                class="footer-text">{{ $kop['telp'] ?? $cover?->perusahaan_telp ?? '085727868505' }}</span></span>
     </div>
     <div class="ornamen-footer" style="position: absolute; left: 0; bottom: 0; width: 210mm;">
         <img src="{{ public_path('templates/ornamen_bawah.png') }}"

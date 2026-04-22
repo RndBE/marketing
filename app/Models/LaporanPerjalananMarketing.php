@@ -11,6 +11,7 @@ class LaporanPerjalananMarketing extends Model
     protected $table = 'laporan_perjalanan_marketing';
 
     protected $fillable = [
+        'company_id',
         'nomor_laporan',
         'tanggal_pertemuan',
         'waktu_pertemuan',
@@ -35,6 +36,11 @@ class LaporanPerjalananMarketing extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function updater(): BelongsTo

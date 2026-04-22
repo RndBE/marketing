@@ -21,6 +21,8 @@ use App\Http\Controllers\LaporanPerjalananMarketingController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\LeadReportController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ActiveCompanyController;
 
 
 
@@ -235,6 +237,11 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::middleware('permission:manage-users')->group(function () {
         Route::resource('users', UserController::class);
+    });
+
+    Route::middleware('superadmin')->group(function () {
+        Route::post('/active-company', [ActiveCompanyController::class, 'update'])->name('active-company.update');
+        Route::resource('companies', CompanyController::class)->except(['show']);
     });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])

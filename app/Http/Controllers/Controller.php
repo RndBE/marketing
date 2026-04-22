@@ -25,14 +25,31 @@ abstract class Controller
     {
         $user ??= $this->authUser();
 
-        return $user?->company_id;
+        if (!$user) {
+            return null;
+        }
+
+        if (!$this->isSuperadmin($user)) {
+            return $user->company_id;
+        }
+
+        $selectedCompanyId = (int) session('active_company_id', 0);
+        if ($selectedCompanyId > 0 && Company::query()->whereKey($selectedCompanyId)->exists()) {
+            return $selectedCompanyId;
+        }
+
+        if ($user->company_id && Company::query()->whereKey($user->company_id)->exists()) {
+            return (int) $user->company_id;
+        }
+
+        return Company::query()->orderBy('name')->value('id');
     }
 
     protected function currentCompany(?User $user = null): ?Company
     {
-        $user ??= $this->authUser();
+        $companyId = $this->currentCompanyId($user);
 
-        return $user?->company;
+        return $companyId ? Company::query()->find($companyId) : null;
     }
 
     protected function scopeToCompany(
@@ -47,11 +64,13 @@ abstract class Controller
             return $query;
         }
 
-        if ($this->isSuperadmin($user) && $companyId === null) {
+        $resolvedCompanyId = $companyId ?? $this->currentCompanyId($user);
+
+        if ($resolvedCompanyId === null) {
             return $query;
         }
 
-        return $query->where($column, $companyId ?? $this->currentCompanyId($user));
+        return $query->where($column, $resolvedCompanyId);
     }
 
     protected function ensureCompanyIdAccess(?int $companyId, ?User $user = null): void
@@ -74,9 +93,10 @@ abstract class Controller
 
     protected function companyUsersQuery(?int $companyId = null): Builder
     {
+        $companyId ??= $this->currentCompanyId();
+
         return User::query()
-            ->when(!$this->isSuperadmin(), fn($query) => $query->where('company_id', $companyId ?? $this->currentCompanyId()))
-            ->when($this->isSuperadmin() && $companyId !== null, fn($query) => $query->where('company_id', $companyId));
+            ->when($companyId !== null, fn($query) => $query->where('company_id', $companyId));
     }
 
     protected function ensureUserBelongsToCompany(?int $userId, ?int $companyId = null): ?User

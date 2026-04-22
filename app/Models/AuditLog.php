@@ -13,6 +13,7 @@ class AuditLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'company_id',
         'user_id',
         'action',
         'method',
@@ -36,5 +37,10 @@ class AuditLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 }

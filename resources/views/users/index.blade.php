@@ -26,6 +26,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left">Nama</th>
                         <th class="px-4 py-3 text-left">Email</th>
+                        <th class="px-4 py-3 text-left">Perusahaan</th>
                         <th class="px-4 py-3 text-left">Roles</th>
                         <th class="px-4 py-3 text-left">Bergabung</th>
                         <th class="px-4 py-3 text-right">Aksi</th>
@@ -36,6 +37,7 @@
                         <tr>
                             <td class="px-4 py-3 font-medium">{{ $user->name }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ $user->email }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ $user->company?->name ?? '-' }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex gap-1 flex-wrap">
                                     @foreach ($user->roles as $role)
@@ -65,7 +67,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-slate-500">Tidak ada user ditemukan</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-slate-500">Tidak ada user ditemukan</td>
                         </tr>
                     @endforelse
                 </tbody>

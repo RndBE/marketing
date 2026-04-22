@@ -16,9 +16,11 @@ class LaporanPerjalananMarketingController extends Controller
         $status = trim((string) $request->query('status', ''));
 
         $user = $request->user();
-        $canViewAll = $user->hasPermission('view-all-marketing-report');
+        $canViewAll = $this->isSuperadmin($user) || $user->hasPermission('view-all-marketing-report');
+        $companyId = $this->currentCompanyId($user);
 
         $reports = LaporanPerjalananMarketing::query()
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
             ->with(['creator'])
             ->withCount('attachments')
             ->when(!$canViewAll, fn($query) => $query->where('created_by', $user->id))
@@ -65,6 +67,7 @@ class LaporanPerjalananMarketingController extends Controller
 
         $payload['created_by'] = $request->user()->id;
         $payload['updated_by'] = $request->user()->id;
+        $payload['company_id'] = $this->currentCompanyId($request->user());
 
         $report = DB::transaction(function () use ($payload, $request) {
             $report = LaporanPerjalananMarketing::create($payload);
@@ -181,7 +184,9 @@ class LaporanPerjalananMarketingController extends Controller
 
     private function ensureViewAccess($user, LaporanPerjalananMarketing $report): void
     {
-        $canViewAll = $user->hasPermission('view-all-marketing-report');
+        $this->ensureCompanyAccess($report, 'company_id', $user);
+
+        $canViewAll = $this->isSuperadmin($user) || $user->hasPermission('view-all-marketing-report');
         if (!$canViewAll && (int) $report->created_by !== (int) $user->id) {
             abort(403);
         }
@@ -189,7 +194,9 @@ class LaporanPerjalananMarketingController extends Controller
 
     private function ensureOwnerAccess($user, LaporanPerjalananMarketing $report): void
     {
-        $canViewAll = $user->hasPermission('view-all-marketing-report');
+        $this->ensureCompanyAccess($report, 'company_id', $user);
+
+        $canViewAll = $this->isSuperadmin($user) || $user->hasPermission('view-all-marketing-report');
         if (!$canViewAll && (int) $report->created_by !== (int) $user->id) {
             abort(403);
         }

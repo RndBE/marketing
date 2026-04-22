@@ -49,8 +49,8 @@
                 $akses = $stepAktif->akses_approve ?? [];
                 $m = $approval->module ?? '';
 
-                // Check if user can edit: superadmin OR creator of penawaran
-                $canEdit = auth()->user()->roles->contains('slug', 'admin') || $penawaran->id_user === auth()->id();
+                // Check if user can edit: admin OR creator of penawaran
+                $canEdit = auth()->user()->hasRole('admin') || $penawaran->id_user === auth()->id();
             @endphp
             @if ($bolehApproveStep && $m === 'penawaran')
                 <button
@@ -108,10 +108,10 @@
             @else
                 <button disabled
                     class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
-                    title="Hanya pembuat penawaran dan superadmin yang dapat mengedit">Edit</button>
+                    title="Hanya pembuat penawaran dan admin yang dapat mengedit">Edit</button>
                 <button disabled
                     class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
-                    title="Hanya pembuat penawaran dan superadmin yang dapat menghapus">Hapus</button>
+                    title="Hanya pembuat penawaran dan admin yang dapat menghapus">Hapus</button>
             @endif
 
             @if(auth()->user()->hasPermission('create-penawaran'))
@@ -146,7 +146,7 @@
                             <div class="text-xs text-slate-500 hidden md:block">Centang untuk buka form</div>
                         @else
                             <div class="text-sm font-semibold">Tambah Bundle</div>
-                            <div class="text-xs text-slate-500 hidden md:block">Hanya pembuat penawaran dan superadmin yang
+                            <div class="text-xs text-slate-500 hidden md:block">Hanya pembuat penawaran dan admin yang
                                 dapat menambah item</div>
                         @endif
                     </div>

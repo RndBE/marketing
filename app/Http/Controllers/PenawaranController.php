@@ -34,6 +34,7 @@ class PenawaranController extends Controller
         $q = trim((string) $request->query('q', ''));
         $user = auth()->user();
         $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+        $companyId = $this->currentCompanyId($user);
 
         // ── Rentang tanggal (default: tahun berjalan) ──
         $currentYear = now()->year;
@@ -58,9 +59,8 @@ class PenawaranController extends Controller
         $data = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->when(!$canViewAll, function ($query) use ($user) {
-                $query->where('id_user', $user->id);
-            })
+            ->when($companyId, fn($query) => $query->where('penawaran.company_id', $companyId))
+            ->when(!$canViewAll && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -84,9 +84,8 @@ class PenawaranController extends Controller
 
         $approvedQuery = Penawaran::query()
             ->with(['approval', 'items.details'])
-            ->when(!$canViewAll, function ($query) use ($user) {
-                $query->where('id_user', $user->id);
-            })
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->when(!$canViewAll && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -118,9 +117,8 @@ class PenawaranController extends Controller
         $goalQuery = $hasGoalColumn
             ? Penawaran::query()
                 ->with(['items.details'])
-                ->when(!$canViewAll, function ($query) use ($user) {
-                    $query->where('id_user', $user->id);
-                })
+                ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+                ->when(!$canViewAll && !$this->isSuperadmin($user), fn($query) => $query->where('id_user', $user->id))
                 ->when($q !== '', function ($query) use ($q) {
                     $tokens = array_filter(array_map('trim', explode(' ', $q)));
                     foreach ($tokens as $token) {
@@ -161,7 +159,9 @@ class PenawaranController extends Controller
 
     public function create()
     {
-        $pics = Pic::orderBy('nama')->get(['id', 'nama', 'instansi']);
+        $pics = Pic::where('company_id', $this->currentCompanyId())
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'instansi']);
         return view('penawaran.create', compact('pics'));
     }
 
@@ -174,11 +174,19 @@ class PenawaranController extends Controller
         ]);
 
         return DB::transaction(function () use ($payload) {
-            $docNumber = $this->createDocNumber();
+            $user = auth()->user();
+            $company = $user->company;
+
+            if (!empty($payload['id_pic'])) {
+                $this->ensureCompanyAccess(Pic::findOrFail($payload['id_pic']));
+            }
+
+            $docNumber = $this->createDocNumber($user->company_id, $user->id);
 
             $penawaran = Penawaran::create([
+                'company_id' => $user->company_id,
                 'id_pic' => $payload['id_pic'] ?? null,
-                'id_user' => auth()->id() ?? 1,
+                'id_user' => $user->id,
                 'doc_number_id' => $docNumber->id,
                 'approval_id' => null,
                 'date_created' => now()->timestamp,
@@ -191,7 +199,11 @@ class PenawaranController extends Controller
                 'penawaran_id' => $penawaran->id,
                 'judul_cover' => 'Dokumen Penawaran',
                 'subjudul' => $penawaran->judul,
-                'perusahaan_nama' => config('app.name')
+                'perusahaan_nama' => $company?->name ?? 'CV. ARTA SOLUSINDO',
+                'perusahaan_alamat' => $company?->address,
+                'perusahaan_email' => $company?->email,
+                'perusahaan_telp' => $company?->phone,
+                'logo_path' => $company?->logo_path,
             ]);
 
             PenawaranValidity::create([
@@ -203,6 +215,7 @@ class PenawaranController extends Controller
             ]);
 
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
+                ->where('company_id', $user->company_id)
                 ->where('status', 'aktif')
                 ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
                 ->first();
@@ -254,6 +267,7 @@ class PenawaranController extends Controller
             ]);
 
             $templates = PenawaranTermTemplate::query()
+                ->where('company_id', $user->company_id)
                 ->whereNull('parent_id')
                 ->orderBy('urutan')
                 ->orderBy('id')
@@ -266,7 +280,6 @@ class PenawaranController extends Controller
 
 
 
-            $user = auth()->user();
             $roleNames = $user->roles->pluck('name')->implode(', ');
 
             PenawaranSignature::create([
@@ -303,10 +316,7 @@ class PenawaranController extends Controller
     public function show(Penawaran $penawaran)
     {
         $user = auth()->user();
-        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
-        if (!$canViewAll && (int) $penawaran->id_user !== (int) $user->id) {
-            abort(403);
-        }
+        $this->ensurePenawaranViewAccess($penawaran, $user);
 
         $penawaran->load([
             'docNumber',
@@ -322,6 +332,7 @@ class PenawaranController extends Controller
         ]);
 
         $products = Product::query()
+            ->where('company_id', $penawaran->company_id)
             ->where('is_active', true)
             ->orderBy('nama')
             ->get(['id', 'kode', 'nama']);
@@ -362,18 +373,25 @@ class PenawaranController extends Controller
 
     public function edit(Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
         $penawaran->load(['cover', 'validity']);
-        $pics = Pic::orderBy('nama')->get();
+        $pics = Pic::where('company_id', $penawaran->company_id)->orderBy('nama')->get();
         return view('penawaran.edit', compact('penawaran', 'pics'));
     }
 
     public function update(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string'],
             'id_pic' => ['nullable', 'exists:pics,id']
         ]);
+
+        if (!empty($payload['id_pic'])) {
+            $this->ensureCompanyAccess(Pic::findOrFail($payload['id_pic']));
+        }
 
         $penawaran->update([
             'judul' => $payload['judul'] ?? null,
@@ -387,6 +405,8 @@ class PenawaranController extends Controller
 
     public function destroy(Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         // $penawaran->delete();
         // return redirect()->route('penawaran.index');
         DB::transaction(function () use ($penawaran) {
@@ -448,7 +468,15 @@ class PenawaranController extends Controller
 
     public function duplicate(Penawaran $penawaran)
     {
+        $this->ensurePenawaranViewAccess($penawaran);
+
         return DB::transaction(function () use ($penawaran) {
+            $actor = auth()->user();
+            $ownerId = (int) $penawaran->id_user;
+            if ((int) $actor->company_id === (int) $penawaran->company_id) {
+                $ownerId = (int) $actor->id;
+            }
+
             // Load everything we need to copy
             $penawaran->load([
                 'cover',
@@ -459,12 +487,13 @@ class PenawaranController extends Controller
             ]);
 
             // 1. New doc number
-            $docNumber = $this->createDocNumber();
+            $docNumber = $this->createDocNumber($penawaran->company_id, $ownerId);
 
             // 2. New penawaran record
             $new = Penawaran::create([
+                'company_id' => $penawaran->company_id,
                 'id_pic' => $penawaran->id_pic,
-                'id_user' => auth()->id(),
+                'id_user' => $ownerId,
                 'doc_number_id' => $docNumber->id,
                 'approval_id' => null,
                 'date_created' => now()->timestamp,
@@ -490,11 +519,16 @@ class PenawaranController extends Controller
                 $c['logo_path'] = $penawaran->cover->logo_path ?? null; // re-use same file path (read-only reference)
                 PenawaranCover::create($c);
             } else {
+                $company = auth()->user()?->company;
                 PenawaranCover::create([
                     'penawaran_id' => $new->id,
                     'judul_cover' => 'Dokumen Penawaran',
                     'subjudul' => $new->judul,
-                    'perusahaan_nama' => config('app.name'),
+                    'perusahaan_nama' => $company?->name ?? 'CV. ARTA SOLUSINDO',
+                    'perusahaan_alamat' => $company?->address,
+                    'perusahaan_email' => $company?->email,
+                    'perusahaan_telp' => $company?->phone,
+                    'logo_path' => $company?->logo_path,
                 ]);
             }
 
@@ -568,6 +602,7 @@ class PenawaranController extends Controller
 
             // 8. Approval (fresh, ikuti alur yang berlaku)
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
+                ->where('company_id', $new->company_id)
                 ->where('status', 'aktif')
                 ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
                 ->first();
@@ -635,6 +670,8 @@ class PenawaranController extends Controller
 
     public function upsertCover(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'judul_cover' => ['nullable', 'string', 'max:255'],
             'subjudul' => ['nullable', 'string', 'max:255'],
@@ -667,6 +704,8 @@ class PenawaranController extends Controller
 
     public function upsertValidity(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'mulai' => ['nullable', 'date'],
             'sampai' => ['nullable', 'date'],
@@ -688,13 +727,17 @@ class PenawaranController extends Controller
 
     public function addBundle(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $request->validate([
             'product_id' => ['required', 'exists:products,id'],
             'qty' => ['nullable', 'numeric', 'min:0.01'],
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);
-        $product = Product::with('details')->findOrFail($request->product_id);
+        $product = Product::with('details')
+            ->where('company_id', $penawaran->company_id)
+            ->findOrFail($request->product_id);
         $urutan = $this->nextItemOrder($penawaran->id);
 
         $item = PenawaranItem::create([
@@ -735,6 +778,8 @@ class PenawaranController extends Controller
 
     public function addCustomItem(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
             'catatan' => ['nullable', 'string']
@@ -762,6 +807,8 @@ class PenawaranController extends Controller
 
     public function updateItem(Request $request, Penawaran $penawaran, PenawaranItem $item)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -807,6 +854,8 @@ class PenawaranController extends Controller
 
     public function deleteItem(Penawaran $penawaran, PenawaranItem $item)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -819,6 +868,8 @@ class PenawaranController extends Controller
 
     public function reorderItems(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer'],
@@ -847,6 +898,8 @@ class PenawaranController extends Controller
 
     public function addItemDetail(Request $request, Penawaran $penawaran, PenawaranItem $item)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -888,6 +941,8 @@ class PenawaranController extends Controller
 
     public function updateItemDetail(Request $request, Penawaran $penawaran, PenawaranItem $item, PenawaranItemDetail $detail)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -932,6 +987,8 @@ class PenawaranController extends Controller
 
     public function deleteItemDetail(Penawaran $penawaran, PenawaranItem $item, PenawaranItemDetail $detail)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -950,6 +1007,8 @@ class PenawaranController extends Controller
 
     public function reorderItemDetails(Request $request, Penawaran $penawaran, PenawaranItem $item)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $item->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -983,6 +1042,8 @@ class PenawaranController extends Controller
 
     public function addTerm(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'judul' => ['nullable', 'string', 'max:255'],
             'isi' => ['required', 'string'],
@@ -1026,6 +1087,8 @@ class PenawaranController extends Controller
 
     public function updateTerm(Request $request, Penawaran $penawaran, PenawaranTerm $term)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $term->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -1047,6 +1110,8 @@ class PenawaranController extends Controller
 
     public function reorderTerms(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'parent_id' => ['nullable', 'integer'],
             'ids' => ['required', 'array', 'min:1'],
@@ -1087,6 +1152,8 @@ class PenawaranController extends Controller
 
     public function deleteTerm(Penawaran $penawaran, PenawaranTerm $term)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $term->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -1099,6 +1166,8 @@ class PenawaranController extends Controller
 
     public function addSignature(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
             'jabatan' => ['nullable', 'string', 'max:255'],
@@ -1143,6 +1212,8 @@ class PenawaranController extends Controller
 
     public function deleteSignature(Penawaran $penawaran, PenawaranSignature $signature)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $signature->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -1159,6 +1230,8 @@ class PenawaranController extends Controller
 
     public function addAttachment(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $payload = $request->validate([
             'judul' => ['nullable', 'array'],
             'judul.*' => ['nullable', 'string', 'max:255'],
@@ -1199,6 +1272,8 @@ class PenawaranController extends Controller
 
     public function deleteAttachment(Penawaran $penawaran, PenawaranAttachment $attachment)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ((int) $attachment->penawaran_id !== (int) $penawaran->id) {
             abort(404);
         }
@@ -1213,15 +1288,12 @@ class PenawaranController extends Controller
 
     public function downloadPdf(Penawaran $penawaran)
     {
-        $user = auth()->user();
-        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
-        if (!$canViewAll && (int) $penawaran->id_user !== (int) $user->id) {
-            abort(403);
-        }
+        $this->ensurePenawaranViewAccess($penawaran);
 
         $penawaran->load([
             'docNumber',
             'cover',
+            'company',
             'validity',
             'terms' => function ($q) {
                 $q->orderBy('parent_id')
@@ -1239,20 +1311,7 @@ class PenawaranController extends Controller
             $total += (int) $it->subtotal;
         }
 
-        $cover = $penawaran->cover;
-
-        $logo = $this->resolvePublicDiskPath($cover?->logo_path);
-        if (!$logo) {
-            $logo = public_path('images/logo_arsol.png');
-        }
-
-        $kop = [
-            'logo' => $logo,
-            'nama' => 'CV. ARTA SOLUSINDO',
-            'alamat' => $cover?->perusahaan_alamat ?? 'Juwangen RT 10 RW 02 Purwomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571',
-            'telp' => $cover?->perusahaan_telp ?? '(0274) 5044026 / 085727868505',
-            'email' => $cover?->perusahaan_email ?? 'cv.artasolusindo@gmail.com',
-        ];
+        $kop = $this->buildPenawaranKop($penawaran);
 
         $pdf = Pdf::loadView('documents.penawaran_full', [
             'penawaran' => $penawaran,
@@ -1409,13 +1468,16 @@ class PenawaranController extends Controller
 
 
 
-    private function createDocNumber(): DocNumber
+    private function createDocNumber(?int $companyId = null, ?int $userId = null): DocNumber
     {
-        return DB::transaction(function () {
-
+        return DB::transaction(function () use ($companyId, $userId) {
             $now = Carbon::now();
             $month = $now->month;
             $year = $now->year;
+            $companyId = $companyId ?: $this->currentCompanyId();
+            $company = \App\Models\Company::find($companyId);
+            $companyCode = strtoupper((string) ($company?->code ?: 'COMP'));
+            $userId = $userId ?: auth()->id();
 
             $romawi = [
                 1 => 'I',
@@ -1431,18 +1493,18 @@ class PenawaranController extends Controller
                 11 => 'XI',
                 12 => 'XII'
             ];
-
-
-            $last = DocNumber::orderByDesc('seq')
+            $last = DocNumber::where('company_id', $companyId)
+                ->orderByDesc('seq')
                 ->first();
             $seq = $last ? $last->seq + 1 : 1;
 
-            $userCode = 'SPH' . str_pad(auth()->id(), 2, '0', STR_PAD_LEFT);
+            $userCode = 'SPH' . str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
 
             $docNo = str_pad($seq, 3, '0', STR_PAD_LEFT)
-                . "/{$userCode}/AS/{$romawi[$month]}/{$year}";
+                . "/{$userCode}/{$companyCode}/{$romawi[$month]}/{$year}";
 
             return DocNumber::create([
+                'company_id' => $companyId,
                 'prefix' => $userCode,
                 'seq' => $seq,
                 'month' => $month,
@@ -1452,8 +1514,58 @@ class PenawaranController extends Controller
         });
     }
 
+    private function ensurePenawaranViewAccess(Penawaran $penawaran, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($penawaran, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin') || $user->hasPermission('view-all-penawaran')) {
+            return;
+        }
+
+        if ((int) $penawaran->id_user !== (int) $user->id) {
+            abort(403);
+        }
+    }
+
+    private function ensurePenawaranEditAccess(Penawaran $penawaran, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($penawaran, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin')) {
+            return;
+        }
+
+        if ((int) $penawaran->id_user !== (int) $user->id) {
+            abort(403);
+        }
+    }
+
+    private function buildPenawaranKop(Penawaran $penawaran): array
+    {
+        $cover = $penawaran->cover;
+        $company = $penawaran->company ?? $penawaran->user?->company;
+
+        $logo = $company?->logoFullPath()
+            ?: $this->resolvePublicDiskPath($cover?->logo_path)
+            ?: public_path('images/logo_arsol.png');
+
+        return [
+            'logo' => $logo,
+            'nama' => $company?->name ?: ($cover?->perusahaan_nama ?: 'CV. ARTA SOLUSINDO'),
+            'alamat' => $company?->address ?: ($cover?->perusahaan_alamat ?: 'Juwangen RT 10 RW 02 Purwomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571'),
+            'telp' => $company?->phone ?: ($cover?->perusahaan_telp ?: '(0274) 5044026 / 085727868505'),
+            'email' => $company?->email ?: ($cover?->perusahaan_email ?: 'cv.artasolusindo@gmail.com'),
+        ];
+    }
+
     public function upsertKeterangan(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $data = $request->validate([
             'instansi_tujuan' => 'nullable|string|max:255',
             'nama_pekerjaan' => 'nullable|string|max:255',
@@ -1486,6 +1598,8 @@ class PenawaranController extends Controller
 
     public function upsertPricing(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         $data = $request->validate([
             'discount_enabled' => 'nullable|boolean',
             'discount_type' => 'nullable|string|in:percent,fixed',
@@ -1523,7 +1637,11 @@ class PenawaranController extends Controller
     public function submitApproval($id)
     {
         $penawaran = Penawaran::findOrFail($id);
-        $alur = AlurPenawaran::where('is_active', true)->first();
+        $this->ensurePenawaranEditAccess($penawaran);
+
+        $alur = AlurPenawaran::where('company_id', $penawaran->company_id)
+            ->where('status', 'aktif')
+            ->first();
 
         $approval = Approval::create([
             'module' => 'penawaran',
@@ -1551,6 +1669,10 @@ class PenawaranController extends Controller
     public function deletedList()
     {
         $deleted = PenghapusanPenawaran::with(['penawaran', 'user', 'dibuat'])
+            ->when(
+                !$this->isSuperadmin(),
+                fn($query) => $query->whereHas('penawaran', fn($penawaranQuery) => $penawaranQuery->where('company_id', $this->currentCompanyId()))
+            )
             ->latest()
             ->paginate(15);
 
@@ -1559,6 +1681,8 @@ class PenawaranController extends Controller
 
     public function requestDelete(Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
+
         if ($penawaran->status === 'menunggu_penghapusan') {
             return back()->with('error', 'Penghapusan sudah diajukan.');
         }
@@ -1566,6 +1690,7 @@ class PenawaranController extends Controller
         DB::transaction(function () use ($penawaran) {
 
             $alur = AlurPenawaran::where('berlaku_untuk', 'penghapusan')
+                ->where('company_id', $penawaran->company_id)
                 ->where('status', 'aktif')
                 ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
                 ->first();
@@ -1608,6 +1733,7 @@ class PenawaranController extends Controller
 
     public function toggleGoal(Penawaran $penawaran)
     {
+        $this->ensurePenawaranEditAccess($penawaran);
         $penawaran->is_goal = !$penawaran->is_goal;
         $penawaran->goal_at = $penawaran->is_goal ? now() : null;
         $penawaran->save();
@@ -1635,7 +1761,8 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->when(!$canViewAll, fn($q2) => $q2->where('id_user', $user->id))
+            ->when(!$this->isSuperadmin($user), fn($q2) => $q2->where('penawaran.company_id', $user->company_id))
+            ->when(!$canViewAll && !$this->isSuperadmin($user), fn($q2) => $q2->where('id_user', $user->id))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {

@@ -13,14 +13,13 @@
     <nav class="px-3 py-4 overflow-y-auto" x-data="{
         invoice: {{ request()->routeIs('invoices.*') ? 'true' : 'false' }},
         purchase_order: {{ request()->routeIs('purchase-orders.*') ? 'true' : 'false' }},
-        marketing_report: {{ request()->routeIs('marketing-reports.*') ? 'true' : 'false' }},
         penawaran: {{ request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*') ? 'true' : 'false' }},
         usulan: {{ request()->routeIs('usulan.*') ? 'true' : 'false' }},
         prospect: {{ request()->routeIs('prospects.*') ? 'true' : 'false' }},
         lead_report: {{ request()->routeIs('lead-reports.*') ? 'true' : 'false' }},
         pricelist: {{ request()->routeIs('price_list.*', 'komponen.*') ? 'true' : 'false' }},
         pic: {{ request()->routeIs('pics.*') ? 'true' : 'false' }},
-        users: {{ request()->routeIs('users.*') ? 'true' : 'false' }},
+        users: {{ request()->routeIs('users.*', 'companies.*') ? 'true' : 'false' }},
         rbac: {{ request()->routeIs('roles.*', 'permissions.*', 'user-roles.*', 'audit-logs.*') ? 'true' : 'false' }}
     }">
         <!-- Penawaran Section -->
@@ -150,43 +149,6 @@
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                     {{ request()->routeIs('purchase-orders.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                             <span>Buat PO</span>
-                        </a>
-                    @endif
-                </div>
-            </div>
-        @endif
-
-        @if(auth()->user()->hasPermission('view-marketing-report') || auth()->user()->hasPermission('create-marketing-report'))
-            <div class="mb-4">
-                <button @click="marketing_report = !marketing_report"
-                    :class="marketing_report ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
-                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
-                    <span class="inline-flex items-center gap-2">
-                        <span class="inline-flex w-5 justify-center">
-                            <i class="fa-regular fa-chart-bar fa-fw text-[18px] leading-none"></i>
-                        </span>
-                        <span>Marketing BD</span>
-                    </span>
-                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': marketing_report }" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </button>
-
-                <div x-show="marketing_report" x-collapse class="mt-1 space-y-1">
-                    @if(auth()->user()->hasPermission('view-marketing-report'))
-                        <a href="{{ route('marketing-reports.index') }}"
-                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                        {{ request()->routeIs('marketing-reports.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
-                            <span>Daftar Laporan</span>
-                        </a>
-                    @endif
-
-                    @if(auth()->user()->hasPermission('create-marketing-report'))
-                        <a href="{{ route('marketing-reports.create') }}"
-                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                                        {{ request()->routeIs('marketing-reports.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
-                            <span>Buat Laporan</span>
                         </a>
                     @endif
                 </div>
@@ -384,11 +346,19 @@
                                                             {{ request()->routeIs('users.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Data User</span>
                     </a>
+
+                    @if(auth()->user()->hasRole('admin'))
+                        <a href="{{ route('companies.index') }}"
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                                                            {{ request()->routeIs('companies.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                            <span>Data Perusahaan</span>
+                        </a>
+                    @endif
                 </div>
             </div>
         @endif
 
-        @if(auth()->user()->hasPermission('manage-roles') && auth()->user()->hasRole('superadmin'))
+        @if(auth()->user()->hasPermission('manage-roles') && auth()->user()->hasRole('admin'))
             <div class="mb-4">
                 <button @click="rbac = !rbac" :class="rbac ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
@@ -423,7 +393,7 @@
                         <span>User Roles</span>
                     </a>
 
-                    @if(auth()->user()->hasPermission('view-audit-logs') && auth()->user()->hasRole('superadmin'))
+                    @if(auth()->user()->hasPermission('view-audit-logs') && auth()->user()->hasRole('admin'))
                         <a href="{{ route('audit-logs.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                             {{ request()->routeIs('audit-logs.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">

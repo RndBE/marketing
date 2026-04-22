@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DocNumber extends Model
 {
-    protected $fillable = ['prefix', 'seq', 'doc_no'];
+    protected $fillable = ['company_id', 'prefix', 'doc_type', 'user_code', 'seq', 'month', 'year', 'doc_no'];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     public function penawarans(): HasMany
     {

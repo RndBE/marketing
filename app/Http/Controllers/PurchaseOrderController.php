@@ -12,10 +12,13 @@ class PurchaseOrderController extends Controller
         $q = $request->get('q');
 
         $data = PurchaseOrder::query()
+            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->when($q, function ($query) use ($q) {
-                $query->where('nomor_po', 'like', "%{$q}%")
-                    ->orWhere('judul', 'like', "%{$q}%")
-                    ->orWhere('supplier_nama', 'like', "%{$q}%");
+                $query->where(function ($nested) use ($q) {
+                    $nested->where('nomor_po', 'like', "%{$q}%")
+                        ->orWhere('judul', 'like', "%{$q}%")
+                        ->orWhere('supplier_nama', 'like', "%{$q}%");
+                });
             })
             ->latest()
             ->paginate(10)
@@ -31,8 +34,10 @@ class PurchaseOrderController extends Controller
 
     public function store(Request $request)
     {
+        $companyId = (int) $this->currentCompanyId($request->user());
+
         $payload = $request->validate([
-            'nomor_po' => ['nullable', 'string', 'max:50', 'unique:purchase_orders,nomor_po'],
+            'nomor_po' => ['nullable', 'string', 'max:50', 'unique:purchase_orders,nomor_po,NULL,id,company_id,' . $companyId],
             'judul' => ['required', 'string', 'max:255'],
             'supplier_nama' => ['required', 'string', 'max:255'],
             'supplier_alamat' => ['nullable', 'string'],
@@ -43,6 +48,7 @@ class PurchaseOrderController extends Controller
         ]);
 
         $payload['user_id'] = $request->user()->id;
+        $payload['company_id'] = $companyId;
         $payload['total'] = $payload['total'] ?? 0;
 
         $po = PurchaseOrder::create($payload);
@@ -58,6 +64,7 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $purchaseOrder)
     {
+        $this->ensureCompanyAccess($purchaseOrder);
         return view('purchase_orders.show', ['po' => $purchaseOrder]);
     }
 

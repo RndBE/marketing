@@ -9,6 +9,7 @@ class Penawaran extends Model
     protected $table = 'penawaran';
 
     protected $fillable = [
+        'company_id',
         'id_pic',
         'id_user',
         'prospect_id',
@@ -43,6 +44,11 @@ class Penawaran extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'id_user');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
     public function pic()
     {

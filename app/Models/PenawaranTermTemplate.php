@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class PenawaranTermTemplate extends Model
 {
     protected $table = 'penawaran_term_templates';
-    protected $fillable = ['parent_id', 'urutan', 'judul', 'isi'];
+    protected $fillable = ['company_id', 'parent_id', 'urutan', 'judul', 'isi', 'is_active', 'group_name'];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     public function parent()
     {

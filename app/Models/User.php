@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -16,6 +17,7 @@ class User extends Authenticatable
         'email',
         'password',
         'ttd',
+        'company_id',
     ];
 
     protected $hidden = [
@@ -32,6 +34,11 @@ class User extends Authenticatable
     }
 
     // RBAC Relations
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')->withTimestamps();
@@ -45,6 +52,11 @@ class User extends Authenticatable
         }
 
         return $this->roles()->whereIn('slug', $roles)->exists();
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->hasRole('admin');
     }
 
     // Check if user has specific permission (through roles)

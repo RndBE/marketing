@@ -12,11 +12,17 @@ class AlurPenawaran extends Model
     const UPDATED_AT = 'diubah_pada';
 
     protected $fillable = [
+        'company_id',
         'nama',
         'berlaku_untuk',
         'status',
         'dibuat_oleh',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     public function langkah()
     {

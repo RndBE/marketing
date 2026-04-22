@@ -9,6 +9,7 @@ class Komponen extends Model
     protected $table = 'komponen';
 
     protected $fillable = [
+        'company_id',
         'kode',
         'nama',
         'spesifikasi',
@@ -22,4 +23,9 @@ class Komponen extends Model
         'harga' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 }

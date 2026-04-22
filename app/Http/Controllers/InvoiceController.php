@@ -2,31 +2,43 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocNumber;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoiceItemDetail;
-use Illuminate\Support\Facades\Storage;
-use App\Models\InvoiceSignature;
+use App\Models\InvoiceSignatureTemplate;
 use App\Models\InvoiceTerm;
+use App\Models\InvoiceTermTemplate;
+use App\Models\Penawaran;
+use App\Models\Pic;
 use App\Models\Product;
-use App\Models\DocNumber;
-use App\Models\Penawaran; // Added import
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $user = $request->user();
+        $companyId = $this->currentCompanyId($user);
 
         $data = Invoice::query()
-            ->whereNull('parent_id') // Hide Child Invoices (Termins) from main list
-            ->with(['docNumber', 'user'])
+            ->whereNull('parent_id')
+            ->with(['docNumber', 'user', 'company'])
+            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->when(
+                !$this->isSuperadmin($user) && !$user->hasRole('admin'),
+                fn($query) => $query->where('user_id', $user->id)
+            )
             ->when($q !== '', function ($query) use ($q) {
-                $query->where('judul', 'like', "%{$q}%")
-                    ->orWhereHas('docNumber', fn($qq) => $qq->where('doc_no', 'like', "%{$q}%"));
+                $query->where(function ($nested) use ($q) {
+                    $nested->where('judul', 'like', "%{$q}%")
+                        ->orWhereHas('docNumber', fn($qq) => $qq->where('doc_no', 'like', "%{$q}%"));
+                });
             })
             ->orderByDesc('id')
             ->paginate(15)
@@ -51,11 +63,15 @@ class InvoiceController extends Controller
             'manual_item_price' => ['nullable', 'numeric', 'min:0', 'required_if:mode,manual'],
         ]);
 
-        return DB::transaction(function () use ($payload) {
-            $docNumber = $this->createDocNumber(auth()->id());
+        $user = $request->user();
+
+        return DB::transaction(function () use ($payload, $user) {
+            $companyId = (int) $this->currentCompanyId($user);
+            $docNumber = $this->createDocNumber($companyId, (int) $user->id);
 
             $invoice = Invoice::create([
-                'user_id' => auth()->id(),
+                'company_id' => $companyId,
+                'user_id' => $user->id,
                 'doc_number_id' => $docNumber->id,
                 'judul' => $payload['judul'],
                 'catatan' => $payload['catatan'] ?? null,
@@ -64,29 +80,28 @@ class InvoiceController extends Controller
                 'jatuh_tempo' => $payload['jatuh_tempo'],
             ]);
 
-            // Handle Manual Item Creation
             if (!empty($payload['manual_item_name']) && isset($payload['manual_item_price'])) {
                 $amount = (int) $payload['manual_item_price'];
 
-                $iItem = InvoiceItem::create([
+                $item = InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'tipe' => 'custom',
                     'judul' => $payload['manual_item_name'],
                     'urutan' => 1,
-                    'subtotal' => 0
+                    'subtotal' => 0,
                 ]);
 
                 InvoiceItemDetail::create([
-                    'invoice_item_id' => $iItem->id,
+                    'invoice_item_id' => $item->id,
                     'urutan' => 1,
                     'nama' => $payload['manual_item_name'],
                     'qty' => 1,
                     'satuan' => 'ls',
                     'harga' => $amount,
-                    'subtotal' => $amount
+                    'subtotal' => $amount,
                 ]);
 
-                $this->recalcItemSubtotal($iItem);
+                $this->recalcItemSubtotal($item);
             }
 
             return redirect()->route('invoices.show', $invoice->id);
@@ -95,7 +110,8 @@ class InvoiceController extends Controller
 
     public function createFromPenawaran(Penawaran $penawaran)
     {
-        // Calculate grand total dynamically for the view
+        $this->ensurePenawaranInvoiceAccess($penawaran);
+
         $total = 0;
         foreach ($penawaran->items as $it) {
             $total += (int) $it->subtotal;
@@ -110,8 +126,9 @@ class InvoiceController extends Controller
             } else {
                 $discountAmount = (int) round($dv);
             }
-            if ($discountAmount > $total)
+            if ($discountAmount > $total) {
                 $discountAmount = $total;
+            }
         }
 
         $dpp = $total - $discountAmount;
@@ -128,6 +145,9 @@ class InvoiceController extends Controller
 
     public function storeFromPenawaran(Request $request, Penawaran $penawaran)
     {
+        $this->ensurePenawaranInvoiceAccess($penawaran);
+        $penawaran->loadMissing('items.details');
+
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
             'catatan' => ['nullable', 'string'],
@@ -136,134 +156,148 @@ class InvoiceController extends Controller
             'type' => ['required', 'in:full,termin'],
             'percentage' => ['nullable', 'numeric', 'min:1', 'max:100'],
             'termin_name' => ['nullable', 'string'],
-            'grand_total' => ['required', 'numeric']
+            'grand_total' => ['required', 'numeric'],
         ]);
 
         return DB::transaction(function () use ($payload, $penawaran) {
-            $docNumber = $this->createDocNumber(auth()->id());
+            $owner = $this->resolveCompanyUser((int) $penawaran->company_id, (int) $penawaran->id_user);
+            $docNumber = $this->createDocNumber((int) $penawaran->company_id, (int) $owner->id);
 
-            // 1. Create Invoice Header
             $invoice = Invoice::create([
-                'user_id' => auth()->id(), // Or penawaran owner? Let's use current user
+                'company_id' => $penawaran->company_id,
+                'user_id' => $owner->id,
                 'doc_number_id' => $docNumber->id,
                 'penawaran_id' => $penawaran->id,
+                'pic_id' => $penawaran->id_pic,
                 'judul' => $payload['judul'],
                 'catatan' => $payload['catatan'] ?? null,
                 'status' => 'draft',
                 'tgl_invoice' => $payload['tgl_invoice'],
                 'jatuh_tempo' => $payload['jatuh_tempo'],
-                'tax_percent' => 0, // We calculate net in items for simplicty in termin, or copy settings?
-                'discount_amount' => 0, // Logic varies. For termin, we usually just bill a flat amount.
+                'tax_percent' => 0,
+                'discount_amount' => 0,
             ]);
 
-            // For Full Payment, we should try to copy everything?
-            // OR finding: Simple approach is to treat termin as a single line item.
-            // Even "Full Payment" can be a single line item "Pelunasan 100% ..." to avoid complexity of copying all items?
-            // User might want detail. 
-            // Let's implement:
-            // - If Full: Copy all items.
-            // - If Termin: Create one single custom item.
-
             if ($payload['type'] === 'full') {
-                // Copy settings
                 $invoice->update([
                     'tax_percent' => $penawaran->tax_enabled ? ($penawaran->tax_rate ?? 11) : 0,
-                    'discount_amount' => $penawaran->discount_enabled ?
-                        ($penawaran->discount_type == 'percent'
-                            ? (int) round($penawaran->items->sum('subtotal') * ($penawaran->discount_value / 100))
-                            : $penawaran->discount_value)
+                    'discount_amount' => $penawaran->discount_enabled
+                        ? (($penawaran->discount_type ?? 'percent') === 'percent'
+                            ? (int) round($penawaran->items->sum('subtotal') * ((float) ($penawaran->discount_value ?? 0) / 100))
+                            : (int) ($penawaran->discount_value ?? 0))
                         : 0,
                 ]);
 
-                // Copy Items
                 foreach ($penawaran->items as $pItem) {
-                    $iItem = InvoiceItem::create([
+                    $item = InvoiceItem::create([
                         'invoice_id' => $invoice->id,
-                        'product_id' => $pItem->product_id, // If links to product
-                        'tipe' => $pItem->tipe == 'bundle' ? 'bundle' : 'custom',
+                        'product_id' => $pItem->product_id,
+                        'tipe' => $pItem->tipe === 'bundle' ? 'bundle' : 'custom',
                         'judul' => $pItem->judul,
                         'urutan' => $pItem->urutan,
-                        'subtotal' => 0 // will recalc
+                        'subtotal' => 0,
                     ]);
 
                     foreach ($pItem->details as $pDetail) {
                         InvoiceItemDetail::create([
-                            'invoice_item_id' => $iItem->id,
-                            'product_detail_id' => $pDetail->product_detail_id, // if any
+                            'invoice_item_id' => $item->id,
+                            'product_detail_id' => $pDetail->product_detail_id,
                             'urutan' => $pDetail->urutan,
                             'nama' => $pDetail->nama,
                             'spesifikasi' => $pDetail->spesifikasi,
                             'qty' => $pDetail->qty,
                             'satuan' => $pDetail->satuan,
                             'harga' => $pDetail->harga,
-                            'subtotal' => $pDetail->subtotal
+                            'subtotal' => $pDetail->subtotal,
                         ]);
                     }
-                    $this->recalcItemSubtotal($iItem);
+
+                    $this->recalcItemSubtotal($item);
                 }
             } else {
-                // TERMIN
-                // create single item
-                $percent = $payload['percentage'];
-                $basis = $payload['grand_total']; // This includes tax. 
-                // If we want to invoice "30% of Total", we usually make a single line item for that amount.
-                // WE SHOULD NOT Apply tax again on invoice if the basis already has tax.
-                // So Invoice tax = 0.
-
+                $percent = (float) ($payload['percentage'] ?? 0);
+                $basis = (float) $payload['grand_total'];
                 $amount = (int) round($basis * ($percent / 100));
 
-                $iItem = InvoiceItem::create([
+                $item = InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'tipe' => 'custom',
                     'judul' => $payload['termin_name'] ?: "Pembayaran Termin {$percent}%",
                     'urutan' => 1,
-                    'subtotal' => 0
+                    'subtotal' => 0,
                 ]);
 
                 InvoiceItemDetail::create([
-                    'invoice_item_id' => $iItem->id,
+                    'invoice_item_id' => $item->id,
                     'urutan' => 1,
                     'nama' => $payload['termin_name'] ?: "Pembayaran Termin {$percent}%",
                     'qty' => 1,
-                    'satuan' => 'ls', // lumpsum
+                    'satuan' => 'ls',
                     'harga' => $amount,
-                    'subtotal' => $amount
+                    'subtotal' => $amount,
                 ]);
 
-                $this->recalcItemSubtotal($iItem);
+                $this->recalcItemSubtotal($item);
             }
 
             return redirect()->route('invoices.show', $invoice->id);
         });
     }
 
-    public function show($id)
+    public function show(Invoice $invoice)
     {
-        $invoice = Invoice::with(['docNumber', 'items.details', 'items.product', 'user', 'children.docNumber', 'terms', 'penawaran', 'signature'])->findOrFail($id);
+        $this->ensureInvoiceViewAccess($invoice);
 
-        // Calculate totals dynamically just in case
-        // ... (existing calculation logic if any, but we rely on DB values usually)
+        $invoice->load([
+            'docNumber',
+            'items.details',
+            'items.product',
+            'user',
+            'company',
+            'children.docNumber',
+            'terms',
+            'penawaran.cover',
+            'penawaran.company',
+            'signature',
+            'pic',
+            'parent.docNumber',
+        ]);
 
-        $signatureTemplates = \App\Models\InvoiceSignatureTemplate::all();
-        $termTemplates = \App\Models\InvoiceTermTemplate::all();
+        $signatureTemplates = InvoiceSignatureTemplate::query()
+            ->where('company_id', $invoice->company_id)
+            ->latest()
+            ->get();
+
+        $termTemplates = InvoiceTermTemplate::query()
+            ->where('company_id', $invoice->company_id)
+            ->latest()
+            ->get();
 
         $products = Product::query()
+            ->where('company_id', $invoice->company_id)
             ->where('is_active', true)
             ->orderBy('nama')
             ->get(['id', 'kode', 'nama']);
 
-        $pics = \App\Models\Pic::all();
+        $pics = Pic::query()
+            ->where('company_id', $invoice->company_id)
+            ->orderBy('nama')
+            ->get();
 
         return view('invoices.show', compact('invoice', 'signatureTemplates', 'termTemplates', 'products', 'pics'));
     }
 
     public function edit(Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         return view('invoices.edit', compact('invoice'));
     }
 
     public function update(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
             'catatan' => ['nullable', 'string'],
@@ -275,6 +309,12 @@ class InvoiceController extends Controller
             'discount_amount' => ['nullable', 'integer', 'min:0'],
             'pic_id' => ['nullable', 'exists:pics,id'],
         ]);
+
+        if (!empty($payload['pic_id'])) {
+            Pic::query()
+                ->where('company_id', $invoice->company_id)
+                ->findOrFail((int) $payload['pic_id']);
+        }
 
         $invoice->update([
             'judul' => $payload['judul'],
@@ -295,20 +335,26 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $invoice->delete();
+
         return redirect()->route('invoices.index')->with('success', 'Invoice berhasil dihapus.');
     }
 
-    // --- Items Management ---
-
     public function addBundle(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $request->validate([
             'product_id' => ['required', 'exists:products,id'],
             'qty' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
-        $product = Product::with('details')->findOrFail($request->product_id);
+        $product = Product::with('details')
+            ->where('company_id', $invoice->company_id)
+            ->findOrFail((int) $request->product_id);
+
         $qty = (float) ($request->qty ?: 1);
 
         DB::transaction(function () use ($invoice, $product, $qty) {
@@ -320,7 +366,7 @@ class InvoiceController extends Controller
                 'tipe' => 'bundle',
                 'judul' => $product->nama,
                 'urutan' => $urutan,
-                'subtotal' => 0
+                'subtotal' => 0,
             ]);
 
             $urutanDetail = 1;
@@ -337,7 +383,7 @@ class InvoiceController extends Controller
                     'qty' => $dQty * $qty,
                     'satuan' => $pd->satuan,
                     'harga' => $harga,
-                    'subtotal' => (int) round(($dQty * $qty) * $harga)
+                    'subtotal' => (int) round(($dQty * $qty) * $harga),
                 ]);
             }
 
@@ -349,9 +395,10 @@ class InvoiceController extends Controller
 
     public function addCustomItem(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
-            // New optional fields for Direct Price (Single Item)
             'is_single' => ['nullable', 'boolean'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'qty' => ['nullable', 'numeric', 'min:0'],
@@ -366,24 +413,22 @@ class InvoiceController extends Controller
                 'tipe' => 'custom',
                 'judul' => $payload['judul'],
                 'urutan' => $urutan,
-                'subtotal' => 0
+                'subtotal' => 0,
             ]);
 
-            // If "Single Item" (Direct Price) is selected
             if (!empty($payload['is_single']) && $payload['is_single']) {
                 $qty = (float) ($payload['qty'] ?? 1);
                 $price = (int) ($payload['price'] ?? 0);
-                $subtotal = $qty * $price;
+                $subtotal = (int) round($qty * $price);
 
                 InvoiceItemDetail::create([
                     'invoice_item_id' => $item->id,
                     'urutan' => 1,
-                    // Use item title as detail name if single
                     'nama' => $payload['judul'],
                     'qty' => $qty,
                     'satuan' => $payload['unit'] ?? 'ls',
                     'harga' => $price,
-                    'subtotal' => $subtotal
+                    'subtotal' => $subtotal,
                 ]);
 
                 $this->recalcItemSubtotal($item);
@@ -395,18 +440,18 @@ class InvoiceController extends Controller
 
     public function addTerminItem(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $payload = $request->validate([
             'total_project' => ['required', 'numeric', 'min:0'],
             'termin_percent' => ['required', 'numeric', 'min:1', 'max:100'],
-            'termin_step' => ['nullable', 'string'] // e.g. "Termin 1", "DP"
+            'termin_step' => ['nullable', 'string'],
         ]);
 
         $basis = (int) $payload['total_project'];
         $percent = (float) $payload['termin_percent'];
         $amount = (int) round($basis * ($percent / 100));
-
         $name = $payload['termin_step'] ? "{$payload['termin_step']} ({$percent}%)" : "Pembayaran Termin {$percent}%";
-        // Append total ref if needed: "$name - Total Project Rp..."
 
         DB::transaction(function () use ($invoice, $amount, $name) {
             $urutan = (int) $invoice->items()->max('urutan') + 1;
@@ -416,7 +461,7 @@ class InvoiceController extends Controller
                 'tipe' => 'custom',
                 'judul' => $name,
                 'urutan' => $urutan,
-                'subtotal' => 0
+                'subtotal' => 0,
             ]);
 
             InvoiceItemDetail::create([
@@ -426,7 +471,7 @@ class InvoiceController extends Controller
                 'qty' => 1,
                 'satuan' => 'ls',
                 'harga' => $amount,
-                'subtotal' => $amount
+                'subtotal' => $amount,
             ]);
 
             $this->recalcItemSubtotal($item);
@@ -437,6 +482,8 @@ class InvoiceController extends Controller
 
     public function storeTermin(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $payload = $request->validate([
             'termin_name' => ['required', 'string'],
             'termin_percent' => ['required', 'numeric', 'min:0.1', 'max:100'],
@@ -445,27 +492,32 @@ class InvoiceController extends Controller
         ]);
 
         return DB::transaction(function () use ($payload, $invoice) {
+            $invoice->loadMissing(['docNumber', 'signature', 'terms', 'items.details', 'children', 'user']);
+            $owner = $this->resolveCompanyUser((int) $invoice->company_id, (int) $invoice->user_id);
 
-            // Generate Suffix Document Number
-            // Parent: 001/INV/2026 -> Child: 001/INV/2026-T1
             $parentDocNo = $invoice->docNumber->doc_no;
             $countChildren = $invoice->children()->count() + 1;
-            $suffix = "-T{$countChildren}";
-            $newDocNoStr = $parentDocNo . $suffix;
-
-            // Create DocNumber record for consistency
+            $newDocNoStr = $parentDocNo . "-T{$countChildren}";
             $parentDocNum = $invoice->docNumber;
+            $docDate = Carbon::parse($payload['tgl_invoice']);
+
             $docNumber = DocNumber::create([
+                'company_id' => $invoice->company_id,
                 'prefix' => $parentDocNum->prefix,
+                'doc_type' => $parentDocNum->doc_type,
+                'user_code' => $parentDocNum->user_code,
                 'seq' => $parentDocNum->seq,
+                'month' => $docDate->month,
+                'year' => $docDate->year,
                 'doc_no' => $newDocNoStr,
             ]);
+
             $percent = (float) $payload['termin_percent'];
             $ratio = $percent / 100;
 
-            // Create Child Invoice
             $child = Invoice::create([
-                'user_id' => auth()->id(),
+                'company_id' => $invoice->company_id,
+                'user_id' => $owner->id,
                 'doc_number_id' => $docNumber->id,
                 'parent_id' => $invoice->id,
                 'penawaran_id' => $invoice->penawaran_id,
@@ -475,64 +527,58 @@ class InvoiceController extends Controller
                 'tgl_invoice' => $payload['tgl_invoice'],
                 'jatuh_tempo' => $payload['jatuh_tempo'],
                 'subtotal' => 0,
-                'pic_id' => $invoice->pic_id, // Copy PIC
-                'payment_info' => $invoice->payment_info, // Copy Payment Info
-                // Copy Tax Percent
+                'pic_id' => $invoice->pic_id,
+                'payment_info' => $invoice->payment_info,
                 'tax_percent' => $invoice->tax_percent,
-                // Prorate Discount
-                'discount_amount' => round($invoice->discount_amount * $ratio),
-                'grand_total' => 0
+                'discount_amount' => (int) round($invoice->discount_amount * $ratio),
+                'grand_total' => 0,
             ]);
 
-            // Copy Signature
             if ($invoice->signature) {
                 $child->signature()->create([
                     'nama' => $invoice->signature->nama,
                     'jabatan' => $invoice->signature->jabatan,
                     'kota' => $invoice->signature->kota,
                     'tanggal' => $invoice->signature->tanggal,
-                    'ttd_path' => $invoice->signature->ttd_path, // Share the same image file
+                    'ttd_path' => $invoice->signature->ttd_path,
                 ]);
             }
 
-            // Copy Terms
             foreach ($invoice->terms as $term) {
                 $child->terms()->create([
                     'urutan' => $term->urutan,
-                    'isi' => $term->isi
+                    'isi' => $term->isi,
                 ]);
             }
 
-            // Copy and Prorate Items
             foreach ($invoice->items as $parentItem) {
                 $childItem = InvoiceItem::create([
                     'invoice_id' => $child->id,
                     'tipe' => $parentItem->tipe,
-                    'judul' => $parentItem->judul, // Keep original title
+                    'judul' => $parentItem->judul,
                     'urutan' => $parentItem->urutan,
                     'product_id' => $parentItem->product_id,
-                    'subtotal' => 0
+                    'subtotal' => 0,
                 ]);
 
                 foreach ($parentItem->details as $parentDetail) {
-                    $proratedPrice = round($parentDetail->harga * $ratio);
+                    $proratedPrice = (int) round($parentDetail->harga * $ratio);
 
                     InvoiceItemDetail::create([
                         'invoice_item_id' => $childItem->id,
                         'urutan' => $parentDetail->urutan,
-                        'nama' => $parentDetail->nama . " (Termin {$percent}%)", // Append info or keep clean? User said "menampilkan item dari termin", implying identity. Let's keep name clean or maybe append percentage if needed. Let's append to distinguish.
-                        'qty' => $parentDetail->qty, // Keep Qty same
+                        'nama' => $parentDetail->nama . " (Termin {$percent}%)",
+                        'qty' => $parentDetail->qty,
                         'satuan' => $parentDetail->satuan,
                         'spesifikasi' => $parentDetail->spesifikasi,
-                        'harga' => $proratedPrice, // Prorated Price
-                        'subtotal' => $proratedPrice * $parentDetail->qty
+                        'harga' => $proratedPrice,
+                        'subtotal' => (int) round($proratedPrice * $parentDetail->qty),
                     ]);
                 }
 
                 $this->recalcItemSubtotal($childItem);
             }
 
-            // Recalculate Grand Total to sum up the new prorated items
             $this->recalcGrandTotal($child);
 
             return redirect()->route('invoices.show', $child->id);
@@ -541,43 +587,73 @@ class InvoiceController extends Controller
 
     public function updateItem(Request $request, Invoice $invoice, InvoiceItem $item)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+        $this->ensureInvoiceItemBelongsToInvoice($invoice, $item);
+
         $payload = $request->validate([
             'judul' => ['required', 'string'],
-            'qty' => ['nullable', 'numeric', 'min:0'],
+            'qty' => ['nullable', 'numeric', 'min:0.01'],
             'satuan' => ['nullable', 'string'],
-            'catatan' => ['nullable', 'string']
+            'catatan' => ['nullable', 'string'],
         ]);
 
-        $item->update($payload);
+        $item->update([
+            'judul' => $payload['judul'],
+            'catatan' => $payload['catatan'] ?? null,
+        ]);
 
-        if ($item->tipe === 'bundle') {
-            $this->recalcItemSubtotal($item);
-        } else {
-            // Recalc custom item if qty changed
-            if (isset($payload['qty']) || isset($payload['price'])) {
-                $item->update([
-                    'subtotal' => ($item->harga * ($item->qty ?: 1))
-                ]);
-                $this->recalcGrandTotal($invoice);
+        if ($item->tipe === 'bundle' && isset($payload['qty']) && $item->product_id) {
+            $product = Product::with('details')
+                ->where('company_id', $invoice->company_id)
+                ->find($item->product_id);
+
+            if ($product) {
+                $detailsByProductDetail = $item->details->keyBy('product_detail_id');
+                $newQty = (float) $payload['qty'];
+
+                foreach ($product->details as $productDetail) {
+                    $detail = $detailsByProductDetail->get($productDetail->id);
+                    if (!$detail) {
+                        continue;
+                    }
+
+                    $detailQty = (float) ($productDetail->qty ?? 1) * $newQty;
+                    $harga = (int) ($detail->harga ?? $productDetail->harga ?? 0);
+
+                    $detail->update([
+                        'qty' => $detailQty,
+                        'satuan' => $payload['satuan'] ?? $detail->satuan ?? $productDetail->satuan,
+                        'subtotal' => (int) round($detailQty * $harga),
+                    ]);
+                }
             }
         }
+
+        $this->recalcItemSubtotal($item->fresh('details'));
 
         return back();
     }
 
     public function deleteItem(Invoice $invoice, InvoiceItem $item)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+        $this->ensureInvoiceItemBelongsToInvoice($invoice, $item);
+
         $item->delete();
         $this->recalcGrandTotal($invoice);
+
         return back();
     }
 
     public function addItemDetail(Request $request, Invoice $invoice, InvoiceItem $item)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+        $this->ensureInvoiceItemBelongsToInvoice($invoice, $item);
+
         $payload = $request->validate([
-            'nama' => 'required|string',
-            'qty' => 'required|numeric',
-            'harga' => 'required|numeric'
+            'nama' => ['required', 'string'],
+            'qty' => ['required', 'numeric'],
+            'harga' => ['required', 'numeric'],
         ]);
 
         $urutan = (int) $item->details()->max('urutan') + 1;
@@ -591,19 +667,24 @@ class InvoiceController extends Controller
             'qty' => $qty,
             'harga' => $harga,
             'subtotal' => (int) round($qty * $harga),
-            'satuan' => $request->satuan
+            'satuan' => $request->satuan,
         ]);
 
         $this->recalcItemSubtotal($item);
+
         return back();
     }
 
     public function updateItemDetail(Request $request, Invoice $invoice, InvoiceItem $item, InvoiceItemDetail $detail)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+        $this->ensureInvoiceItemBelongsToInvoice($invoice, $item);
+        $this->ensureInvoiceItemDetailBelongsToItem($item, $detail);
+
         $payload = $request->validate([
-            'nama' => 'required|string',
-            'qty' => 'required|numeric',
-            'harga' => 'required|numeric'
+            'nama' => ['required', 'string'],
+            'qty' => ['required', 'numeric'],
+            'harga' => ['required', 'numeric'],
         ]);
 
         $qty = (float) $payload['qty'];
@@ -614,72 +695,85 @@ class InvoiceController extends Controller
             'qty' => $qty,
             'harga' => $harga,
             'subtotal' => (int) round($qty * $harga),
-            'satuan' => $request->satuan
+            'satuan' => $request->satuan,
         ]);
 
         $this->recalcItemSubtotal($item);
+
         return back();
     }
 
     public function deleteItemDetail(Invoice $invoice, InvoiceItem $item, InvoiceItemDetail $detail)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+        $this->ensureInvoiceItemBelongsToInvoice($invoice, $item);
+        $this->ensureInvoiceItemDetailBelongsToItem($item, $detail);
+
         $detail->delete();
         $this->recalcItemSubtotal($item);
+
         return back();
     }
 
-    // --- Helpers ---
-
-    protected function createDocNumber($userId)
+    protected function createDocNumber(?int $companyId = null, ?int $userId = null): DocNumber
     {
-        // Simple doc number generation, copying pattern from Penawaran but simpler for now
-        // Assuming DocNumber model usage is generic or we need a new prefix
-        // Let's assume we reuse DocNumber logic.
+        $now = Carbon::now();
+        $companyId = $companyId ?: $this->currentCompanyId();
+        $company = \App\Models\Company::find($companyId);
+        $companyCode = strtoupper((string) ($company?->code ?: 'COMP'));
+        $userId = $userId ?: auth()->id();
+        $month = str_pad((string) $now->month, 2, '0', STR_PAD_LEFT);
+        $year = $now->year;
 
-        $prefix = "INV/" . date('Y/m/');
-        $last = DocNumber::where('prefix', $prefix)->orderByDesc('seq')->first();
+        $prefix = "INV/{$companyCode}/{$year}/{$month}/";
+        $last = DocNumber::query()
+            ->where('company_id', $companyId)
+            ->where('prefix', $prefix)
+            ->orderByDesc('seq')
+            ->first();
+
         $seq = $last ? $last->seq + 1 : 1;
-        $docNo = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $userCode = 'INV' . str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
 
         return DocNumber::create([
+            'company_id' => $companyId,
             'prefix' => $prefix,
+            'doc_type' => 'INV',
+            'user_code' => $userCode,
             'seq' => $seq,
-            'doc_no' => $docNo
+            'month' => (int) $month,
+            'year' => $year,
+            'doc_no' => $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT),
         ]);
     }
 
     protected function recalcItemSubtotal(InvoiceItem $item)
     {
-        if ($item->tipe === 'bundle') {
-            $sum = $item->details()->sum('subtotal');
-            $qty = $item->qty ?: 1;
-            $item->update(['subtotal' => $sum * $qty]);
-        } else {
-            // Custom item: sum all detail subtotals
-            $total = 0;
-            foreach ($item->details()->get() as $d) {
-                $sub = (int) ($d->subtotal ?? 0);
-                if ($sub <= 0) {
-                    $q = (float) ($d->qty ?? 0);
-                    $h = (int) ($d->harga ?? 0);
-                    $sub = (int) round($q * $h);
-                }
-                $total += $sub;
+        $item->loadMissing('details');
+
+        $total = 0;
+        foreach ($item->details as $detail) {
+            $subtotal = (int) ($detail->subtotal ?? 0);
+            if ($subtotal <= 0) {
+                $subtotal = (int) round(((float) ($detail->qty ?? 0)) * ((int) ($detail->harga ?? 0)));
             }
-            $item->update(['subtotal' => $total]);
+            $total += $subtotal;
         }
+
+        $item->update(['subtotal' => $total]);
         $this->recalcGrandTotal($item->invoice);
     }
 
     protected function recalcGrandTotal(Invoice $invoice)
     {
-        $subtotal = $invoice->items()->sum('subtotal');
-        $discount = $invoice->discount_amount;
-        $taxPercent = $invoice->tax_percent;
+        $subtotal = (int) $invoice->items()->sum('subtotal');
+        $discount = (int) ($invoice->discount_amount ?? 0);
+        $taxPercent = (float) ($invoice->tax_percent ?? 0);
 
         $taxable = $subtotal - $discount;
-        if ($taxable < 0)
+        if ($taxable < 0) {
             $taxable = 0;
+        }
 
         $taxAmount = (int) round($taxable * ($taxPercent / 100));
         $grandTotal = $taxable + $taxAmount;
@@ -687,62 +781,54 @@ class InvoiceController extends Controller
         $invoice->update([
             'subtotal' => $subtotal,
             'tax_amount' => $taxAmount,
-            'grand_total' => $grandTotal
+            'grand_total' => $grandTotal,
         ]);
     }
 
     public function downloadPdf(Invoice $invoice)
     {
+        $this->ensureInvoiceViewAccess($invoice);
 
-        $invoice->load(['docNumber', 'items.details', 'user', 'penawaran.cover', 'signature', 'terms', 'parent']); // Load Signature, Terms, Parent
+        $invoice->load([
+            'docNumber',
+            'items.details',
+            'user.company',
+            'company',
+            'pic',
+            'penawaran.cover',
+            'penawaran.company',
+            'signature',
+            'terms',
+            'parent',
+        ]);
 
-        // Logic to get Logo
-        $logo = null;
-        // Try getting logo from linked Penawaran Cover if available
-        if ($invoice->penawaran && $invoice->penawaran->cover && $invoice->penawaran->cover->logo_path) {
-            $p1 = public_path('storage/' . ltrim($invoice->penawaran->cover->logo_path, '/'));
-            $p2 = storage_path('app/public/' . ltrim($invoice->penawaran->cover->logo_path, '/'));
-            $logo = is_file($p1) ? $p1 : (is_file($p2) ? $p2 : null);
-        }
-
-        // Fallback or Default Logo
-        if (!$logo) {
-            $logo = public_path('images/logo_arsol.png');
-        }
-
-        // Construct Kop Data
-        $kop = [
-            'logo' => $logo,
-            'nama' => 'CV. ARTA SOLUSINDO',
-            'alamat' => $invoice->penawaran?->cover?->perusahaan_alamat ?? 'Juwangen RT 10 RW 02 Purwomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571',
-            'telp' => $invoice->penawaran?->cover?->perusahaan_telp ?? '(0274) 5044026 / 085727868505',
-            'email' => $invoice->penawaran?->cover?->perusahaan_email ?? 'cv.artasolusindo@gmail.com',
-        ];
+        $kop = $this->buildInvoiceKop($invoice);
 
         $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'kop'));
-        $filename = "Invoice-" . str_replace(['/', '\\'], '-', $invoice->docNumber->doc_no) . ".pdf";
+        $filename = 'Invoice-' . str_replace(['/', '\\'], '-', $invoice->docNumber->doc_no) . '.pdf';
+
         return $pdf->stream($filename);
     }
 
     public function saveSignature(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $payload = $request->validate([
             'nama' => ['required', 'string', 'max:255'],
             'jabatan' => ['required', 'string', 'max:255'],
             'kota' => ['nullable', 'string', 'max:255'],
             'tanggal' => ['nullable', 'date'],
-            'ttd' => ['nullable', 'image', 'max:2048']
+            'ttd' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $path = null;
         if ($request->hasFile('ttd')) {
-            // Delete old file if exists and replacing
             if ($invoice->signature && $invoice->signature->ttd_path) {
                 Storage::disk('public')->delete($invoice->signature->ttd_path);
             }
             $path = $request->file('ttd')->store('invoices/signatures', 'public');
         } elseif ($invoice->signature) {
-            // Keep old path if not replacing
             $path = $invoice->signature->ttd_path;
         }
 
@@ -751,9 +837,9 @@ class InvoiceController extends Controller
             [
                 'nama' => $payload['nama'],
                 'jabatan' => $payload['jabatan'],
-                'kota' => $payload['kota'],
-                'tanggal' => $payload['tanggal'],
-                'ttd_path' => $path
+                'kota' => $payload['kota'] ?? null,
+                'tanggal' => $payload['tanggal'] ?? null,
+                'ttd_path' => $path,
             ]
         );
 
@@ -762,50 +848,57 @@ class InvoiceController extends Controller
 
     public function deleteSignature(Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         if ($invoice->signature) {
             if ($invoice->signature->ttd_path) {
                 Storage::disk('public')->delete($invoice->signature->ttd_path);
             }
             $invoice->signature()->delete();
         }
+
         return back()->with('success', 'Tanda tangan dihapus.');
     }
 
-    // Terms Management
     public function addTerm(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $payload = $request->validate([
             'isi' => ['required', 'string'],
         ]);
 
-        $urutan = $invoice->terms()->max('urutan') ?? 0;
-        $urutan++;
+        $urutan = (int) ($invoice->terms()->max('urutan') ?? 0) + 1;
 
         $term = $invoice->terms()->create([
             'urutan' => $urutan,
-            'isi' => $payload['isi']
+            'isi' => $payload['isi'],
         ]);
 
         return response()->json([
             'message' => 'Term added.',
-            'term' => $term
+            'term' => $term,
         ]);
     }
 
-    // Load Signature Template
     public function loadSignatureTemplate(Request $request, Invoice $invoice)
     {
+        $this->ensureInvoiceEditAccess($invoice);
+
         $request->validate(['template_id' => 'required|exists:invoice_signature_templates,id']);
 
-        $template = \App\Models\InvoiceSignatureTemplate::find($request->template_id);
+        $template = InvoiceSignatureTemplate::findOrFail((int) $request->template_id);
+        $this->ensureCompanyAccess($template);
 
-        // Copy image if exists
+        if ((int) $template->company_id !== (int) $invoice->company_id) {
+            abort(403);
+        }
+
         $newPath = null;
         if ($template->ttd_path) {
             $newPath = 'invoices/signatures/' . uniqid() . '_' . basename($template->ttd_path);
             Storage::disk('public')->copy($template->ttd_path, $newPath);
 
-            // Delete old file if exists
             if ($invoice->signature && $invoice->signature->ttd_path) {
                 Storage::disk('public')->delete($invoice->signature->ttd_path);
             }
@@ -818,26 +911,33 @@ class InvoiceController extends Controller
                 'jabatan' => $template->jabatan,
                 'kota' => $template->kota,
                 'ttd_path' => $newPath,
-                'tanggal' => now()
+                'tanggal' => now(),
             ]
         );
 
         return back()->with('success', 'Signature loaded from template.');
     }
 
-    // Load Term Template
     public function loadTermTemplate(Request $request, Invoice $invoice)
     {
-        $request->validate(['template_id' => 'required|exists:invoice_term_templates,id']);
-        $template = \App\Models\InvoiceTermTemplate::find($request->template_id);
+        $this->ensureInvoiceEditAccess($invoice);
 
-        $startUrutan = $invoice->terms()->max('urutan') ?? 0;
+        $request->validate(['template_id' => 'required|exists:invoice_term_templates,id']);
+
+        $template = InvoiceTermTemplate::findOrFail((int) $request->template_id);
+        $this->ensureCompanyAccess($template);
+
+        if ((int) $template->company_id !== (int) $invoice->company_id) {
+            abort(403);
+        }
+
+        $startUrutan = (int) ($invoice->terms()->max('urutan') ?? 0);
 
         foreach ($template->terms as $isi) {
             $startUrutan++;
             $invoice->terms()->create([
                 'urutan' => $startUrutan,
-                'isi' => $isi
+                'isi' => $isi,
             ]);
         }
 
@@ -846,10 +946,110 @@ class InvoiceController extends Controller
 
     public function deleteTerm(Invoice $invoice, InvoiceTerm $term)
     {
-        if ($term->invoice_id !== $invoice->id) {
+        $this->ensureInvoiceEditAccess($invoice);
+
+        if ((int) $term->invoice_id !== (int) $invoice->id) {
             abort(404);
         }
+
         $term->delete();
+
         return response()->json(['message' => 'Term deleted.']);
+    }
+
+    private function ensureInvoiceViewAccess(Invoice $invoice, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($invoice, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin')) {
+            return;
+        }
+
+        if ((int) $invoice->user_id !== (int) $user->id) {
+            abort(403);
+        }
+    }
+
+    private function ensureInvoiceEditAccess(Invoice $invoice, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($invoice, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin')) {
+            return;
+        }
+
+        if ((int) $invoice->user_id !== (int) $user->id) {
+            abort(403);
+        }
+    }
+
+    private function ensureInvoiceItemBelongsToInvoice(Invoice $invoice, InvoiceItem $item): void
+    {
+        if ((int) $item->invoice_id !== (int) $invoice->id) {
+            abort(404);
+        }
+    }
+
+    private function ensureInvoiceItemDetailBelongsToItem(InvoiceItem $item, InvoiceItemDetail $detail): void
+    {
+        if ((int) $detail->invoice_item_id !== (int) $item->id) {
+            abort(404);
+        }
+    }
+
+    private function ensurePenawaranInvoiceAccess(Penawaran $penawaran, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        $this->ensureCompanyAccess($penawaran, 'company_id', $user);
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin')) {
+            return;
+        }
+
+        if ((int) $penawaran->id_user !== (int) $user->id) {
+            abort(403);
+        }
+    }
+
+    private function buildInvoiceKop(Invoice $invoice): array
+    {
+        $cover = $invoice->penawaran?->cover;
+        $company = $invoice->company ?? $invoice->penawaran?->company ?? $invoice->user?->company;
+
+        $logo = $company?->logoFullPath()
+            ?: $this->resolvePublicDiskPath($cover?->logo_path)
+            ?: public_path('images/logo_arsol.png');
+
+        return [
+            'logo' => $logo,
+            'nama' => $company?->name ?: ($cover?->perusahaan_nama ?: 'CV. ARTA SOLUSINDO'),
+            'alamat' => $company?->address ?: ($cover?->perusahaan_alamat ?: 'Juwangen RT 10 RW 02 Purwomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571'),
+            'telp' => $company?->phone ?: ($cover?->perusahaan_telp ?: '(0274) 5044026 / 085727868505'),
+            'email' => $company?->email ?: ($cover?->perusahaan_email ?: 'cv.artasolusindo@gmail.com'),
+        ];
+    }
+
+    private function resolvePublicDiskPath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $publicPath = public_path('storage/' . ltrim($path, '/'));
+        if (is_file($publicPath)) {
+            return $publicPath;
+        }
+
+        $storagePath = storage_path('app/public/' . ltrim($path, '/'));
+        if (is_file($storagePath)) {
+            return $storagePath;
+        }
+
+        return null;
     }
 }

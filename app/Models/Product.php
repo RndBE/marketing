@@ -8,7 +8,7 @@ class Product extends Model
 {
     protected $table = 'products';
 
-    protected $fillable = ['kode', 'nama', 'deskripsi', 'satuan', 'is_active', 'foto'];
+    protected $fillable = ['company_id', 'kode', 'nama', 'deskripsi', 'satuan', 'is_active', 'foto'];
 
     protected $casts = [
         'is_active' => 'boolean',
@@ -17,5 +17,10 @@ class Product extends Model
     public function details()
     {
         return $this->hasMany(ProductDetail::class, 'product_id')->orderBy('urutan');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 }

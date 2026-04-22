@@ -18,6 +18,7 @@ class PicController extends Controller
         }
 
         $data = Pic::query()
+            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($nested) use ($q) {
                     $nested->where('nama', 'like', '%' . $q . '%')
@@ -59,18 +60,23 @@ class PicController extends Controller
             'alamat' => 'nullable|string',
         ]);
 
-        Pic::create($payload);
+        Pic::create(array_merge($payload, [
+            'company_id' => $this->currentCompanyId($request->user()),
+        ]));
 
         return redirect()->route('pics.index')->with('success', 'PIC berhasil ditambahkan');
     }
 
     public function edit(Pic $pic)
     {
+        $this->ensureCompanyAccess($pic);
         return view('pics.edit', compact('pic'));
     }
 
     public function update(Request $request, Pic $pic)
     {
+        $this->ensureCompanyAccess($pic);
+
         $payload = $request->validate([
             'honorific' => 'nullable|in:Bapak,Ibu',
             'nama' => 'required|string|max:255',
@@ -88,6 +94,8 @@ class PicController extends Controller
 
     public function destroy(Pic $pic)
     {
+        $this->ensureCompanyAccess($pic);
+
         if ($pic->penawaran()->exists()) {
             return back()->withErrors('PIC tidak bisa dihapus karena sudah dipakai di penawaran.');
         }
@@ -98,7 +106,6 @@ class PicController extends Controller
 
         $pic->delete();
 
-        
         return redirect()->route('pics.index')->with('success', 'PIC berhasil dihapus');
     }
 }

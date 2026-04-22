@@ -11,6 +11,7 @@ class UsulanPenawaran extends Model
     protected $table = 'usulan_penawaran';
 
     protected $fillable = [
+        'company_id',
         'judul',
         'pic_id',
         'prospect_id',
@@ -34,6 +35,11 @@ class UsulanPenawaran extends Model
     public function pic(): BelongsTo
     {
         return $this->belongsTo(Pic::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function creator(): BelongsTo

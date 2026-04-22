@@ -16,9 +16,12 @@ class KomponenController extends Controller
             $perPage = 20;
 
         $komponen = Komponen::query()
+            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->when($q !== '', function ($query) use ($q) {
-                $query->where('nama', 'like', "%{$q}%")
-                    ->orWhere('kode', 'like', "%{$q}%");
+                $query->where(function ($nested) use ($q) {
+                    $nested->where('nama', 'like', "%{$q}%")
+                        ->orWhere('kode', 'like', "%{$q}%");
+                });
             })
             ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
@@ -31,8 +34,10 @@ class KomponenController extends Controller
 
     public function store(Request $request)
     {
+        $companyId = (int) $this->currentCompanyId($request->user());
+
         $payload = $request->validate([
-            'kode' => 'nullable|string|max:50|unique:komponen,kode',
+            'kode' => 'nullable|string|max:50|unique:komponen,kode,NULL,id,company_id,' . $companyId,
             'nama' => 'required|string|max:255',
             'spesifikasi' => 'nullable|string',
             'satuan' => 'nullable|string|max:50',
@@ -45,15 +50,20 @@ class KomponenController extends Controller
             $fotoPath = $request->file('foto')->store('komponen', 'public');
         }
 
-        Komponen::create(array_merge($payload, ['foto' => $fotoPath]));
+        Komponen::create(array_merge($payload, [
+            'company_id' => $companyId,
+            'foto' => $fotoPath,
+        ]));
 
         return redirect()->route('komponen.index')->with('success', 'Komponen berhasil ditambahkan');
     }
 
     public function update(Request $request, Komponen $komponen)
     {
+        $this->ensureCompanyAccess($komponen);
+
         $payload = $request->validate([
-            'kode' => 'nullable|string|max:50|unique:komponen,kode,' . $komponen->id,
+            'kode' => 'nullable|string|max:50|unique:komponen,kode,' . $komponen->id . ',id,company_id,' . $komponen->company_id,
             'nama' => 'required|string|max:255',
             'spesifikasi' => 'nullable|string',
             'satuan' => 'nullable|string|max:50',
@@ -85,6 +95,7 @@ class KomponenController extends Controller
 
     public function destroy(Komponen $komponen)
     {
+        $this->ensureCompanyAccess($komponen);
         $komponen->delete();
         return redirect()->route('komponen.index')->with('success', 'Komponen berhasil dihapus');
     }
@@ -92,6 +103,7 @@ class KomponenController extends Controller
     // API endpoint untuk get komponen data
     public function show(Komponen $komponen)
     {
+        $this->ensureCompanyAccess($komponen);
         return response()->json([
             'id' => $komponen->id,
             'kode' => $komponen->kode,
@@ -105,7 +117,9 @@ class KomponenController extends Controller
     // API endpoint untuk list komponen aktif
     public function list()
     {
-        $komponen = Komponen::where('is_active', true)
+        $komponen = Komponen::query()
+            ->when(!$this->isSuperadmin(), fn($query) => $query->where('company_id', $this->currentCompanyId()))
+            ->where('is_active', true)
             ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -156,7 +170,9 @@ class KomponenController extends Controller
                 try {
                     // Check if komponen with this kode already exists
                     if (!empty($kode)) {
-                        $existing = Komponen::where('kode', $kode)->first();
+                        $existing = Komponen::where('company_id', $this->currentCompanyId($request->user()))
+                            ->where('kode', $kode)
+                            ->first();
 
                         if ($existing) {
                             // Update existing
@@ -170,6 +186,7 @@ class KomponenController extends Controller
                         } else {
                             // Create new
                             Komponen::create([
+                                'company_id' => $this->currentCompanyId($request->user()),
                                 'kode' => $kode ?: null,
                                 'nama' => $nama,
                                 'satuan' => $satuan ?: null,
@@ -181,6 +198,7 @@ class KomponenController extends Controller
                     } else {
                         // No kode, just create
                         Komponen::create([
+                            'company_id' => $this->currentCompanyId($request->user()),
                             'kode' => null,
                             'nama' => $nama,
                             'satuan' => $satuan ?: null,
@@ -224,7 +242,10 @@ class KomponenController extends Controller
             'ids.*' => 'exists:komponen,id',
         ]);
 
-        $count = Komponen::whereIn('id', $request->ids)->delete();
+        $count = Komponen::query()
+            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
+            ->whereIn('id', $request->ids)
+            ->delete();
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([

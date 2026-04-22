@@ -144,7 +144,7 @@
 
             @php
                 $isOwnerOrAdmin = (int) $usulan->created_by === (int) auth()->id()
-                    || auth()->user()->roles->contains('slug', 'admin');
+                    || auth()->user()->hasRole('admin');
             @endphp
 
             @if (in_array($usulan->status, ['draft', 'menunggu']) && $isOwnerOrAdmin)
