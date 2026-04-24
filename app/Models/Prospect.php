@@ -107,31 +107,13 @@ class Prospect extends Model
 
     public function scopeVisibleToCompany(Builder $query, ?int $companyId): Builder
     {
-        if (!$companyId) {
-            return $query;
-        }
-
-        return $query->where(function (Builder $nested) use ($companyId) {
-            $nested->where($this->getTable() . '.company_id', $companyId)
-                ->orWhereHas('sharedCompanies', fn(Builder $sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-        });
+        // Prospek bersifat lintas perusahaan.
+        return $query;
     }
 
     public function isVisibleToCompany(?int $companyId): bool
     {
-        if (!$companyId) {
-            return false;
-        }
-
-        if ((int) $this->company_id === (int) $companyId) {
-            return true;
-        }
-
-        if ($this->relationLoaded('sharedCompanies')) {
-            return $this->sharedCompanies->contains(fn($company) => (int) $company->id === (int) $companyId);
-        }
-
-        return $this->sharedCompanies()->where('companies.id', $companyId)->exists();
+        return (int) $companyId > 0;
     }
 
     public function assignedTo(): BelongsTo

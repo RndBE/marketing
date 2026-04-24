@@ -78,7 +78,7 @@
                 </a>
             @endif
 
-            @if (auth()->user()->hasPermission('create-penawaran'))
+            @if ($canCreatePenawaranFromProspect)
                 <form method="POST" action="{{ route('prospects.buat-penawaran', $prospect) }}">
                     @csrf
                     <button
@@ -269,12 +269,18 @@
                 <div class="text-sm font-medium">{{ $prospect->next_follow_up_at?->format('d M Y') ?? '-' }}</div>
             </div>
 
-            @include('partials.company_visibility_card', [
-                'ownerCompany' => $prospect->company,
-                'visibilityCompanies' => $visibilityCompanies,
-                'selectedSharedCompanyIds' => $prospect->sharedCompanies->pluck('id')->all(),
-                'action' => route('prospects.visibility.update', $prospect),
-            ])
+        <div class="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div class="text-sm font-semibold text-slate-900">Visibility Perusahaan</div>
+            <div class="mt-1 text-xs text-slate-500">
+                Prospek ini otomatis bisa dilihat dari semua perusahaan. Perusahaan asal tetap
+                {{ $prospect->company?->code ? $prospect->company->code . ' - ' : '' }}{{ $prospect->company?->name ?? '-' }}.
+            </div>
+            <div class="mt-3 flex flex-wrap gap-1.5">
+                <span class="rounded-full bg-slate-900 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                    Semua perusahaan
+                </span>
+            </div>
+        </div>
 
             <div class="rounded-2xl border border-slate-200 bg-white p-4">
                 <div class="text-xs text-slate-500">Dibuat Oleh</div>

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\AlurPenawaran;
 use App\Models\Approval;
 use App\Models\ApprovalStep;
-use App\Models\Company;
 use App\Models\DocNumber;
 use App\Models\Penawaran;
 use App\Models\PenawaranCover;
@@ -193,7 +192,6 @@ class ProspectController extends Controller
 
         $prospect->load([
             'company',
-            'sharedCompanies',
             'pic',
             'assignedTo',
             'creator',
@@ -244,14 +242,16 @@ class ProspectController extends Controller
                 ->orderByDesc('id')
                 ->get()
             : collect();
-
-        $visibilityCompanies = Company::query()->orderBy('name')->get(['id', 'name', 'code']);
+        $canCreatePenawaranFromProspect = $user->hasPermission('create-penawaran')
+            && ($this->isSuperadmin($user) || (int) $prospect->company_id === (int) $companyId)
+            && ($user->hasPermission('view-all-prospect')
+                || (int) $prospect->created_by === (int) $user->id
+                || (int) $prospect->assigned_to === (int) $user->id);
 
         return view('prospects.show', [
             'prospect' => $prospect,
             'statusOptions' => Prospect::statusOptions(),
             'outcomeOptions' => Prospect::outcomeOptions(),
-            'visibilityCompanies' => $visibilityCompanies,
             'attachPenawaranOptions' => $availablePenawarans->map(function ($penawaran) use ($prospect) {
                 $number = $penawaran->docNumber?->doc_no ?? ('Draft #' . $penawaran->id);
                 $label = $number . ' - ' . ($penawaran->judul ?: $penawaran->instansi_tujuan ?: 'Tanpa judul');
@@ -282,6 +282,7 @@ class ProspectController extends Controller
                 ];
             })->values()->all(),
             'canViewUsulan' => $canViewUsulan,
+            'canCreatePenawaranFromProspect' => $canCreatePenawaranFromProspect,
         ]);
     }
 
@@ -366,7 +367,7 @@ class ProspectController extends Controller
 
     public function buatPenawaran(Request $request, Prospect $prospect)
     {
-        $this->ensureViewAccess($request->user(), $prospect);
+        $this->ensureEditAccess($request->user(), $prospect);
 
         $penawaran = DB::transaction(function () use ($prospect, $request) {
             $penawaran = $this->createPenawaranFromProspect($prospect);
@@ -675,23 +676,9 @@ class ProspectController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
         $status = trim((string) $request->query('status', ''));
-        $user = $request->user();
-        $canViewAll = $user->hasPermission('view-all-prospect');
-        $companyId = $this->currentCompanyId($user);
 
         return Prospect::query()
             ->with(['pic', 'assignedTo', 'creator'])
-            ->visibleToCompany($companyId)
-            ->when(!$canViewAll, function ($query) use ($user, $companyId) {
-                $query->where(function ($nested) use ($user, $companyId) {
-                    $nested->where('created_by', $user->id)
-                        ->orWhere('assigned_to', $user->id);
-
-                    if ($companyId) {
-                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-                    }
-                });
-            })
             ->when($status !== '', fn($query) => $query->where('status', $status))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($nested) use ($q) {
@@ -795,46 +782,15 @@ class ProspectController extends Controller
         if (!$this->isSuperadmin($user) && !$prospect->isVisibleToCompany($companyId)) {
             abort(403);
         }
-
-        if ($this->isSuperadmin($user)) {
-            return;
-        }
-
-        if ($user->hasPermission('view-all-prospect')) {
-            return;
-        }
-
-        if ($companyId && (int) $prospect->company_id !== (int) $companyId && $prospect->isVisibleToCompany($companyId)) {
-            return;
-        }
-
-        $canAccess = (int) $prospect->created_by === (int) $user->id
-            || (int) $prospect->assigned_to === (int) $user->id;
-
-        if (!$canAccess) {
-            abort(403);
-        }
     }
 
     public function updateVisibility(Request $request, Prospect $prospect)
     {
         abort_unless($this->isSuperadmin($request->user()), 403);
 
-        $payload = $request->validate([
-            'company_ids' => ['nullable', 'array'],
-            'company_ids.*' => ['integer', 'exists:companies,id'],
-        ]);
+        $prospect->sharedCompanies()->sync([]);
 
-        $companyIds = collect($payload['company_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0 && $id !== (int) $prospect->company_id)
-            ->unique()
-            ->values()
-            ->all();
-
-        $prospect->sharedCompanies()->sync($companyIds);
-
-        return back()->with('success', 'Visibility prospek diperbarui.');
+        return back()->with('success', 'Prospek otomatis visible ke semua perusahaan.');
     }
 
     private function ensureEditAccess($user, Prospect $prospect): void
