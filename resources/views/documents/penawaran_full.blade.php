@@ -85,8 +85,6 @@
             padding-top: 1px !important;
             padding-bottom: 1px !important;
         }
-
-
     </style>
 </head>
 
@@ -98,22 +96,27 @@
         $discountAmount = $penawaran->calcDiscountAmount();
         $discountType = $penawaran->discount_type ?? 'percent';
         $discountValue = (float) ($penawaran->discount_value ?? 0);
-        $discountLabel = $discountType === 'percent'
-            ? rtrim(rtrim(number_format($discountValue, 2, ',', '.'), '0'), ',') . '%'
-            : 'Rp ' . number_format((int) round($discountValue), 0, ',', '.');
+        $discountLabel =
+            $discountType === 'percent'
+                ? rtrim(rtrim(number_format($discountValue, 2, ',', '.'), '0'), ',') . '%'
+                : 'Rp ' . number_format((int) round($discountValue), 0, ',', '.');
         $dpp = $penawaran->calcDppTotal();
         $taxAmount = $penawaran->calcTaxAmount();
         $grandTotal = $penawaran->calcGrandTotal();
         $hasTerms = $penawaran->terms && $penawaran->terms->count();
         $fallbackSignature = (object) [
             'nama' => $penawaran->user?->name,
-            'jabatan' => ($penawaran->user?->roles?->pluck('name')->implode(', ')) ?: 'Staff',
+            'jabatan' => $penawaran->user?->roles?->pluck('name')->implode(', ') ?: 'Staff',
             'kota' => 'Sleman',
             'ttd_path' => $penawaran->user?->ttd,
         ];
-        $signatureRows = $penawaran->signatures && $penawaran->signatures->count()
-            ? $penawaran->signatures
-            : collect([$fallbackSignature])->filter(fn($signature) => !empty($signature->nama));
+        $signatureRows =
+            $penawaran->signatures && $penawaran->signatures->count()
+                ? $penawaran->signatures
+                : collect([$fallbackSignature])->filter(fn($signature) => !empty($signature->nama));
+        $hasWideSignature = $signatureRows->contains(
+            fn($signature) => strcasecmp(trim((string) ($signature->nama ?? '')), 'Dewi Setiawati') === 0,
+        );
     @endphp
 
     @include('documents.partials.penawaran_cover', [
@@ -391,7 +394,8 @@
         @if ($hasTerms || $signatureRows->count())
             <table style="width:100%; border-collapse:collapse; border:0; margin-top:14px;">
                 <tr>
-                    <td style="width:70%; vertical-align:top; border:0; padding:0;">
+                    <td
+                        style="width:{{ $hasWideSignature ? '64%' : '70%' }}; vertical-align:top; border:0; padding:0;">
                         <div style="margin:0; padding:0;">Keterangan :</div>
 
                         <div style="margin-top:4px; font-size:8pt; line-height:1.1;">
@@ -401,7 +405,10 @@
 
                                     $termsByParent = $terms->groupBy('parent_id');
 
-                                    $renderTerms = function ($parentId, $level = 0) use (&$renderTerms, $termsByParent) {
+                                    $renderTerms = function ($parentId, $level = 0) use (
+                                        &$renderTerms,
+                                        $termsByParent,
+                                    ) {
                                         $items = $termsByParent[$parentId] ?? collect();
 
                                         foreach ($items->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $term) {
@@ -429,7 +436,8 @@
                         </div>
                     </td>
 
-                    <td style="width:30%; vertical-align:top; border:0; padding:0; text-align:center;">
+                    <td
+                        style="width:{{ $hasWideSignature ? '36%' : '30%' }}; vertical-align:top; border:0; padding:0; text-align:center;">
                         <div style="margin:0; padding:0; text-align:center;">
                             @foreach ($signatureRows as $sg)
                                 <div style="font-size:9pt;margin:0; padding:0;">Hormat kami,</div>
@@ -442,16 +450,20 @@
 
                                 <div style="text-align:center; margin-top:4px;">
                                     @php
-                                        $isWideSignature = strcasecmp(trim((string) ($sg->nama ?? '')), 'Dewi Setiawati') === 0;
-                                        $signatureWrapWidth = $isWideSignature ? '260px' : '220px';
-                                        $signatureImageWidth = $isWideSignature ? '190px' : '100px';
+                                        $isWideSignature =
+                                            strcasecmp(trim((string) ($sg->nama ?? '')), 'Dewi Setiawati') === 0;
+                                        $signatureWrapWidth = $isWideSignature ? '255px' : '220px';
+                                        $signatureImageWidth = $isWideSignature ? '240px' : '100px';
                                     @endphp
                                     <div
                                         style="position:relative; width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
 
                                         @php
                                             $ttdPath = null;
-                                            foreach (array_filter([$sg->ttd_path ?? null, $penawaran->user?->ttd ?? null]) as $candidateTtd) {
+                                            foreach (
+                                                array_filter([$sg->ttd_path ?? null, $penawaran->user?->ttd ?? null])
+                                                as $candidateTtd
+                                            ) {
                                                 $candidateTtd = ltrim((string) $candidateTtd, '/');
                                                 $publicTtdPath = public_path('storage/' . $candidateTtd);
                                                 $storageTtdPath = storage_path('app/public/' . $candidateTtd);
@@ -493,7 +505,7 @@
                 top:50%;
                 transform:translate(-50%, -50%);
                 width:220px;
-                opacity:0.65;
+                opacity:0.5;
                 z-index:2;
             ">
                                         @endif
