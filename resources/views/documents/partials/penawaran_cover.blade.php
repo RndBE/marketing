@@ -23,7 +23,6 @@
             ? $coverPhotoPathPng
             : null);
     $badgeBackground = public_path('templates/badge.png');
-    $companyLogo = isset($kop['logo']) && is_file($kop['logo']) ? $kop['logo'] : null;
 @endphp
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
@@ -183,11 +182,6 @@
 
     <div class="cover-badge">
         <img class="cover-badge-bg" src="{{ $badgeBackground }}" alt="Badge">
-        @if ($companyLogo)
-            <div class="cover-badge-logo-wrap">
-                <img class="cover-badge-logo" src="{{ $companyLogo }}" alt="Logo Perusahaan">
-            </div>
-        @endif
     </div>
 
     <div class="cover-content">
