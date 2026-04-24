@@ -22,8 +22,8 @@
         : (is_file($coverPhotoPathPng)
             ? $coverPhotoPathPng
             : null);
-    $badgeLogoFallback = public_path('templates/badge.png');
-    $badgeLogo = isset($kop['logo']) && is_file($kop['logo']) ? $kop['logo'] : $badgeLogoFallback;
+    $badgeBackground = public_path('templates/badge.png');
+    $companyLogo = isset($kop['logo']) && is_file($kop['logo']) ? $kop['logo'] : null;
 @endphp
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
@@ -64,9 +64,23 @@
         box-sizing: border-box;
     }
 
-    .cover-badge img {
+    .cover-badge-bg {
         width: 100%;
         height: 100%;
+        object-fit: cover;
+    }
+
+    .cover-badge-logo-wrap {
+        position: absolute;
+        inset: 12mm 8mm 10mm 8mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .cover-badge-logo {
+        max-width: 100%;
+        max-height: 100%;
         object-fit: contain;
     }
 
@@ -168,7 +182,12 @@
     @endif
 
     <div class="cover-badge">
-        <img src="{{ $badgeLogo }}" alt="Logo">
+        <img class="cover-badge-bg" src="{{ $badgeBackground }}" alt="Badge">
+        @if ($companyLogo)
+            <div class="cover-badge-logo-wrap">
+                <img class="cover-badge-logo" src="{{ $companyLogo }}" alt="Logo Perusahaan">
+            </div>
+        @endif
     </div>
 
     <div class="cover-content">

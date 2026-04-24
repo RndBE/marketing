@@ -899,7 +899,6 @@ class ProspectController extends Controller
         ]);
 
         $templates = PenawaranTermTemplate::query()
-            ->where('company_id', $prospect->company_id)
             ->whereNull('parent_id')
             ->orderBy('urutan')
             ->orderBy('id')

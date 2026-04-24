@@ -293,7 +293,6 @@ class PenawaranController extends Controller
             ]);
 
             $templates = PenawaranTermTemplate::query()
-                ->where('company_id', $companyId)
                 ->whereNull('parent_id')
                 ->orderBy('urutan')
                 ->orderBy('id')
@@ -1328,7 +1327,7 @@ class PenawaranController extends Controller
                     ->orderBy('urutan')
                     ->orderBy('id');
             },
-            'user',
+            'user.roles',
             'signatures',
             'attachments',
             'items.details'

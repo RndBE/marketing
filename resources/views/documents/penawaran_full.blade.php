@@ -104,6 +104,16 @@
         $dpp = $penawaran->calcDppTotal();
         $taxAmount = $penawaran->calcTaxAmount();
         $grandTotal = $penawaran->calcGrandTotal();
+        $hasTerms = $penawaran->terms && $penawaran->terms->count();
+        $fallbackSignature = (object) [
+            'nama' => $penawaran->user?->name,
+            'jabatan' => ($penawaran->user?->roles?->pluck('name')->implode(', ')) ?: 'Staff',
+            'kota' => 'Sleman',
+            'ttd_path' => $penawaran->user?->ttd,
+        ];
+        $signatureRows = $penawaran->signatures && $penawaran->signatures->count()
+            ? $penawaran->signatures
+            : collect([$fallbackSignature])->filter(fn($signature) => !empty($signature->nama));
     @endphp
 
     @include('documents.partials.penawaran_cover', [
@@ -378,46 +388,50 @@
             </tbody>
         </table>
 
-        @if ($penawaran->terms && $penawaran->terms->count())
+        @if ($hasTerms || $signatureRows->count())
             <table style="width:100%; border-collapse:collapse; border:0; margin-top:14px;">
                 <tr>
                     <td style="width:70%; vertical-align:top; border:0; padding:0;">
                         <div style="margin:0; padding:0;">Keterangan :</div>
 
-                        <ul style="margin:0; padding:0; list-style:none;">
-                            @php
-                                $terms = $penawaran->terms;
+                        <div style="margin-top:4px; font-size:8pt; line-height:1.1;">
+                            @if ($hasTerms)
+                                @php
+                                    $terms = $penawaran->terms;
 
-                                $termsByParent = $terms->groupBy('parent_id');
+                                    $termsByParent = $terms->groupBy('parent_id');
 
-                                $renderTerms = function ($parentId, $level = 0) use (&$renderTerms, $termsByParent) {
-                                    $items = $termsByParent[$parentId] ?? collect();
+                                    $renderTerms = function ($parentId, $level = 0) use (&$renderTerms, $termsByParent) {
+                                        $items = $termsByParent[$parentId] ?? collect();
 
-                                    foreach ($items->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $term) {
-                                        echo '<div style="margin-left:' . $level * 8 . 'px;">';
+                                        foreach ($items->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $term) {
+                                            echo '<div style="margin-left:' . $level * 8 . 'px;">';
 
-                                        if ($level == 0) {
-                                            echo '- ' . e($term->isi);
-                                        } else {
-                                            echo '> ' . e($term->isi);
+                                            if ($level == 0) {
+                                                echo '- ' . e($term->isi);
+                                            } else {
+                                                echo '> ' . e($term->isi);
+                                            }
+
+                                            echo '</div>';
+
+                                            $renderTerms($term->id, $level + 1);
                                         }
+                                    };
+                                @endphp
 
-                                        echo '</div>';
-
-                                        $renderTerms($term->id, $level + 1);
-                                    }
-                                };
-                            @endphp
-
-                            <div style="margin-top:4px; font-size:8pt; line-height:1.1;">
                                 {!! $renderTerms(null, 0) !!}
-                            </div>
-                        </ul>
+                            @elseif (!empty($valid?->keterangan))
+                                <div>- {{ $valid->keterangan }}</div>
+                            @else
+                                <div>-</div>
+                            @endif
+                        </div>
                     </td>
 
                     <td style="width:30%; vertical-align:top; border:0; padding:0; text-align:center;">
                         <div style="margin:0; padding:0; text-align:center;">
-                            @foreach ($penawaran->signatures as $sg)
+                            @foreach ($signatureRows as $sg)
                                 <div style="font-size:9pt;margin:0; padding:0;">Hormat kami,</div>
                                 <div style="font-size:9pt; margin:2px 0 0 0;">
                                     {{ $sg->kota }},

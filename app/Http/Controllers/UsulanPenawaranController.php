@@ -437,7 +437,6 @@ class UsulanPenawaranController extends Controller
         ]);
 
         $templates = PenawaranTermTemplate::query()
-            ->where('company_id', $usulan->company_id)
             ->whereNull('parent_id')
             ->orderBy('urutan')
             ->orderBy('id')
