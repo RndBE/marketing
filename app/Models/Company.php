@@ -14,6 +14,7 @@ class Company extends Model
         'email',
         'phone',
         'logo_path',
+        'stamp_path',
     ];
 
     public function users(): HasMany
@@ -23,16 +24,26 @@ class Company extends Model
 
     public function logoFullPath(): ?string
     {
-        if (!$this->logo_path) {
+        return $this->publicDiskFullPath($this->logo_path);
+    }
+
+    public function stampFullPath(): ?string
+    {
+        return $this->publicDiskFullPath($this->stamp_path);
+    }
+
+    private function publicDiskFullPath(?string $path): ?string
+    {
+        if (!$path) {
             return null;
         }
 
-        $publicPath = public_path('storage/' . ltrim($this->logo_path, '/'));
+        $publicPath = public_path('storage/' . ltrim($path, '/'));
         if (is_file($publicPath)) {
             return $publicPath;
         }
 
-        $storagePath = storage_path('app/public/' . ltrim($this->logo_path, '/'));
+        $storagePath = storage_path('app/public/' . ltrim($path, '/'));
         if (is_file($storagePath)) {
             return $storagePath;
         }

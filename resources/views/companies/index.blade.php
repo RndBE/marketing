@@ -5,7 +5,7 @@
         <div class="flex items-center justify-between mb-3 gap-3">
             <div>
                 <h1 class="text-xl font-bold">Manajemen Perusahaan</h1>
-                <p class="text-sm text-slate-500">Data perusahaan ini dipakai untuk kop PDF, logo, dan konteks multi-company.</p>
+                <p class="text-sm text-slate-500">Data perusahaan ini dipakai untuk kop PDF, logo, cap, dan konteks multi-company.</p>
             </div>
             <a href="{{ route('companies.create') }}"
                 class="rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">

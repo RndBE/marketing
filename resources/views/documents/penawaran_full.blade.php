@@ -461,7 +461,7 @@
                                                 }
                                             }
 
-                                            $stampPath = public_path('images/cap_arsol.png');
+                                            $stampPath = $kop['stamp'] ?? public_path('images/cap_arsol.png');
                                         @endphp
 
                                         {{-- TTD --}}

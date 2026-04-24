@@ -1587,9 +1587,12 @@ class PenawaranController extends Controller
         $logo = $company?->logoFullPath()
             ?: $this->resolvePublicDiskPath($cover?->logo_path)
             ?: public_path('images/logo_arsol.png');
+        $stamp = $company?->stampFullPath()
+            ?: public_path('images/cap_arsol.png');
 
         return [
             'logo' => $logo,
+            'stamp' => $stamp,
             'nama' => $company?->name ?: ($cover?->perusahaan_nama ?: 'CV. ARTA SOLUSINDO'),
             'alamat' => $company?->address ?: ($cover?->perusahaan_alamat ?: 'Juwangen RT 10 RW 02 Purwomartani, Kalasan, Sleman, Daerah Istimewa Yogyakarta 55571'),
             'telp' => $company?->phone ?: ($cover?->perusahaan_telp ?: '(0274) 5044026 / 085727868505'),

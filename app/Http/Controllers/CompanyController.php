@@ -46,6 +46,10 @@ class CompanyController extends Controller
             $payload['logo_path'] = $request->file('logo')->store('companies/logos', 'public');
         }
 
+        if ($request->hasFile('stamp')) {
+            $payload['stamp_path'] = $request->file('stamp')->store('companies/stamps', 'public');
+        }
+
         Company::query()->create($payload);
 
         return redirect()->route('companies.index')->with('success', 'Perusahaan berhasil dibuat.');
@@ -74,6 +78,20 @@ class CompanyController extends Controller
             $payload['logo_path'] = $request->file('logo')->store('companies/logos', 'public');
         }
 
+        if ($request->boolean('remove_stamp')) {
+            if ($company->stamp_path) {
+                Storage::disk('public')->delete($company->stamp_path);
+            }
+            $payload['stamp_path'] = null;
+        }
+
+        if ($request->hasFile('stamp')) {
+            if ($company->stamp_path) {
+                Storage::disk('public')->delete($company->stamp_path);
+            }
+            $payload['stamp_path'] = $request->file('stamp')->store('companies/stamps', 'public');
+        }
+
         $company->update($payload);
 
         return redirect()->route('companies.index')->with('success', 'Perusahaan berhasil diperbarui.');
@@ -96,6 +114,10 @@ class CompanyController extends Controller
             Storage::disk('public')->delete($company->logo_path);
         }
 
+        if ($company->stamp_path) {
+            Storage::disk('public')->delete($company->stamp_path);
+        }
+
         $company->delete();
 
         if ((int) session('active_company_id', 0) === (int) $company->id) {
@@ -114,7 +136,9 @@ class CompanyController extends Controller
             'phone' => ['nullable', 'string', 'max:100'],
             'address' => ['nullable', 'string'],
             'logo' => ['nullable', 'image', 'max:2048'],
+            'stamp' => ['nullable', 'image', 'max:2048'],
             'remove_logo' => ['nullable', 'boolean'],
+            'remove_stamp' => ['nullable', 'boolean'],
         ]);
 
         $validated['code'] = strtoupper(trim((string) $validated['code']));
