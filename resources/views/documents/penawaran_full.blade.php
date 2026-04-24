@@ -430,9 +430,22 @@
                                     <div style="position:relative; width:220px; height:100px; margin:0 auto;">
 
                                         @php
-                                            $ttdPath = $sg->ttd_path
-                                                ? public_path('storage/' . ltrim($sg->ttd_path, '/'))
-                                                : null;
+                                            $ttdPath = null;
+                                            foreach (array_filter([$sg->ttd_path ?? null, $penawaran->user?->ttd ?? null]) as $candidateTtd) {
+                                                $candidateTtd = ltrim((string) $candidateTtd, '/');
+                                                $publicTtdPath = public_path('storage/' . $candidateTtd);
+                                                $storageTtdPath = storage_path('app/public/' . $candidateTtd);
+
+                                                if (is_file($publicTtdPath)) {
+                                                    $ttdPath = $publicTtdPath;
+                                                    break;
+                                                }
+
+                                                if (is_file($storageTtdPath)) {
+                                                    $ttdPath = $storageTtdPath;
+                                                    break;
+                                                }
+                                            }
 
                                             $stampPath = public_path('images/cap_arsol.png');
                                         @endphp

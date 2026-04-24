@@ -22,7 +22,8 @@
         : (is_file($coverPhotoPathPng)
             ? $coverPhotoPathPng
             : null);
-    $badgeLogo = public_path('templates/badge.png');
+    $badgeLogoFallback = public_path('templates/badge.png');
+    $badgeLogo = isset($kop['logo']) && is_file($kop['logo']) ? $kop['logo'] : $badgeLogoFallback;
 @endphp
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');

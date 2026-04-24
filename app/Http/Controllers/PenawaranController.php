@@ -549,7 +549,7 @@ class PenawaranController extends Controller
                 $c['logo_path'] = $penawaran->cover->logo_path ?? null; // re-use same file path (read-only reference)
                 PenawaranCover::create($c);
             } else {
-                $company = auth()->user()?->company;
+                $company = \App\Models\Company::find($new->company_id);
                 PenawaranCover::create([
                     'penawaran_id' => $new->id,
                     'judul_cover' => 'Dokumen Penawaran',
@@ -1328,6 +1328,7 @@ class PenawaranController extends Controller
                     ->orderBy('urutan')
                     ->orderBy('id');
             },
+            'user',
             'signatures',
             'attachments',
             'items.details'
