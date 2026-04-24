@@ -239,7 +239,7 @@ class ProspectController extends Controller
         $availableUsulans = $canViewUsulan
             ? UsulanPenawaran::query()
                 ->with(['pic', 'prospect', 'penawaran.docNumber'])
-                ->visibleToCompany($companyId)
+                ->when($companyId, fn($query) => $query->where('company_id', $companyId))
                 ->orderByDesc('updated_at')
                 ->orderByDesc('id')
                 ->get()
@@ -473,7 +473,7 @@ class ProspectController extends Controller
         ]);
 
         $usulan = UsulanPenawaran::with(['penawaran.docNumber'])
-            ->visibleToCompany($this->currentCompanyId($user))
+            ->when($this->currentCompanyId($user), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->findOrFail($payload['attach_usulan_id']);
 
         DB::transaction(function () use ($prospect, $usulan, $user) {
@@ -586,6 +586,10 @@ class ProspectController extends Controller
     public function detachUsulan(Request $request, Prospect $prospect, UsulanPenawaran $usulan)
     {
         $this->ensureEditAccess($request->user(), $prospect);
+
+        if (!$this->isSuperadmin($request->user()) && (int) $usulan->company_id !== (int) $this->currentCompanyId($request->user())) {
+            abort(403);
+        }
 
         if ((int) $usulan->prospect_id !== (int) $prospect->id) {
             abort(404);

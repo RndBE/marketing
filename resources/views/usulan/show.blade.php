@@ -22,12 +22,18 @@
             <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
         @endif
 
-        @include('partials.company_visibility_card', [
-            'ownerCompany' => $usulan->company,
-            'visibilityCompanies' => $visibilityCompanies,
-            'selectedSharedCompanyIds' => $usulan->sharedCompanies->pluck('id')->all(),
-            'action' => route('usulan.visibility.update', $usulan),
-        ])
+        <div class="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div class="text-sm font-semibold text-slate-900">Visibility Perusahaan</div>
+            <div class="mt-1 text-xs text-slate-500">
+                Usulan ini otomatis bisa dilihat dari semua perusahaan. Perusahaan asal tetap
+                {{ $usulan->company?->code ? $usulan->company->code . ' - ' : '' }}{{ $usulan->company?->name ?? '-' }}.
+            </div>
+            <div class="mt-3 flex flex-wrap gap-1.5">
+                <span class="rounded-full bg-slate-900 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                    Semua perusahaan
+                </span>
+            </div>
+        </div>
 
         <div class="grid grid-cols-3 gap-4 mb-4">
             <div class="bg-white rounded-xl border border-slate-200 p-4">

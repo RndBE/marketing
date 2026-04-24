@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\UsulanPenawaran;
-use App\Models\Company;
 use App\Models\UsulanAttachment;
 use App\Models\UsulanItem;
 use App\Models\Pic;
@@ -143,14 +142,11 @@ class UsulanPenawaranController extends Controller
             'responder',
             'attachments',
             'items',
-            'sharedCompanies',
             'penawaran.docNumber',
             'penawaran.sharedCompanies',
             'prospect.sharedCompanies',
             'prospect',
         ]);
-
-        $visibilityCompanies = Company::query()->orderBy('name')->get(['id', 'name', 'code']);
 
         $canViewLinkedProspect = $usulan->prospect
             ? ($this->isSuperadmin() || $usulan->prospect->isVisibleToCompany($companyId))
@@ -160,7 +156,7 @@ class UsulanPenawaranController extends Controller
             ? ($this->isSuperadmin() || $usulan->penawaran->isVisibleToCompany($companyId))
             : false;
 
-        return view('usulan.show', compact('usulan', 'visibilityCompanies', 'canViewLinkedProspect', 'canViewLinkedPenawaran'));
+        return view('usulan.show', compact('usulan', 'canViewLinkedProspect', 'canViewLinkedPenawaran'));
     }
 
     public function edit(UsulanPenawaran $usulan)
@@ -727,21 +723,9 @@ class UsulanPenawaranController extends Controller
     {
         abort_unless($this->isSuperadmin($request->user()), 403);
 
-        $payload = $request->validate([
-            'company_ids' => ['nullable', 'array'],
-            'company_ids.*' => ['integer', 'exists:companies,id'],
-        ]);
+        $usulan->sharedCompanies()->sync([]);
 
-        $companyIds = collect($payload['company_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0 && $id !== (int) $usulan->company_id)
-            ->unique()
-            ->values()
-            ->all();
-
-        $usulan->sharedCompanies()->sync($companyIds);
-
-        return back()->with('success', 'Visibility usulan diperbarui.');
+        return back()->with('success', 'Usulan otomatis visible ke semua perusahaan.');
     }
 
     private function ensureUsulanViewAccess(UsulanPenawaran $usulan, $user = null): void
@@ -752,16 +736,6 @@ class UsulanPenawaranController extends Controller
         if (!$this->isSuperadmin($user) && !$usulan->isVisibleToCompany($companyId)) {
             abort(403);
         }
-
-        if ($this->isSuperadmin($user) || $user->hasRole('admin') || (int) $usulan->created_by === (int) $user->id) {
-            return;
-        }
-
-        if ($companyId && (int) $usulan->company_id !== (int) $companyId && $usulan->isVisibleToCompany($companyId)) {
-            return;
-        }
-
-        abort(403);
     }
 
     private function ensureUsulanEditAccess(UsulanPenawaran $usulan, $user = null): void
