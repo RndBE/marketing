@@ -441,7 +441,13 @@
                                 </div>
 
                                 <div style="text-align:center; margin-top:4px;">
-                                    <div style="position:relative; width:220px; height:100px; margin:0 auto;">
+                                    @php
+                                        $isWideSignature = strcasecmp(trim((string) ($sg->nama ?? '')), 'Dewi Setiawati') === 0;
+                                        $signatureWrapWidth = $isWideSignature ? '260px' : '220px';
+                                        $signatureImageWidth = $isWideSignature ? '190px' : '100px';
+                                    @endphp
+                                    <div
+                                        style="position:relative; width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
 
                                         @php
                                             $ttdPath = null;
@@ -472,7 +478,7 @@
                 left:50%;
                 bottom:0;
                 transform:translateX(-50%);
-                width:100px;
+                width:{{ $signatureImageWidth }};
                 height:auto;
                 z-index:1;
             ">
