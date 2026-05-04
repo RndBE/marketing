@@ -22,11 +22,9 @@ class LeadReportController extends Controller
         $q        = trim((string) ($filters['q'] ?? ''));
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo   = $filters['date_to'] ?? null;
-        $companyId = $this->currentCompanyId();
 
         $reports = LeadReport::query()
-            ->with('uploader:id,name')
-            ->when($companyId, fn($query) => $query->where('company_id', $companyId))
+            ->with(['uploader:id,name', 'company:id,code,name'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($qq) use ($q) {
                     $qq->where('title', 'like', "%{$q}%")
@@ -48,11 +46,7 @@ class LeadReportController extends Controller
      */
     public function show(LeadReport $leadReport)
     {
-        if (!$this->isSuperadmin()) {
-            $this->ensureCompanyAccess($leadReport);
-        }
-
-        $leadReport->load('uploader:id,name');
+        $leadReport->load(['uploader:id,name', 'company:id,code,name']);
         $renderedContent = Str::markdown($leadReport->content);
 
         return view('lead_reports.show', compact('leadReport', 'renderedContent'));
@@ -139,10 +133,6 @@ class LeadReportController extends Controller
      */
     public function download(LeadReport $leadReport)
     {
-        if (!$this->isSuperadmin()) {
-            $this->ensureCompanyAccess($leadReport);
-        }
-
         $disk = \Illuminate\Support\Facades\Storage::disk('local');
 
         if (!$disk->exists($leadReport->file_path)) {
