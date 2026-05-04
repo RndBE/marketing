@@ -2,11 +2,7 @@
 
 @section('content')
     @php
-        $canEdit =
-            auth()->user()->hasPermission('edit-prospect') &&
-            ((int) $prospect->created_by === (int) auth()->id() ||
-                (int) $prospect->assigned_to === (int) auth()->id() ||
-                auth()->user()->hasPermission('view-all-prospect'));
+        $canEdit = auth()->user()->hasPermission('edit-prospect');
 
         $canDelete =
             auth()->user()->hasPermission('delete-prospect') &&

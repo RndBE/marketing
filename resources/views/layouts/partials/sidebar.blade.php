@@ -6,7 +6,7 @@
     x-transition:leave-end="-translate-x-full">
     <div class="px-3 py-4 border-slate-200">
         <div class="flex justify-center items-center gap-3">
-            <img src="{{ asset('images/logo_arsol.png') }}" alt="" class="h-10">
+            <img src="{{ asset('images/logo_be.png') }}" alt="Logo BE" class="h-10">
         </div>
     </div>
 

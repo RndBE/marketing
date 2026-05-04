@@ -314,7 +314,7 @@ class ProspectController extends Controller
 
     public function destroy(Request $request, Prospect $prospect)
     {
-        $this->ensureEditAccess($request->user(), $prospect);
+        $this->ensureDeleteAccess($request->user(), $prospect);
 
         $this->deleteStoredUpdateAttachments($prospect);
         $prospect->delete();
@@ -367,7 +367,7 @@ class ProspectController extends Controller
 
     public function buatPenawaran(Request $request, Prospect $prospect)
     {
-        $this->ensureEditAccess($request->user(), $prospect);
+        $this->ensureCreatePenawaranAccess($request->user(), $prospect);
 
         $penawaran = DB::transaction(function () use ($prospect, $request) {
             $penawaran = $this->createPenawaranFromProspect($prospect);
@@ -795,7 +795,12 @@ class ProspectController extends Controller
 
     private function ensureEditAccess($user, Prospect $prospect): void
     {
-        $this->ensureCompanyAccess($prospect, 'company_id', $user);
+        $this->ensureViewAccess($user, $prospect);
+    }
+
+    private function ensureDeleteAccess($user, Prospect $prospect): void
+    {
+        $this->ensureViewAccess($user, $prospect);
 
         if ($this->isSuperadmin($user)) {
             return;
@@ -806,6 +811,28 @@ class ProspectController extends Controller
         }
 
         $canAccess = (int) $prospect->created_by === (int) $user->id
+            || (int) $prospect->assigned_to === (int) $user->id;
+
+        if (!$canAccess) {
+            abort(403);
+        }
+    }
+
+    private function ensureCreatePenawaranAccess($user, Prospect $prospect): void
+    {
+        $this->ensureViewAccess($user, $prospect);
+
+        if ($this->isSuperadmin($user)) {
+            return;
+        }
+
+        $companyId = $this->currentCompanyId($user);
+        if ((int) $prospect->company_id !== (int) $companyId) {
+            abort(403);
+        }
+
+        $canAccess = $user->hasPermission('view-all-prospect')
+            || (int) $prospect->created_by === (int) $user->id
             || (int) $prospect->assigned_to === (int) $user->id;
 
         if (!$canAccess) {
