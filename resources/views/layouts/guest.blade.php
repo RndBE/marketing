@@ -26,7 +26,7 @@
     <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-slate-100">
         <div class="mb-4">
             <a href="/">
-                <img src="{{ asset('images/logo_arsol.png') }}" alt="Logo" class="h-14">
+                <img src="{{ asset('images/logo_be.png') }}" alt="Logo BE" class="h-14">
             </a>
         </div>
 
