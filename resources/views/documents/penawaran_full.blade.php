@@ -26,6 +26,12 @@
             page-break-after: always
         }
 
+        /* Jaga tiap baris tabel tidak terpotong di tengah saat ganti halaman.
+           dompdf mensyaratkan satu <tr> muat utuh dalam satu halaman. */
+        tr {
+            page-break-inside: avoid;
+        }
+
         .muted {
             color: #555
         }
@@ -304,91 +310,104 @@
                         </td>
                     </tr>
                 @endforeach
+            </tbody>
+        </table>
 
-                <tr>
-                    <td colspan="4" style="text-align:right"><strong>
-                            {{ !$penawaran->tax_enabled ? 'Harga belum termasuk PPN' : 'Harga' }}
-                        </strong></td>
-                    <td class="right" style="white-space:nowrap">
-                        <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                            <tr style="border:none">
-                                <td align="left" style="border:none"><strong>Rp</strong></td>
-                                <td align="right" style="border:none">
-                                    <strong>{{ number_format((int) $grand, 0, ',', '.') }}</strong>
+        {{-- Ringkasan total: dikeluarkan dari tabel item dan dibungkus dalam satu baris tabel.
+             dompdf tidak memecah satu <tr> antar halaman, jadi seluruh blok total pindah utuh
+             ke halaman berikutnya bila tidak muat — tanpa header biru tabel item ikut terulang. --}}
+        @php
+            $hargaSebelumPajak = max(0, (int) $grand - (int) $discountAmount);
+        @endphp
+        <table style="width:100%; border-collapse:collapse; border:0; margin-top:6px;">
+            <tr>
+                <td style="border:0; padding:0; width:45%;"></td>
+                <td style="border:0; padding:0; width:55%;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <tr>
+                            <td style="text-align:right; width:58%;"><strong>
+                                    {{ !$penawaran->tax_enabled ? 'Harga belum termasuk PPN' : 'Harga' }}
+                                </strong></td>
+                            <td class="right" style="white-space:nowrap">
+                                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <tr style="border:none">
+                                        <td align="left" style="border:none"><strong>Rp</strong></td>
+                                        <td align="right" style="border:none">
+                                            <strong>{{ number_format((int) $grand, 0, ',', '.') }}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        @if ($penawaran->discount_enabled && $discountAmount > 0)
+                            <tr>
+                                <td style="text-align:right">
+                                    <strong>Diskon ({{ $discountLabel }})</strong>
+                                </td>
+                                <td class="right" style="white-space:nowrap">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none"><strong>Rp</strong></td>
+                                            <td align="right" style="border:none">
+                                                <strong>{{ number_format((int) $discountAmount, 0, ',', '.') }}</strong>
+                                            </td>
+                                        </tr>
+                                    </table>
                                 </td>
                             </tr>
-                        </table>
-                    </td>
-                </tr>
+                            <tr>
+                                <td style="text-align:right"><strong>Harga Sebelum Pajak</strong></td>
+                                <td class="right" style="white-space:nowrap">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none"><strong>Rp</strong></td>
+                                            <td align="right" style="border:none">
+                                                <strong>{{ number_format((int) $hargaSebelumPajak, 0, ',', '.') }}</strong>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
 
-                @if ($penawaran->discount_enabled && $discountAmount > 0)
-                    <tr>
-                        <td colspan="4" style="text-align:right">
-                            <strong>Diskon ({{ $discountLabel }})</strong>
-                        </td>
-                        <td class="right" style="white-space:nowrap">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                <tr style="border:none">
-                                    <td align="left" style="border:none"><strong>Rp</strong></td>
-                                    <td align="right" style="border:none">
-                                        <strong>{{ number_format((int) $discountAmount, 0, ',', '.') }}</strong>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                    @php
-                        $hargaSebelumPajak = max(0, (int) $grand - (int) $discountAmount);
-                    @endphp
-                    <tr>
-                        <td colspan="4" style="text-align:right"><strong>Harga Sebelum Pajak</strong></td>
-                        <td class="right" style="white-space:nowrap">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                <tr style="border:none">
-                                    <td align="left" style="border:none"><strong>Rp</strong></td>
-                                    <td align="right" style="border:none">
-                                        <strong>{{ number_format((int) $hargaSebelumPajak, 0, ',', '.') }}</strong>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                @endif
-
-                @if ($penawaran->tax_enabled && $taxAmount > 0)
-                    <tr>
-                        <td colspan="4" style="text-align:right">
-                            <strong>Pajak
-                                ({{ number_format((float) ($penawaran->tax_rate ?? 11), 2, ',', '.') }} %)</strong>
-                        </td>
-                        <td class="right" style="white-space:nowrap">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                <tr style="border:none">
-                                    <td align="left" style="border:none"><strong>Rp</strong></td>
-                                    <td align="right" style="border:none">
-                                        <strong>{{ number_format((int) $taxAmount, 0, ',', '.') }}</strong>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                @endif
-                @if ($penawaran->tax_enabled)
-                    <tr>
-                        <td colspan="4" style="text-align:right"><strong>Total Harga</strong></td>
-                        <td class="right" style="white-space:nowrap">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                <tr style="border:none">
-                                    <td align="left" style="border:none"><strong>Rp</strong></td>
-                                    <td align="right" style="border:none">
-                                        <strong>{{ number_format((int) $grandTotal, 0, ',', '.') }}</strong>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                @endif
-            </tbody>
+                        @if ($penawaran->tax_enabled && $taxAmount > 0)
+                            <tr>
+                                <td style="text-align:right">
+                                    <strong>Pajak
+                                        ({{ number_format((float) ($penawaran->tax_rate ?? 11), 2, ',', '.') }}
+                                        %)</strong>
+                                </td>
+                                <td class="right" style="white-space:nowrap">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none"><strong>Rp</strong></td>
+                                            <td align="right" style="border:none">
+                                                <strong>{{ number_format((int) $taxAmount, 0, ',', '.') }}</strong>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
+                        @if ($penawaran->tax_enabled)
+                            <tr>
+                                <td style="text-align:right"><strong>Total Harga</strong></td>
+                                <td class="right" style="white-space:nowrap">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none"><strong>Rp</strong></td>
+                                            <td align="right" style="border:none">
+                                                <strong>{{ number_format((int) $grandTotal, 0, ',', '.') }}</strong>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endif
+                    </table>
+                </td>
+            </tr>
         </table>
 
         @if ($hasTerms || $signatureRows->count())
