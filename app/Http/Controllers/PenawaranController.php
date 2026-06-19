@@ -30,6 +30,8 @@ use setasign\Fpdi\Fpdi;
 
 class PenawaranController extends Controller
 {
+    private const SUKET_PP_55_ATTACHMENT = 'Suket PP 55 Tahun 2022 - CV Arta Solusindo.pdf';
+
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
@@ -1365,6 +1367,16 @@ class PenawaranController extends Controller
             if ($isPdf) {
                 $attachmentPaths[] = $fullPath;
             }
+        }
+
+        $suketPp55Path = base_path(self::SUKET_PP_55_ATTACHMENT);
+        if (is_file($suketPp55Path)) {
+            $attachmentPaths[] = $suketPp55Path;
+        } else {
+            Log::warning('Suket PP 55 penawaran tidak ditemukan saat generate PDF', [
+                'penawaran_id' => $penawaran->id,
+                'file_path' => self::SUKET_PP_55_ATTACHMENT,
+            ]);
         }
 
         if (!$attachmentPaths) {
