@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
+use Symfony\Component\Process\Process;
 
 class PenawaranController extends Controller
 {
@@ -1390,29 +1391,64 @@ class PenawaranController extends Controller
             ]);
             return $pdf->stream($filename);
         }
+        $tempFiles = [$tmpMain];
         try {
             file_put_contents($tmpMain, $pdf->output());
             $filesToMerge = array_merge([$tmpMain], $attachmentPaths);
 
             $merged = new Fpdi();
             foreach ($filesToMerge as $index => $filePath) {
+                $sourcePath = $filePath;
                 try {
-                    $pageCount = $merged->setSourceFile($filePath);
+                    $pageCount = $merged->setSourceFile($sourcePath);
+                } catch (\Throwable $sourceError) {
+                    if ($index === 0) {
+                        throw $sourceError;
+                    }
+
+                    // The free FPDI parser cannot read compressed PDFs
+                    // (PDF 1.5+ object/xref streams) used by most brochures.
+                    // Normalize the attachment to PDF 1.4 and retry once.
+                    $normalized = $this->normalizePdfForFpdi($filePath);
+                    if ($normalized === null) {
+                        Log::warning('Lampiran penawaran gagal digabung ke PDF', [
+                            'penawaran_id' => $penawaran->id,
+                            'file_path' => $filePath,
+                            'error' => $sourceError->getMessage(),
+                        ]);
+                        continue;
+                    }
+
+                    $tempFiles[] = $normalized;
+                    try {
+                        $pageCount = $merged->setSourceFile($normalized);
+                        $sourcePath = $normalized;
+                    } catch (\Throwable $normalizedError) {
+                        Log::warning('Lampiran penawaran gagal digabung ke PDF', [
+                            'penawaran_id' => $penawaran->id,
+                            'file_path' => $filePath,
+                            'error' => $normalizedError->getMessage(),
+                        ]);
+                        continue;
+                    }
+                }
+
+                try {
                     for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
                         $tpl = $merged->importPage($pageNo);
                         $size = $merged->getTemplateSize($tpl);
                         $merged->AddPage($size['orientation'], [$size['width'], $size['height']]);
                         $merged->useTemplate($tpl);
                     }
-                } catch (\Throwable $mergeError) {
+                } catch (\Throwable $importError) {
                     if ($index === 0) {
-                        throw $mergeError;
+                        throw $importError;
                     }
 
                     Log::warning('Lampiran penawaran gagal digabung ke PDF', [
                         'penawaran_id' => $penawaran->id,
-                        'file_path' => $filePath,
-                        'error' => $mergeError->getMessage(),
+                        'file_path' => $sourcePath,
+                        'error' => $importError->getMessage(),
                     ]);
                 }
             }
@@ -1426,10 +1462,97 @@ class PenawaranController extends Controller
             report($e);
             return $pdf->stream($filename);
         } finally {
-            if (is_file($tmpMain)) {
-                @unlink($tmpMain);
+            foreach ($tempFiles as $tempFile) {
+                if (is_file($tempFile)) {
+                    @unlink($tempFile);
+                }
             }
         }
+    }
+
+    /**
+     * Rewrite a PDF the free FPDI parser cannot read (e.g. compressed PDF 1.5+
+     * brochures) into a flat PDF 1.4 using qpdf or Ghostscript when available.
+     * Returns the path to a temporary normalized file, or null if no tool
+     * succeeded.
+     */
+    private function normalizePdfForFpdi(string $sourcePath): ?string
+    {
+        $target = $this->makeTempPdfPath('penawaran_norm_');
+        if ($target === false) {
+            return null;
+        }
+
+        foreach ($this->pdfNormalizerCommands($sourcePath, $target) as $command) {
+            try {
+                $process = new Process($command);
+                $process->setTimeout(30);
+                $process->run();
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            if ($process->isSuccessful() && is_file($target) && filesize($target) > 0) {
+                return $target;
+            }
+        }
+
+        if (is_file($target)) {
+            @unlink($target);
+        }
+
+        return null;
+    }
+
+    /**
+     * Candidate normalizer commands, qpdf first (lossless, preserves the
+     * brochure exactly) then Ghostscript (heavier, re-renders) as a fallback.
+     */
+    private function pdfNormalizerCommands(string $source, string $target): array
+    {
+        $commands = [];
+
+        foreach ($this->locateBinaries(['qpdf']) as $qpdf) {
+            $commands[] = [$qpdf, '--object-streams=disable', $source, $target];
+        }
+
+        foreach ($this->locateBinaries(['gs', 'gswin64c', 'gswin32c']) as $gs) {
+            $commands[] = [
+                $gs,
+                '-q',
+                '-dNOPAUSE',
+                '-dBATCH',
+                '-dSAFER',
+                '-sDEVICE=pdfwrite',
+                '-dCompatibilityLevel=1.4',
+                '-sOutputFile=' . $target,
+                $source,
+            ];
+        }
+
+        return $commands;
+    }
+
+    /**
+     * Resolve executables by checking common install directories first, then
+     * falling back to the bare name so the OS PATH can resolve it.
+     */
+    private function locateBinaries(array $names): array
+    {
+        $dirs = ['/usr/bin', '/usr/local/bin', '/opt/homebrew/bin', '/bin'];
+        $found = [];
+
+        foreach ($names as $name) {
+            foreach ($dirs as $dir) {
+                $path = $dir . '/' . $name;
+                if (is_file($path) && is_executable($path)) {
+                    $found[] = $path;
+                }
+            }
+            $found[] = $name;
+        }
+
+        return array_values(array_unique($found));
     }
 
     private function resolvePublicDiskPath(?string $path): ?string
