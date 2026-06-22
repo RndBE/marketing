@@ -103,3 +103,69 @@ test('penawaran pdf appends suket pp 55 as the last page', function () {
     expect($outputSizes)->not()->toBeEmpty()
         ->and($outputSizes[array_key_last($outputSizes)])->toBe($suketSizes[0]);
 });
+
+test('penawaran pdf includes a compressed (PDF 1.5+) brochure attachment', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+    Storage::fake('public');
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-CMP'],
+        ['name' => 'PDF Compressed Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $docNumber = DocNumber::create([
+        'company_id' => $company->id,
+        'prefix' => 'CMP',
+        'seq' => 1,
+        'month' => 6,
+        'year' => 2026,
+        'doc_no' => '002/CMP/TEST/VI/2026',
+    ]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'doc_number_id' => $docNumber->id,
+        'judul' => 'Penawaran Brosur Terkompresi',
+        'instansi_tujuan' => 'Instansi Test',
+        'nama_pekerjaan' => 'Pekerjaan Test',
+        'lokasi_pekerjaan' => 'Yogyakarta',
+        'tanggal_penawaran' => '2026-06-19',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+
+    // A real-world brochure: PDF 1.5 with a compressed cross-reference stream.
+    // The free FPDI parser cannot read this, which is why it silently vanished
+    // from the merged output. Page is a 200x200pt square (~70.56mm).
+    Storage::disk('public')->makeDirectory('penawaran/lampiran');
+    $attachmentPath = 'penawaran/lampiran/brosur-terkompresi.pdf';
+    Storage::disk('public')->put(
+        $attachmentPath,
+        file_get_contents(base_path('tests/fixtures/compressed-brochure.pdf'))
+    );
+
+    PenawaranAttachment::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Brosur Produk',
+        'file_path' => $attachmentPath,
+        'mime' => 'application/pdf',
+        'size' => Storage::disk('public')->size($attachmentPath),
+    ]);
+
+    $response = $this->actingAs($user)
+        ->get(route('penawaran.pdf', $penawaran));
+
+    $response->assertOk();
+
+    $outputSizes = penawaranPdfTestPageSizes(penawaranPdfTestResponseContent($response));
+
+    // The 200x200pt (≈70.56mm square) brochure page must survive into the output.
+    $hasBrochurePage = collect($outputSizes)->contains(
+        fn ($size) => abs($size['width'] - 70.56) < 1 && abs($size['height'] - 70.56) < 1
+    );
+
+    expect($hasBrochurePage)->toBeTrue(
+        'Compressed brochure attachment did not appear in the merged PDF'
+    );
+});
