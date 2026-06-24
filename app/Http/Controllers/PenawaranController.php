@@ -1370,14 +1370,19 @@ class PenawaranController extends Controller
             }
         }
 
-        $suketPp55Path = base_path(self::SUKET_PP_55_ATTACHMENT);
-        if (is_file($suketPp55Path)) {
-            $attachmentPaths[] = $suketPp55Path;
-        } else {
-            Log::warning('Suket PP 55 penawaran tidak ditemukan saat generate PDF', [
-                'penawaran_id' => $penawaran->id,
-                'file_path' => self::SUKET_PP_55_ATTACHMENT,
-            ]);
+        // Suket PP 55 (PPh Final UMKM) hanya milik CV. Arta Solusindo (code "AS").
+        // Perusahaan penerbit lain (mis. PT Arta Teknologi Comunindo) tidak memperoleh
+        // fasilitas ini, jadi lampiran Suket tidak disertakan ke PDF penawaran mereka.
+        if (strtoupper((string) ($penawaran->company?->code ?? '')) === 'AS') {
+            $suketPp55Path = base_path(self::SUKET_PP_55_ATTACHMENT);
+            if (is_file($suketPp55Path)) {
+                $attachmentPaths[] = $suketPp55Path;
+            } else {
+                Log::warning('Suket PP 55 penawaran tidak ditemukan saat generate PDF', [
+                    'penawaran_id' => $penawaran->id,
+                    'file_path' => self::SUKET_PP_55_ATTACHMENT,
+                ]);
+            }
         }
 
         if (!$attachmentPaths) {
