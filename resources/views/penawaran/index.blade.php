@@ -7,7 +7,7 @@
         </div>
 
         <a id="btn-export-excel"
-           href="{{ route('penawaran.export-excel', array_filter(['q' => $q, 'date_from' => $dateFrom, 'date_to' => $dateTo])) }}"
+           href="{{ route('penawaran.export-excel', array_filter(['q' => $q, 'date_from' => $dateFrom, 'date_to' => $dateTo, 'company_id' => $companyFilterId], fn($value) => filled($value))) }}"
            class="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -21,6 +21,18 @@
             <input id="search-input" name="q" value="{{ $q ?? '' }}" placeholder="Cari judul, instansi, atau no. dokumen..."
                 class="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                 autocomplete="off">
+
+            @if ($canViewAll)
+                <select id="company-filter" name="company_id" onchange="this.form.submit()"
+                    class="min-w-[190px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10">
+                    <option value="">Semua Perusahaan</option>
+                    @foreach ($filterCompanies as $company)
+                        <option value="{{ $company->id }}" @selected((int) $companyFilterId === (int) $company->id)>
+                            {{ $company->code }} - {{ $company->name }}
+                        </option>
+                    @endforeach
+                </select>
+            @endif
 
             {{-- Date range --}}
             <div class="flex items-center gap-1">
@@ -97,10 +109,12 @@
             var q    = document.getElementById('search-input').value;
             var from = document.getElementById('date_from').value;
             var to   = document.getElementById('date_to').value;
+            var company = document.getElementById('company-filter');
             var params = new URLSearchParams();
             if (q)    params.set('q', q);
             if (from) params.set('date_from', from);
             if (to)   params.set('date_to', to);
+            if (company && company.value) params.set('company_id', company.value);
             btnExport.href = exportBase + (params.toString() ? '?' + params.toString() : '');
         }
 

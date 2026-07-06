@@ -37,8 +37,12 @@ class PenawaranController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
         $user = auth()->user();
-        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+        $canViewAll = $this->canViewAllPenawaran($user);
         $companyId = $this->currentCompanyId($user);
+        $companyFilterId = $this->resolvePenawaranCompanyFilterId($request, $canViewAll);
+        $filterCompanies = $canViewAll
+            ? Company::query()->orderBy('name')->get(['id', 'name', 'code'])
+            : collect();
 
         // ── Rentang tanggal (default: tahun berjalan) ──
         $currentYear = now()->year;
@@ -63,16 +67,7 @@ class PenawaranController extends Controller
         $data = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->visibleToCompany($companyId)
-            ->when(!$canViewAll && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
-                $query->where(function ($nested) use ($user, $companyId) {
-                    $nested->where('id_user', $user->id);
-
-                    if ($companyId) {
-                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-                    }
-                });
-            })
+            ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -84,8 +79,7 @@ class PenawaranController extends Controller
                 }
             })
             ->tap($applyDateRange)
-            ->orderByDesc('dn.seq')
-            ->orderByDesc('penawaran.id')
+            ->tap(fn($query) => $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId))
             ->select('penawaran.*')
             ->paginate(15)
             ->withQueryString();
@@ -96,16 +90,7 @@ class PenawaranController extends Controller
 
         $approvedQuery = Penawaran::query()
             ->with(['approval', 'items.details'])
-            ->visibleToCompany($companyId)
-            ->when(!$canViewAll && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
-                $query->where(function ($nested) use ($user, $companyId) {
-                    $nested->where('id_user', $user->id);
-
-                    if ($companyId) {
-                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-                    }
-                });
-            })
+            ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -137,16 +122,7 @@ class PenawaranController extends Controller
         $goalQuery = $hasGoalColumn
             ? Penawaran::query()
                 ->with(['items.details'])
-                ->visibleToCompany($companyId)
-                ->when(!$canViewAll && !$this->isSuperadmin($user), function ($query) use ($user, $companyId) {
-                    $query->where(function ($nested) use ($user, $companyId) {
-                        $nested->where('id_user', $user->id);
-
-                        if ($companyId) {
-                            $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-                        }
-                    });
-                })
+                ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
                 ->when($q !== '', function ($query) use ($q) {
                     $tokens = array_filter(array_map('trim', explode(' ', $q)));
                     foreach ($tokens as $token) {
@@ -181,7 +157,10 @@ class PenawaranController extends Controller
             'totalGoal',
             'jumlahGoal',
             'pctJumlah',
-            'pctNilai'
+            'pctNilai',
+            'canViewAll',
+            'companyFilterId',
+            'filterCompanies'
         ));
     }
 
@@ -1930,8 +1909,9 @@ class PenawaranController extends Controller
     {
         $q        = trim((string) $request->query('q', ''));
         $user     = auth()->user();
-        $canViewAll = $user && $user->hasPermission('view-all-penawaran');
+        $canViewAll = $this->canViewAllPenawaran($user);
         $companyId = $this->currentCompanyId($user);
+        $companyFilterId = $this->resolvePenawaranCompanyFilterId($request, $canViewAll);
 
         $currentYear = now()->year;
         $dateFrom = $request->query('date_from', "{$currentYear}-01-01");
@@ -1940,16 +1920,7 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->visibleToCompany($companyId)
-            ->when(!$canViewAll && !$this->isSuperadmin($user), function ($q2) use ($user, $companyId) {
-                $q2->where(function ($nested) use ($user, $companyId) {
-                    $nested->where('id_user', $user->id);
-
-                    if ($companyId) {
-                        $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-                    }
-                });
-            })
+            ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
@@ -1964,8 +1935,7 @@ class PenawaranController extends Controller
                 $dateFrom . ' 00:00:00',
                 $dateTo   . ' 23:59:59',
             ])
-            ->orderByDesc('dn.seq')
-            ->orderByDesc('penawaran.id')
+            ->tap(fn($query) => $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId))
             ->select('penawaran.*')
             ->get();
 
@@ -2158,6 +2128,58 @@ class PenawaranController extends Controller
 
         readfile($tmpFile);
         @unlink($tmpFile);
+    }
+
+    private function canViewAllPenawaran($user): bool
+    {
+        return (bool) ($user && ($this->isSuperadmin($user) || $user->hasPermission('view-all-penawaran')));
+    }
+
+    private function resolvePenawaranCompanyFilterId(Request $request, bool $canViewAll): ?int
+    {
+        if (!$canViewAll) {
+            return null;
+        }
+
+        $companyId = (int) $request->query('company_id', 0);
+        if ($companyId <= 0) {
+            return null;
+        }
+
+        return Company::query()->whereKey($companyId)->exists() ? $companyId : null;
+    }
+
+    private function applyPenawaranListAccess($query, $user, bool $canViewAll, ?int $companyId, ?int $companyFilterId): void
+    {
+        if ($canViewAll) {
+            if ($companyFilterId) {
+                $query->where('penawaran.company_id', $companyFilterId);
+            }
+
+            return;
+        }
+
+        $query->visibleToCompany($companyId)
+            ->where(function ($nested) use ($user, $companyId) {
+                $nested->where('penawaran.id_user', $user?->id ?? 0);
+
+                if ($companyId) {
+                    $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                }
+            });
+    }
+
+    private function applyPenawaranDocNumberOrdering($query, ?int $companyId, ?int $companyFilterId): void
+    {
+        if ($companyId && !$companyFilterId) {
+            $query->orderByRaw('CASE WHEN penawaran.company_id = ? THEN 0 ELSE 1 END ASC', [$companyId]);
+        }
+
+        $query
+            ->orderByDesc('dn.year')
+            ->orderByDesc('dn.month')
+            ->orderByDesc('dn.seq')
+            ->orderByDesc('penawaran.id');
     }
 
     /** Convert zero-based column index to Excel column letters (A, B, … Z, AA, AB …) */
