@@ -47,6 +47,7 @@
                             <th class="px-4 py-3 text-center w-14">Foto</th>
                             <th class="px-4 py-3 text-left">Kode</th>
                             <th class="px-4 py-3 text-left">Nama</th>
+                            <th class="px-4 py-3 text-left">Perusahaan</th>
                             <th class="px-4 py-3 text-left">Satuan</th>
                             <th class="px-4 py-3 text-right">Harga</th>
                             <th class="px-4 py-3 text-center">Status</th>
@@ -55,10 +56,17 @@
                     </thead>
                     <tbody class="divide-y">
                         @forelse ($komponen as $k)
+                            @php
+                                $canManageRow = auth()->user()->hasRole('admin') || (int) $k->company_id === (int) $activeCompanyId;
+                            @endphp
                             <tr>
                                 <td class="px-4 py-3 text-center">
-                                    <input type="checkbox" name="ids[]" value="{{ $k->id }}" 
-                                        class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
+                                    @if ($canManageRow)
+                                        <input type="checkbox" name="ids[]" value="{{ $k->id }}"
+                                            class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
+                                    @else
+                                        <span class="text-slate-300">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     @if ($k->foto)
@@ -77,6 +85,9 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 font-medium">{{ $k->nama }}</td>
+                                <td class="px-4 py-3 text-slate-600">
+                                    {{ $k->company?->name ?? '-' }}
+                                </td>
                                 <td class="px-4 py-3 text-slate-600">{{ $k->satuan ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right font-medium whitespace-nowrap">Rp {{ number_format($k->harga, 0, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-center">
@@ -87,25 +98,29 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right space-x-2">
-                                    <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
-                                        data-id="{{ $k->id }}" data-kode="{{ e($k->kode) }}"
-                                        data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
-                                        data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
-                                        data-is_active="{{ $k->is_active ? '1' : '0' }}"
-                                        data-foto="{{ $k->foto ? Storage::url($k->foto) : '' }}"
-                                        onclick="openEditModal(this)">
-                                        Edit
-                                    </button>
-                                    <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
-                                        onsubmit="return confirm('Hapus komponen ini?')">
-                                        @csrf @method('DELETE')
-                                        <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
-                                    </form>
+                                    @if ($canManageRow)
+                                        <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
+                                            data-id="{{ $k->id }}" data-kode="{{ e($k->kode) }}"
+                                            data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
+                                            data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
+                                            data-is_active="{{ $k->is_active ? '1' : '0' }}"
+                                            data-foto="{{ $k->foto ? Storage::url($k->foto) : '' }}"
+                                            onclick="openEditModal(this)">
+                                            Edit
+                                        </button>
+                                        <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
+                                            onsubmit="return confirm('Hapus komponen ini?')">
+                                            @csrf @method('DELETE')
+                                            <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-slate-400">Lihat saja</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-6 text-center text-slate-500">Belum ada komponen</td>
+                                <td colspan="9" class="px-4 py-6 text-center text-slate-500">Belum ada komponen aktif</td>
                             </tr>
                         @endforelse
                     </tbody>

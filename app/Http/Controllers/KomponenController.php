@@ -16,7 +16,8 @@ class KomponenController extends Controller
             $perPage = 20;
 
         $komponen = Komponen::query()
-            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
+            ->with('company:id,name,code')
+            ->where('is_active', true)
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($nested) use ($q) {
                     $nested->where('nama', 'like', "%{$q}%")
@@ -29,7 +30,9 @@ class KomponenController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('komponen.index', compact('komponen', 'q', 'perPage'));
+        $activeCompanyId = $this->currentCompanyId($request->user());
+
+        return view('komponen.index', compact('komponen', 'q', 'perPage', 'activeCompanyId'));
     }
 
     public function store(Request $request)
@@ -103,7 +106,8 @@ class KomponenController extends Controller
     // API endpoint untuk get komponen data
     public function show(Komponen $komponen)
     {
-        $this->ensureCompanyAccess($komponen);
+        abort_unless($komponen->is_active, 404);
+
         return response()->json([
             'id' => $komponen->id,
             'kode' => $komponen->kode,
@@ -118,7 +122,6 @@ class KomponenController extends Controller
     public function list()
     {
         $komponen = Komponen::query()
-            ->when(!$this->isSuperadmin(), fn($query) => $query->where('company_id', $this->currentCompanyId()))
             ->where('is_active', true)
             ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
