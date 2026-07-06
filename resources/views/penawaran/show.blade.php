@@ -1107,6 +1107,8 @@
         // Forms to EXCLUDE from AJAX (let them reload normally)
         function shouldSkipAjax(formAction) {
             if (!formAction) return true;
+            // Skip logout - it must follow the normal redirect to login.
+            if (formAction.includes('/logout')) return true;
             // Skip signatures - they need page reload
             if (formAction.includes('signatures')) return true;
             // Skip main penawaran destroy (the delete entire penawaran)

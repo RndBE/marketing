@@ -125,3 +125,14 @@ test('penawaran index prioritizes logged in users company before other companies
         ->assertDontSee('Penawaran PT Nomor Lebih Lama')
         ->assertSee('Penawaran AS Nomor Lebih Baru');
 });
+
+test('penawaran detail lets logout form submit normally instead of ajax', function () {
+    $company = penawaranIndexCompany('LOGOUT-AS');
+    $viewer = penawaranIndexUserWithPermissions($company, ['view-all-penawaran']);
+    $penawaran = penawaranIndexCreateOffer($company, $viewer, 'Penawaran Logout Normal', 2026, 7, 1);
+
+    $this->actingAs($viewer)
+        ->get(route('penawaran.show', $penawaran))
+        ->assertOk()
+        ->assertSee("formAction.includes('/logout')", false);
+});
