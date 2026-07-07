@@ -483,10 +483,18 @@ class PenawaranController extends Controller
 
         return DB::transaction(function () use ($penawaran) {
             $actor = auth()->user();
-            $ownerId = (int) $penawaran->id_user;
-            if ((int) $actor->company_id === (int) $penawaran->company_id) {
-                $ownerId = (int) $actor->id;
-            }
+            $sourceCompanyId = (int) $penawaran->company_id;
+            $actorCompanyId = (int) $this->currentCompanyId($actor);
+
+            // Jika menduplikasi penawaran milik perusahaan lain (mis. CV menyalin
+            // penawaran PT yang dibagikan ke CV), salinan "diadopsi" oleh perusahaan
+            // penyalin: nomor baru ikut urutan perusahaan penyalin dan kop memakai
+            // logo & nama perusahaan penyalin, walaupun isinya berasal dari PT.
+            $adopt = $actorCompanyId > 0 && $actorCompanyId !== $sourceCompanyId;
+            $targetCompanyId = $adopt ? $actorCompanyId : $sourceCompanyId;
+            $ownerId = ($adopt || $actorCompanyId === $sourceCompanyId)
+                ? (int) $actor->id
+                : (int) $penawaran->id_user;
 
             // Load everything we need to copy
             $penawaran->load([
@@ -497,13 +505,13 @@ class PenawaranController extends Controller
                 'signatures',
             ]);
 
-            // 1. New doc number
-            $docNumber = $this->createDocNumber($penawaran->company_id, $ownerId);
+            // 1. New doc number (ikut urutan perusahaan tujuan)
+            $docNumber = $this->createDocNumber($targetCompanyId, $ownerId);
 
             // 2. New penawaran record
             $new = Penawaran::create([
-                'company_id' => $penawaran->company_id,
-                'id_pic' => $penawaran->id_pic,
+                'company_id' => $targetCompanyId,
+                'id_pic' => $adopt ? null : $penawaran->id_pic,
                 'id_user' => $ownerId,
                 'doc_number_id' => $docNumber->id,
                 'approval_id' => null,
@@ -523,7 +531,23 @@ class PenawaranController extends Controller
             ]);
 
             // 3. Cover
-            if ($penawaran->cover) {
+            if ($adopt) {
+                // Adopsi lintas perusahaan: pertahankan isi cover, tetapi ganti
+                // identitas kop (nama, alamat, kontak, logo) ke perusahaan penyalin.
+                $company = \App\Models\Company::find($targetCompanyId);
+                $src = $penawaran->cover;
+                PenawaranCover::create([
+                    'penawaran_id' => $new->id,
+                    'judul_cover' => $src?->judul_cover ?? 'Dokumen Penawaran',
+                    'subjudul' => $src?->subjudul ?? $new->judul,
+                    'perusahaan_nama' => $company?->name ?? 'CV. ARTA SOLUSINDO',
+                    'perusahaan_alamat' => $company?->address,
+                    'perusahaan_email' => $company?->email,
+                    'perusahaan_telp' => $company?->phone,
+                    'logo_path' => $company?->logo_path,
+                    'intro_text' => $src?->intro_text ?? null,
+                ]);
+            } elseif ($penawaran->cover) {
                 $c = $penawaran->cover->toArray();
                 unset($c['id'], $c['created_at'], $c['updated_at']);
                 $c['penawaran_id'] = $new->id;

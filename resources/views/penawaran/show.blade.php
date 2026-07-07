@@ -1111,6 +1111,8 @@
             if (formAction.includes('/logout')) return true;
             // Skip signatures - they need page reload
             if (formAction.includes('signatures')) return true;
+            // Skip visibility updates - they return a full redirect page.
+            if (formAction.includes('/visibility')) return true;
             // Skip main penawaran destroy (the delete entire penawaran)
             if (formAction.match(/\/penawaran\/\d+$/) && formAction.includes('destroy')) return true;
             // Skip approval form
