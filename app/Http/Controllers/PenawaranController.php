@@ -2183,9 +2183,17 @@ class PenawaranController extends Controller
             return;
         }
 
+        $userId = (int) ($user?->id ?? 0);
+
         $query->visibleToCompany($companyId)
-            ->where(function ($nested) use ($user, $companyId) {
-                $nested->where('penawaran.id_user', $user?->id ?? 0);
+            ->where(function ($nested) use ($userId, $companyId) {
+                $nested->where('penawaran.id_user', $userId);
+
+                // Penawaran yang user ini menjadi approver-nya (di langkah manapun),
+                // walaupun dibuat oleh pengaju lain.
+                $nested->orWhereHas('approval.steps', function ($stepQuery) use ($userId) {
+                    $stepQuery->where('akses_approve->user_id', $userId);
+                });
 
                 if ($companyId) {
                     $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
