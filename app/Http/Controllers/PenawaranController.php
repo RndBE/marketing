@@ -1319,9 +1319,11 @@ class PenawaranController extends Controller
         return response()->json(['message' => 'Lampiran berhasil dihapus']);
     }
 
-    public function downloadPdf(Penawaran $penawaran)
+    public function downloadPdf(Request $request, Penawaran $penawaran)
     {
         $this->ensurePenawaranViewAccess($penawaran);
+
+        $pricelistMode = $request->query('mode') === 'pricelist';
 
         $penawaran->load([
             'docNumber',
@@ -1351,7 +1353,8 @@ class PenawaranController extends Controller
             'penawaran' => $penawaran,
             'docNo' => $docNo,
             'total' => $total,
-            'kop' => $kop
+            'kop' => $kop,
+            'pricelistMode' => $pricelistMode,
         ])->setPaper('a4', 'portrait');
         $filename = str_replace(['/', '\\'], '-', $penawaran->judul) . '.pdf';
 

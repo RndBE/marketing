@@ -319,6 +319,7 @@
         @php
             $hargaSebelumPajak = max(0, (int) $grand - (int) $discountAmount);
         @endphp
+        @unless ($pricelistMode ?? false)
         <table style="width:100%; border-collapse:collapse; border:0; margin-top:6px;">
             <tr>
                 <td style="border:0; padding:0; width:45%;"></td>
@@ -409,6 +410,7 @@
                 </td>
             </tr>
         </table>
+        @endunless
 
         @if ($hasTerms || $signatureRows->count())
             <table style="width:100%; border-collapse:collapse; border:0; margin-top:14px;">

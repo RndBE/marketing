@@ -69,9 +69,25 @@
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
                 Kembali
             </a>
-            <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
-                class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Download
-                PDF</a>
+            <details class="relative inline-block">
+                <summary
+                    class="cursor-pointer list-none rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                    Download PDF ▾
+                </summary>
+                <div
+                    class="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                    <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
+                        class="block px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Mode Full
+                        <span class="block text-xs font-normal text-slate-500">Dengan ringkasan total</span>
+                    </a>
+                    <a href="{{ route('penawaran.pdf', ['penawaran' => $penawaran->id, 'mode' => 'pricelist']) }}"
+                        class="block border-t border-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Mode Pricelist
+                        <span class="block text-xs font-normal text-slate-500">Tanpa ringkasan total</span>
+                    </a>
+                </div>
+            </details>
 
             <a href="{{ route('invoices.create_from_penawaran', $penawaran->id) }}"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
