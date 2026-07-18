@@ -180,7 +180,8 @@
                                     @endif
                                     @if ($canDelete)
                                         <form method="POST" action="{{ route('prospects.destroy', $prospect) }}"
-                                            onsubmit="return confirm('Hapus prospek ini? Progress dan lampiran progress akan ikut terhapus, tapi penawaran dan usulan hanya dilepas dari prospek ini.')">
+                                            data-confirm-title="Hapus Prospek?"
+                                            data-confirm-delete="Prospek ini beserta progress dan lampirannya akan dihapus permanen. Penawaran dan usulan hanya akan dilepas dari prospek. Tindakan ini tidak dapat dibatalkan.">
                                             @csrf
                                             @method('DELETE')
                                             <button

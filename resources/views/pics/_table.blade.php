@@ -25,7 +25,8 @@
                                 class="border border-green-600 px-3 py-1 text-green-600 rounded-xl text-sm">Edit</a>
 
                             <form action="{{ route('pics.destroy', $pic->id) }}" method="POST" class="inline"
-                                onsubmit="return confirm('Hapus PIC ini?')">
+                                data-confirm-title="Hapus PIC?"
+                                data-confirm-delete="PIC {{ $pic->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                 @csrf
                                 @method('DELETE')
                                 <button

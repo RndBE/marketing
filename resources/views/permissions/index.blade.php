@@ -10,10 +10,6 @@
             </button>
         </div>
 
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
-
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-slate-50">
@@ -48,7 +44,8 @@
                                     Edit
                                 </button>
                                 <form action="{{ route('permissions.destroy', $perm->id) }}" method="POST" class="inline"
-                                    onsubmit="return confirm('Hapus permission ini?')">
+                                    data-confirm-title="Hapus Permission?"
+                                    data-confirm-delete="Permission {{ $perm->name }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                     @csrf @method('DELETE')
                                     <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
                                 </form>

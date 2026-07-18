@@ -24,7 +24,8 @@
             </a>
 
             <form method="POST" action="{{ route('term_templates.destroy', $t->id) }}"
-                onsubmit="return confirm('Hapus template ini? (child ikut kehapus)')">
+                data-confirm-title="Hapus Template Ketentuan?"
+                data-confirm-delete="Template ini beserta seluruh turunannya akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                 @csrf
                 @method('DELETE')
                 <button

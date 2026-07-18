@@ -10,10 +10,6 @@
             </button>
         </div>
 
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
-
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-slate-50">
@@ -42,21 +38,34 @@
                                     @endforelse
                                 </div>
                             </td>
-                            <td class="px-4 py-3 text-right space-x-2">
-                                <button type="button" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-xs"
-                                    onclick="openPermissionModal({{ $role->id }}, '{{ e($role->name) }}', {{ json_encode($role->permissions->pluck('id')) }})">
-                                    Permissions
-                                </button>
-                                <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
-                                    data-id="{{ $role->id }}" data-name="{{ e($role->name) }}" data-slug="{{ e($role->slug) }}"
-                                    data-description="{{ e($role->description) }}" onclick="openEditModal(this)">
-                                    Edit
-                                </button>
-                                <form action="{{ route('roles.destroy', $role->id) }}" method="POST" class="inline"
-                                    onsubmit="return confirm('Hapus role ini?')">
-                                    @csrf @method('DELETE')
-                                    <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
-                                </form>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">
+                                <x-table-actions scope="role" menu-label="Buka aksi role">
+                                    <x-slot:primary>
+                                        <button data-primary-action="permissions" type="button"
+                                            class="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                                            onclick="openPermissionModal({{ $role->id }}, '{{ e($role->name) }}', {{ json_encode($role->permissions->pluck('id')) }})">
+                                            Permissions
+                                        </button>
+                                    </x-slot:primary>
+
+                                    <button type="button"
+                                        data-id="{{ $role->id }}" data-name="{{ e($role->name) }}"
+                                        data-slug="{{ e($role->slug) }}" data-description="{{ e($role->description) }}"
+                                        @click="close(); openEditModal($event.currentTarget)"
+                                        class="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                        Edit
+                                    </button>
+                                    <form action="{{ route('roles.destroy', $role->id) }}" method="POST"
+                                        data-confirm-title="Hapus Role?"
+                                        data-confirm-delete="Role {{ $role->name }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                            class="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50">
+                                            Hapus
+                                        </button>
+                                    </form>
+                                </x-table-actions>
                             </td>
                         </tr>
                     @empty

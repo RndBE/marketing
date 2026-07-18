@@ -43,68 +43,82 @@ class PenawaranController extends Controller
         $filterCompanies = $canViewAll
             ? Company::query()->orderBy('name')->get(['id', 'name', 'code'])
             : collect();
+        $statusFilter = $this->normalizePenawaranStatus((string) $request->query('status', 'all'));
+        $sortFilter = $this->normalizePenawaranSort((string) $request->query('sort', 'newest'));
+        $perPage = $this->normalizePenawaranPageSize((int) $request->query('per_page', 15));
+        $hasGoalColumn = \Illuminate\Support\Facades\Schema::hasColumn('penawaran', 'is_goal');
 
-        // ── Rentang tanggal (default: tahun berjalan) ──
-        $currentYear = now()->year;
-        $dateFrom = $request->query('date_from', "{$currentYear}-01-01");
-        $dateTo = $request->query('date_to', "{$currentYear}-12-31");
+        // Rentang tanggal aktif hanya jika user memilih periode.
+        $dateFrom = $request->filled('date_from') ? $request->query('date_from') : null;
+        $dateTo = $request->filled('date_to') ? $request->query('date_to') : null;
 
         // Closure filter tanggal untuk dipakai di semua query
         $applyDateRange = function ($query) use ($dateFrom, $dateTo) {
-            $query->whereBetween('penawaran.updated_at', [
-                $dateFrom . ' 00:00:00',
-                $dateTo . ' 23:59:59',
-            ]);
+            if ($dateFrom) {
+                $query->where('penawaran.updated_at', '>=', $dateFrom . ' 00:00:00');
+            }
+
+            if ($dateTo) {
+                $query->where('penawaran.updated_at', '<=', $dateTo . ' 23:59:59');
+            }
         };
 
-        $applyDateRangeSimple = function ($query) use ($dateFrom, $dateTo) {
-            $query->whereBetween('updated_at', [
-                $dateFrom . ' 00:00:00',
-                $dateTo . ' 23:59:59',
-            ]);
-        };
-
-        $data = Penawaran::query()
-            ->with(['docNumber', 'approval', 'pic', 'items.details'])
+        $baseQuery = Penawaran::query()
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
+            ->leftJoin('approvals as list_approval', 'list_approval.id', '=', 'penawaran.approval_id')
             ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
                     $query->where(function ($qq) use ($token) {
-                        $qq->where('judul', 'like', "%{$token}%")
-                            ->orWhere('instansi_tujuan', 'like', "%{$token}%")
+                        $qq->where('penawaran.judul', 'like', "%{$token}%")
+                            ->orWhere('penawaran.instansi_tujuan', 'like', "%{$token}%")
                             ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
                     });
                 }
             })
             ->tap($applyDateRange)
-            ->tap(fn($query) => $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId))
+            ->where(function ($query) {
+                $query->whereNull('list_approval.id')
+                    ->orWhere(function ($approvalQuery) {
+                        $approvalQuery
+                            ->where(function ($moduleQuery) {
+                                $moduleQuery->whereNull('list_approval.module')
+                                    ->orWhere('list_approval.module', '!=', 'penghapusan');
+                            })
+                            ->where(function ($statusQuery) {
+                                $statusQuery->whereNull('list_approval.status')
+                                    ->orWhere('list_approval.status', '!=', 'dihapus');
+                            });
+                    });
+            });
+
+        $statusCounts = ['all' => (clone $baseQuery)->count('penawaran.id')];
+        foreach (['waiting', 'approved', 'rejected', 'goal'] as $status) {
+            $statusQuery = clone $baseQuery;
+            $this->applyPenawaranStatusFilter($statusQuery, $status, $hasGoalColumn);
+            $statusCounts[$status] = $statusQuery->count('penawaran.id');
+        }
+
+        $dataQuery = clone $baseQuery;
+        $this->applyPenawaranStatusFilter($dataQuery, $statusFilter, $hasGoalColumn);
+        $this->applyPenawaranListOrdering($dataQuery, $sortFilter, $companyId, $companyFilterId, $hasGoalColumn);
+
+        $data = $dataQuery
+            ->with(['docNumber', 'approval', 'pic', 'items.details'])
             ->select('penawaran.*')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         // ── Hitung total semua penawaran yang sudah disetujui ──
         $totalDisetujui = 0;
         $jumlahDisetujui = 0;
 
-        $approvedQuery = Penawaran::query()
+        $approvedQuery = (clone $baseQuery)
             ->with(['approval', 'items.details'])
-            ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
-            ->when($q !== '', function ($query) use ($q) {
-                $tokens = array_filter(array_map('trim', explode(' ', $q)));
-                foreach ($tokens as $token) {
-                    $query->where(function ($qq) use ($token) {
-                        $qq->where('judul', 'like', "%{$token}%")
-                            ->orWhere('instansi_tujuan', 'like', "%{$token}%")
-                            ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
-                    });
-                }
-            })
-            ->tap($applyDateRangeSimple)
-            ->whereHas('approval', function ($qb) {
-                $qb->where('status', 'disetujui')->where('module', 'penawaran');
-            })
+            ->where('list_approval.status', 'disetujui')
+            ->where('list_approval.module', 'penawaran')
+            ->select('penawaran.*')
             ->get();
 
         foreach ($approvedQuery as $pnw) {
@@ -116,25 +130,11 @@ class PenawaranController extends Controller
         $totalGoal = 0;
         $jumlahGoal = 0;
 
-        // Guard: jika kolom is_goal belum ada (migration belum dijalankan)
-        $hasGoalColumn = \Illuminate\Support\Facades\Schema::hasColumn('penawaran', 'is_goal');
-
         $goalQuery = $hasGoalColumn
-            ? Penawaran::query()
+            ? (clone $baseQuery)
                 ->with(['items.details'])
-                ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
-                ->when($q !== '', function ($query) use ($q) {
-                    $tokens = array_filter(array_map('trim', explode(' ', $q)));
-                    foreach ($tokens as $token) {
-                        $query->where(function ($qq) use ($token) {
-                            $qq->where('judul', 'like', "%{$token}%")
-                                ->orWhere('instansi_tujuan', 'like', "%{$token}%")
-                                ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
-                        });
-                    }
-                })
-                ->tap($applyDateRangeSimple)
-                ->where('is_goal', true)
+                ->where('penawaran.is_goal', true)
+                ->select('penawaran.*')
                 ->get()
             : collect();
 
@@ -160,7 +160,11 @@ class PenawaranController extends Controller
             'pctNilai',
             'canViewAll',
             'companyFilterId',
-            'filterCompanies'
+            'filterCompanies',
+            'statusFilter',
+            'statusCounts',
+            'sortFilter',
+            'perPage'
         ));
     }
 
@@ -1940,9 +1944,8 @@ class PenawaranController extends Controller
         $companyId = $this->currentCompanyId($user);
         $companyFilterId = $this->resolvePenawaranCompanyFilterId($request, $canViewAll);
 
-        $currentYear = now()->year;
-        $dateFrom = $request->query('date_from', "{$currentYear}-01-01");
-        $dateTo   = $request->query('date_to',   "{$currentYear}-12-31");
+        $dateFrom = $request->filled('date_from') ? $request->query('date_from') : null;
+        $dateTo = $request->filled('date_to') ? $request->query('date_to') : null;
 
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
@@ -1958,10 +1961,8 @@ class PenawaranController extends Controller
                     });
                 }
             })
-            ->whereBetween('penawaran.updated_at', [
-                $dateFrom . ' 00:00:00',
-                $dateTo   . ' 23:59:59',
-            ])
+            ->when($dateFrom, fn($query) => $query->where('penawaran.updated_at', '>=', $dateFrom . ' 00:00:00'))
+            ->when($dateTo, fn($query) => $query->where('penawaran.updated_at', '<=', $dateTo . ' 23:59:59'))
             ->tap(fn($query) => $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId))
             ->select('penawaran.*')
             ->get();
@@ -2206,11 +2207,109 @@ class PenawaranController extends Controller
 
     private function applyPenawaranDocNumberOrdering($query, ?int $companyId, ?int $companyFilterId): void
     {
+        $this->applyPenawaranCompanyPriority($query, $companyId, $companyFilterId);
+
+        $query
+            ->orderByDesc('dn.year')
+            ->orderByDesc('dn.month')
+            ->orderByDesc('dn.seq')
+            ->orderByDesc('penawaran.id');
+    }
+
+    private function normalizePenawaranStatus(string $status): string
+    {
+        return in_array($status, ['all', 'waiting', 'approved', 'rejected', 'goal'], true)
+            ? $status
+            : 'all';
+    }
+
+    private function normalizePenawaranSort(string $sort): string
+    {
+        return in_array($sort, ['newest', 'oldest', 'title', 'status'], true)
+            ? $sort
+            : 'newest';
+    }
+
+    private function normalizePenawaranPageSize(int $perPage): int
+    {
+        return in_array($perPage, [15, 30, 50], true) ? $perPage : 15;
+    }
+
+    private function applyPenawaranStatusFilter($query, string $status, bool $hasGoalColumn): void
+    {
+        if ($status === 'goal') {
+            if ($hasGoalColumn) {
+                $query->where('penawaran.is_goal', true);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+
+            return;
+        }
+
+        $approvalStatus = match ($status) {
+            'waiting' => 'menunggu',
+            'approved' => 'disetujui',
+            'rejected' => 'ditolak',
+            default => null,
+        };
+
+        if ($approvalStatus) {
+            $query->where('list_approval.module', 'penawaran')
+                ->where('list_approval.status', $approvalStatus);
+        }
+    }
+
+    private function applyPenawaranCompanyPriority($query, ?int $companyId, ?int $companyFilterId): void
+    {
         if ($companyId && !$companyFilterId) {
             $query->orderByRaw('CASE WHEN penawaran.company_id = ? THEN 0 ELSE 1 END ASC', [$companyId]);
         }
+    }
 
-        $query
+    private function applyPenawaranListOrdering(
+        $query,
+        string $sort,
+        ?int $companyId,
+        ?int $companyFilterId,
+        bool $hasGoalColumn
+    ): void {
+        if ($sort === 'newest') {
+            $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId);
+
+            return;
+        }
+
+        $this->applyPenawaranCompanyPriority($query, $companyId, $companyFilterId);
+
+        if ($sort === 'oldest') {
+            $query
+                ->orderBy('dn.year')
+                ->orderBy('dn.month')
+                ->orderBy('dn.seq')
+                ->orderBy('penawaran.id');
+
+            return;
+        }
+
+        if ($sort === 'title') {
+            $query->orderBy('penawaran.judul')
+                ->orderByDesc('dn.year')
+                ->orderByDesc('dn.month')
+                ->orderByDesc('dn.seq')
+                ->orderByDesc('penawaran.id');
+
+            return;
+        }
+
+        $goalClause = $hasGoalColumn ? 'WHEN penawaran.is_goal = 1 THEN 3' : '';
+        $query->orderByRaw("CASE
+                WHEN list_approval.module = 'penawaran' AND list_approval.status = 'menunggu' THEN 0
+                WHEN list_approval.module = 'penawaran' AND list_approval.status = 'disetujui' THEN 1
+                WHEN list_approval.module = 'penawaran' AND list_approval.status = 'ditolak' THEN 2
+                {$goalClause}
+                ELSE 4
+            END ASC")
             ->orderByDesc('dn.year')
             ->orderByDesc('dn.month')
             ->orderByDesc('dn.seq')

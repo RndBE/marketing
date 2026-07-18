@@ -9,10 +9,6 @@
                 Tambah User
             </a>
         </div>
-        @if (session('error'))
-            <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
-        @endif
-
         <div class="mb-4">
             <form action="{{ route('users.index') }}" method="GET">
                 <input type="text" name="q" value="{{ $q }}"
@@ -55,7 +51,8 @@
 
                                     @if($user->id !== auth()->id())
                                         <form action="{{ route('users.destroy', $user->id) }}" method="POST"
-                                            onsubmit="return confirm('Yakin hapus user ini?')">
+                                            data-confirm-title="Hapus Pengguna?"
+                                            data-confirm-delete="Pengguna {{ $user->name }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                             @csrf
                                             @method('DELETE')
                                             <button

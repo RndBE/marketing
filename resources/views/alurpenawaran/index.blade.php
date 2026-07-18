@@ -40,7 +40,9 @@
                                     onclick="openEditModal(this)">
                                     Edit
                                 </button>
-                                <form action="{{ route('alurpenawaran.destroy', $alur->id) }}" method="POST" class="inline">
+                                <form action="{{ route('alurpenawaran.destroy', $alur->id) }}" method="POST" class="inline"
+                                    data-confirm-title="Hapus Alur Penawaran?"
+                                    data-confirm-delete="Alur penawaran ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                     @csrf @method('DELETE')
                                     <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-ms">
                                         Hapus

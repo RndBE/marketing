@@ -6,10 +6,6 @@
             <h1 class="text-xl font-bold">Kelola Role User</h1>
         </div>
 
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
-
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-slate-50">

@@ -15,7 +15,8 @@
             @endif
             @if(auth()->user()->hasPermission('delete-marketing-report') && ((int) $report->created_by === (int) auth()->id() || auth()->user()->hasPermission('view-all-marketing-report')))
                 <form method="POST" action="{{ route('marketing-reports.destroy', $report->id) }}"
-                    onsubmit="return confirm('Hapus laporan ini?')">
+                    data-confirm-title="Hapus Laporan Marketing?"
+                    data-confirm-delete="Laporan marketing ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                     @csrf
                     @method('DELETE')
                     <button
@@ -105,7 +106,8 @@
                                 @if(auth()->user()->hasPermission('edit-marketing-report') && ((int) $report->created_by === (int) auth()->id() || auth()->user()->hasPermission('view-all-marketing-report')))
                                     <form method="POST"
                                         action="{{ route('marketing-reports.attachments.destroy', [$report->id, $attachment->id]) }}"
-                                        class="mt-2" onsubmit="return confirm('Hapus lampiran ini?')">
+                                        class="mt-2" data-confirm-title="Hapus Lampiran?"
+                                        data-confirm-delete="Lampiran ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                         @csrf
                                         @method('DELETE')
                                         <button

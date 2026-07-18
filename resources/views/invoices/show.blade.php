@@ -32,6 +32,10 @@
                 Kembali
             </a>
             <a href="{{ route('invoices.pdf', $invoice->id) }}" target="_blank"
+                data-download-loading
+                data-loading-label="Menyiapkan PDF..."
+                data-download-timeout="30000"
+                data-invoice-pdf-link
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
                 Download PDF
             </a>
@@ -41,7 +45,8 @@
                     Edit Invoice
                 </a>
                 <form method="POST" action="{{ route('invoices.destroy', $invoice->id) }}"
-                    onsubmit="return confirm('Hapus invoice ini secara permanen?')">
+                    data-confirm-title="Hapus Invoice?"
+                    data-confirm-delete="Invoice {{ $invoice->docNumber?->doc_no ?? $invoice->judul }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                     @csrf
                     @method('DELETE')
                     <button
@@ -330,7 +335,8 @@
 
                                 <form method="POST"
                                     action="{{ route('invoices.items.delete', [$invoice->id, $item->id]) }}"
-                                    onsubmit="return confirm('Hapus item ini?')">
+                                    data-confirm-title="Hapus Item Invoice?"
+                                    data-confirm-delete="Item {{ $item->judul }} dan detailnya akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                     @csrf
                                     @method('DELETE')
                                     <button
@@ -374,7 +380,9 @@
                                         <td class="px-3 py-2 text-right">
                                             @if ($canEdit)
                                                 <form method="POST"
-                                                    action="{{ route('invoices.item_details.delete', [$invoice->id, $item->id, $detail->id]) }}">
+                                                    action="{{ route('invoices.item_details.delete', [$invoice->id, $item->id, $detail->id]) }}"
+                                                    data-confirm-title="Hapus Detail Item?"
+                                                    data-confirm-delete="Detail {{ $detail->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button
@@ -489,7 +497,8 @@
 
                     @if($invoice->signature)
                         <form action="{{ route('invoices.signatures.delete', $invoice->id) }}" method="POST"
-                            class="mt-2 text-right" onsubmit="return confirm('Hapus tanda tangan?')">
+                            class="mt-2 text-right" data-confirm-title="Hapus Tanda Tangan?"
+                            data-confirm-delete="Tanda tangan invoice ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                             @csrf @method('DELETE')
                             <button class="text-xs text-rose-500 hover:underline">Hapus Tanda Tangan</button>
                         </form>
@@ -672,7 +681,11 @@
             }
 
             async function deleteTerm(id) {
-                if (!confirm('Hapus term ini?')) return;
+                const confirmed = await window.requestDeleteConfirmation({
+                    title: 'Hapus Ketentuan Invoice?',
+                    message: 'Ketentuan invoice ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.'
+                });
+                if (!confirmed) return;
                 try {
                     const res = await fetch(`{{ url('/invoices') }}/${invoiceId}/terms/${id}`, {
                         method: 'DELETE',

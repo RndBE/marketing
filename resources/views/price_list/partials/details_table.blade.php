@@ -107,7 +107,8 @@
                             </button>
                             <form class="ajax-detail-form w-full"
                                 action="{{ route('price_list.details.delete', [$product->id, $d->id]) }}" method="POST"
-                                data-method="DELETE" data-confirm="Hapus item ini?">
+                                data-method="DELETE" data-confirm-title="Hapus Item Bundle?"
+                                data-confirm-delete="Item {{ $d->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                 @csrf
                                 <button type="submit"
                                     class="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">

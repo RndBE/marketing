@@ -78,18 +78,30 @@
                             </span>
                         </td>
                         {{-- <td class="px-4 py-3 text-center">{{ $p->details_count }}</td> --}}
-                        <td class="px-4 py-3 text-right">
-                            <a href="{{ route('price_list.edit', $p->id) }}"
-                                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50">Edit</a>
-                            <form action="{{ route('price_list.destroy', $p->id) }}" method="POST" class="inline-block"
-                                onsubmit="return confirm('Yakin mau hapus bundle ini?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit"
-                                    class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
-                                    Hapus
-                                </button>
-                            </form>
+                        <td class="whitespace-nowrap px-4 py-3 text-right">
+                            <x-table-actions scope="bundle" menu-label="Buka aksi bundle">
+                                <x-slot:primary>
+                                    <a data-primary-action="detail" href="{{ route('price_list.show', $p->id) }}"
+                                        class="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800">
+                                        Detail
+                                    </a>
+                                </x-slot:primary>
+
+                                <a href="{{ route('price_list.edit', $p->id) }}"
+                                    class="rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                    Edit
+                                </a>
+                                <form action="{{ route('price_list.destroy', $p->id) }}" method="POST"
+                                    data-confirm-title="Hapus Bundle?"
+                                    data-confirm-delete="Bundle {{ $p->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                        class="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50">
+                                        Hapus
+                                    </button>
+                                </form>
+                            </x-table-actions>
                         </td>
                     </tr>
                 @empty

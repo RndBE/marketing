@@ -67,7 +67,8 @@
                                     <a href="{{ route('companies.edit', $company) }}"
                                         class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs hover:bg-amber-600">Edit</a>
                                     <form action="{{ route('companies.destroy', $company) }}" method="POST"
-                                        onsubmit="return confirm('Hapus perusahaan ini?')">
+                                        data-confirm-title="Hapus Perusahaan?"
+                                        data-confirm-delete="Perusahaan {{ $company->name }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                         @csrf
                                         @method('DELETE')
                                         <button

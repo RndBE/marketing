@@ -33,7 +33,12 @@
 
             @if ($penawaran->is_goal)
                 <div class="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-800">
-                    🏆 Goal / Project
+                    <svg class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8 21h8m-4-4v4m7-17h2v2a5 5 0 0 1-5 5M5 4H3v2a5 5 0 0 0 5 5m0-7h8v5a4 4 0 0 1-8 0V4z" />
+                    </svg>
+                    <span>Goal / Project</span>
                     @if ($penawaran->goal_at)
                         <span class="text-xs font-normal text-blue-600">sejak {{ $penawaran->goal_at->format('d M Y') }}</span>
                     @endif
@@ -49,8 +54,10 @@
                 $akses = $stepAktif->akses_approve ?? [];
                 $m = $approval->module ?? '';
 
-                // Check if user can edit: admin OR creator of penawaran
-                $canEdit = auth()->user()->hasRole('admin') || $penawaran->id_user === auth()->id();
+                $isOwnerOrAdmin = auth()->user()->hasRole('admin')
+                    || (int) $penawaran->id_user === (int) auth()->id();
+                $canEdit = $isOwnerOrAdmin && auth()->user()->hasPermission('edit-penawaran');
+                $canDelete = $isOwnerOrAdmin && auth()->user()->hasPermission('delete-penawaran');
             @endphp
             @if ($bolehApproveStep && $m === 'penawaran')
                 <button
@@ -71,17 +78,29 @@
             </a>
             <details class="relative inline-block">
                 <summary
-                    class="cursor-pointer list-none rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                    Download PDF ▾
+                    class="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                    Download PDF
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        stroke-width="2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </summary>
                 <div
                     class="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                     <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
+                        data-download-loading
+                        data-loading-label="Menyiapkan PDF..."
+                        data-download-timeout="30000"
+                        data-penawaran-pdf-link
                         class="block px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                         Mode Full
                         <span class="block text-xs font-normal text-slate-500">Dengan ringkasan total</span>
                     </a>
                     <a href="{{ route('penawaran.pdf', ['penawaran' => $penawaran->id, 'mode' => 'pricelist']) }}"
+                        data-download-loading
+                        data-loading-label="Menyiapkan PDF..."
+                        data-download-timeout="30000"
+                        data-penawaran-pdf-link
                         class="block border-t border-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                         Mode Pricelist
                         <span class="block text-xs font-normal text-slate-500">Tanpa ringkasan total</span>
@@ -95,48 +114,67 @@
             </a>
 
             @if ($canEdit)
-                <a href="{{ route('penawaran.edit', $penawaran->id) }}"
+                <a data-action-edit-penawaran href="{{ route('penawaran.edit', $penawaran->id) }}"
                     class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">Edit</a>
+            @endif
+
+            @if ($canDelete)
                 <form method="POST" action="{{ route('penawaran.destroy', $penawaran->id) }}"
-                    onsubmit="return confirm('Hapus penawaran ini?')">
+                    data-confirm-title="Hapus Penawaran?"
+                    data-confirm-delete="Penawaran {{ $docNo }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                     @csrf
                     @method('DELETE')
-                    <button
+                    <button data-action-delete-penawaran type="submit"
                         class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">Hapus</button>
                 </form>
+            @endif
 
+            @if ($canEdit)
                 {{-- Toggle Goal / Project --}}
                 <form method="POST" action="{{ route('penawaran.toggle-goal', $penawaran->id) }}"
-                    onsubmit="return confirm('{{ $penawaran->is_goal ? 'Cabut status Goal / Project?' : 'Tandai penawaran ini sebagai Goal / Project?' }}')">
+                    data-confirm-title="{{ $penawaran->is_goal ? 'Cabut Status Goal / Project?' : 'Tandai Sebagai Goal / Project?' }}"
+                    data-confirm-action="{{ $penawaran->is_goal ? 'Status Goal / Project akan dicabut dari penawaran ini. Data penawaran tetap tersimpan.' : 'Penawaran ini akan ditandai sebagai Goal / Project. Data penawaran tetap tersimpan.' }}"
+                    data-confirm-label="{{ $penawaran->is_goal ? 'Cabut Status' : 'Tandai Goal' }}">
                     @csrf
                     @if ($penawaran->is_goal)
                         <button type="submit"
-                            class="rounded-xl border border-blue-300 bg-blue-100 px-4 py-2.5 text-sm font-semibold text-blue-800 hover:bg-blue-200">
-                            ✓ Goal
+                            class="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-blue-100 px-4 py-2.5 text-sm font-semibold text-blue-800 hover:bg-blue-200">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                stroke-width="2" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Goal
                         </button>
                     @else
                         <button type="submit"
-                            class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
-                            🏆 Tandai Goal
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
+                            <svg class="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8 21h8m-4-4v4m7-17h2v2a5 5 0 0 1-5 5M5 4H3v2a5 5 0 0 0 5 5m0-7h8v5a4 4 0 0 1-8 0V4z" />
+                            </svg>
+                            Tandai Goal
                         </button>
                     @endif
                 </form>
-            @else
-                <button disabled
-                    class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
-                    title="Hanya pembuat penawaran dan admin yang dapat mengedit">Edit</button>
-                <button disabled
-                    class="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed"
-                    title="Hanya pembuat penawaran dan admin yang dapat menghapus">Hapus</button>
             @endif
 
             @if(auth()->user()->hasPermission('create-penawaran'))
                 <form method="POST" action="{{ route('penawaran.duplicate', $penawaran->id) }}"
-                    onsubmit="return confirm('Duplikat penawaran ini? Salinan baru akan dibuat dengan nomor dokumen baru.')">
+                    data-duplicate-submit
+                    data-confirm-title="Duplikat Penawaran?"
+                    data-confirm-duplicate="Salinan baru akan dibuat dengan nomor dokumen baru. Data penawaran asli tidak berubah.">
                     @csrf
-                    <button type="submit"
-                        class="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">
-                        ⧉ Duplikat
+                    <button data-action-duplicate-penawaran data-duplicate-button type="submit"
+                        class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-70">
+                        <svg data-duplicate-spinner aria-hidden="true" class="hidden h-4 w-4 animate-spin"
+                            viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor"
+                                stroke-width="3" />
+                            <path class="opacity-75" fill="currentColor" d="M12 3a9 9 0 0 1 9 9h-3a6 6 0 0 0-6-6V3Z" />
+                        </svg>
+                        <span data-duplicate-label data-idle-label="Duplikat"
+                            data-loading-label="Menduplikat...">Duplikat</span>
                     </button>
                 </form>
             @endif
@@ -341,7 +379,8 @@
                                     @endif
                                     <button type="button"
                                         data-delete-url="{{ route('penawaran.items.delete', [$penawaran->id, $item->id]) }}"
-                                        data-confirm="Hapus item ini?"
+                                        data-confirm-title="Hapus Item Penawaran?"
+                                        data-confirm="Item penawaran ini beserta seluruh detailnya akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan."
                                         class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
                                         Hapus Item
                                     </button>
@@ -531,7 +570,8 @@
                                                     </button>
                                                     <button type="button"
                                                         data-delete-url="{{ route('penawaran.item_details.delete', [$penawaran->id, $item->id, $d->id]) }}"
-                                                        data-confirm="Hapus detail ini?"
+                                                        data-confirm-title="Hapus Detail Item?"
+                                                        data-confirm="Detail item ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan."
                                                         class="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">
                                                         Hapus
                                                     </button>
@@ -917,7 +957,8 @@
                             @if ($canEdit)
                                 <form method="POST"
                                     action="{{ route('penawaran.attachments.delete', [$penawaran->id, $a->id]) }}"
-                                    onsubmit="return confirm('Hapus lampiran?')">
+                                    data-confirm-title="Hapus Lampiran?"
+                                    data-confirm-delete="Lampiran ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                     @csrf
                                     @method('DELETE')
                                     <button
@@ -977,21 +1018,6 @@
             if (!e || e.target.id === 'approvalModal') {
                 document.getElementById('approvalModal').classList.add('hidden');
             }
-        }
-
-        // Toast Notification
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg font-semibold text-white transition-all duration-300 ${
-                type === 'success' ? 'bg-green-600' : 'bg-red-600'
-            }`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
         }
 
         // Refresh page content without full reload
@@ -1145,8 +1171,12 @@
             return input ? input.value : '';
         }
 
-        function ajaxDelete(url, confirmText) {
-            if (confirmText && !confirm(confirmText)) return;
+        async function ajaxDelete(url, confirmText, confirmTitle = 'Hapus Data?') {
+            const confirmed = await window.requestDeleteConfirmation({
+                title: confirmTitle,
+                message: confirmText || 'Data ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.'
+            });
+            if (!confirmed) return;
             const form = document.createElement('form');
             form.action = url;
             const token = getCsrfToken();
@@ -1386,7 +1416,7 @@
             const btn = e.target.closest('[data-delete-url]');
             if (!btn) return;
             e.preventDefault();
-            ajaxDelete(btn.dataset.deleteUrl, btn.dataset.confirm || '');
+            ajaxDelete(btn.dataset.deleteUrl, btn.dataset.confirm || '', btn.dataset.confirmTitle || 'Hapus Data?');
         });
 
         function addPenawaranAttachmentRow() {
@@ -1403,7 +1433,7 @@
         }
 
 
-        document.addEventListener('submit', function(e) {
+        document.addEventListener('submit', async function(e) {
             const form = e.target;
 
             if (form.tagName !== 'FORM') return;
@@ -1419,10 +1449,14 @@
             e.stopPropagation();
             const methodInput = form.querySelector('input[name="_method"]');
             const isDeleteMethod = methodInput && methodInput.value && methodInput.value.toUpperCase() === 'DELETE';
-            if (form.action.includes('delete') || form.action.includes('destroy') || isDeleteMethod) {
-                if (!confirm('Hapus item ini?')) {
-                    return;
-                }
+            const isDeleteAction = form.action.includes('delete') || form.action.includes('destroy') || isDeleteMethod;
+            if (isDeleteAction && form.dataset.deleteConfirmed !== 'true') {
+                const confirmed = await window.requestDeleteConfirmation({
+                    title: form.dataset.confirmTitle || 'Hapus Data?',
+                    message: form.dataset.confirmDelete ||
+                        'Data ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.'
+                });
+                if (!confirmed) return;
             }
 
             handleAjaxSubmit(form);

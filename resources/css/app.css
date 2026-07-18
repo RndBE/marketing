@@ -5,3 +5,25 @@
 [x-cloak] {
     display: none !important;
 }
+
+html[data-sidebar-preload="true"] [data-mobile-sidebar] {
+    transform: translateX(-100%);
+}
+
+@media (min-width: 768px) {
+    html[data-sidebar-preload="true"][data-sidebar-open="true"] [data-mobile-sidebar] {
+        transform: translateX(0);
+    }
+
+    html[data-sidebar-preload="true"][data-sidebar-open="false"] [data-mobile-sidebar] {
+        transform: translateX(-100%);
+    }
+
+    html[data-sidebar-preload="true"][data-sidebar-open="true"] [data-sidebar-content] {
+        margin-left: 16rem;
+    }
+
+    html[data-sidebar-preload="true"][data-sidebar-open="false"] [data-sidebar-content] {
+        margin-left: 0;
+    }
+}

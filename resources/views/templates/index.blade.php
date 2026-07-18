@@ -55,7 +55,8 @@
                                 </div>
                             </div>
                             <form action="{{ route('templates.signature.delete', $sig->id) }}" method="POST"
-                                onsubmit="return confirm('Delete this template?')">
+                                data-confirm-title="Hapus Template Tanda Tangan?"
+                                data-confirm-delete="Template tanda tangan ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                 @csrf @method('DELETE')
                                 <button class="text-red-500 hover:underline text-xs">Delete</button>
                             </form>
@@ -98,7 +99,8 @@
                             <div class="flex justify-between items-center mb-2">
                                 <div class="font-bold text-sm">{{ $term->template_name }}</div>
                                 <form action="{{ route('templates.term.delete', $term->id) }}" method="POST"
-                                    onsubmit="return confirm('Delete this template?')">
+                                    data-confirm-title="Hapus Template Ketentuan?"
+                                    data-confirm-delete="Template ketentuan ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                     @csrf @method('DELETE')
                                     <button class="text-red-500 hover:underline text-xs">Delete</button>
                                 </form>

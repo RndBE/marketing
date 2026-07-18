@@ -1,26 +1,53 @@
-<aside
-    class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200 transition-transform duration-300 z-20"
-    x-cloak x-show="$store.sidebar.open" x-transition:enter="transition ease-out duration-200"
-    x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
-    x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-x-0"
+@php
+    $sidebarGroups = [
+        'invoice' => request()->routeIs('invoices.*', 'templates.*'),
+        'purchase_order' => request()->routeIs('purchase-orders.*'),
+        'penawaran' => request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*'),
+        'usulan' => request()->routeIs('usulan.*'),
+        'prospect' => request()->routeIs('prospects.*'),
+        'lead_report' => request()->routeIs('lead-reports.*'),
+        'pricelist' => request()->routeIs('price_list.*', 'komponen.*'),
+        'pic' => request()->routeIs('pics.*'),
+        'users' => request()->routeIs('users.*', 'companies.*'),
+        'rbac' => request()->routeIs('roles.*', 'permissions.*', 'user-roles.*', 'audit-logs.*'),
+    ];
+
+    $sidebarPanelStyle = fn (string $group) => $sidebarGroups[$group] ? '' : 'display: none;';
+@endphp
+
+<aside id="application-sidebar" data-mobile-sidebar
+    class="fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2rem))] transform-gpu flex-col border-r border-slate-200 bg-white shadow-xl will-change-transform md:z-20 md:w-64 md:shadow-none"
+    x-show="mobileSidebarOpen || (isDesktop && $store.sidebar.open)"
+    x-transition:enter="transform transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+    x-transition:enter-start="-translate-x-full"
+    x-transition:enter-end="translate-x-0"
+    x-transition:leave="transform transition duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+    x-transition:leave-start="translate-x-0"
     x-transition:leave-end="-translate-x-full">
     <div class="px-3 py-4 border-slate-200">
-        <div class="flex justify-center items-center gap-3">
+        <div class="flex items-center justify-between gap-3 md:justify-center">
             <img src="{{ asset('images/logo_be.png') }}" alt="Logo BE" class="h-10">
+            <button type="button" data-sidebar-close
+                class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 md:hidden"
+                @click="mobileSidebarOpen = false" aria-label="Tutup navigasi">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
     </div>
 
-    <nav class="px-3 py-4 overflow-y-auto" x-data="{
-        invoice: {{ request()->routeIs('invoices.*') ? 'true' : 'false' }},
-        purchase_order: {{ request()->routeIs('purchase-orders.*') ? 'true' : 'false' }},
-        penawaran: {{ request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*') ? 'true' : 'false' }},
-        usulan: {{ request()->routeIs('usulan.*') ? 'true' : 'false' }},
-        prospect: {{ request()->routeIs('prospects.*') ? 'true' : 'false' }},
-        lead_report: {{ request()->routeIs('lead-reports.*') ? 'true' : 'false' }},
-        pricelist: {{ request()->routeIs('price_list.*', 'komponen.*') ? 'true' : 'false' }},
-        pic: {{ request()->routeIs('pics.*') ? 'true' : 'false' }},
-        users: {{ request()->routeIs('users.*', 'companies.*') ? 'true' : 'false' }},
-        rbac: {{ request()->routeIs('roles.*', 'permissions.*', 'user-roles.*', 'audit-logs.*') ? 'true' : 'false' }}
+    <nav class="min-h-0 flex-1 overflow-y-auto px-3 py-4" @click="if ($event.target.closest('a')) mobileSidebarOpen = false" x-data="{
+        invoice: {{ $sidebarGroups['invoice'] ? 'true' : 'false' }},
+        purchase_order: {{ $sidebarGroups['purchase_order'] ? 'true' : 'false' }},
+        penawaran: {{ $sidebarGroups['penawaran'] ? 'true' : 'false' }},
+        usulan: {{ $sidebarGroups['usulan'] ? 'true' : 'false' }},
+        prospect: {{ $sidebarGroups['prospect'] ? 'true' : 'false' }},
+        lead_report: {{ $sidebarGroups['lead_report'] ? 'true' : 'false' }},
+        pricelist: {{ $sidebarGroups['pricelist'] ? 'true' : 'false' }},
+        pic: {{ $sidebarGroups['pic'] ? 'true' : 'false' }},
+        users: {{ $sidebarGroups['users'] ? 'true' : 'false' }},
+        rbac: {{ $sidebarGroups['rbac'] ? 'true' : 'false' }}
     }">
         <!-- Penawaran Section -->
         <div class="mb-4">
@@ -39,7 +66,7 @@
                 </svg>
             </button>
 
-            <div x-show="penawaran" x-collapse class="mt-1 space-y-1">
+            <div x-show="penawaran" x-collapse style="{{ $sidebarPanelStyle('penawaran') }}" class="mt-1 space-y-1">
                 @if(auth()->user()->hasPermission('manage-alur'))
                     <a href="{{ route('alurpenawaran.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
@@ -82,8 +109,7 @@
             <!-- Invoice Section -->
 
         </div>
-        @if(auth()->user()->hasPermission('view-usulan'))
-            <div class="mb-4">
+        <div class="mb-4">
                 <button @click="invoice = !invoice" :class="invoice ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
                     class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
                     <span class="inline-flex items-center gap-2">
@@ -98,7 +124,7 @@
                     </svg>
                 </button>
 
-                <div x-show="invoice" x-collapse class="mt-1 space-y-1">
+                <div x-show="invoice" x-collapse style="{{ $sidebarPanelStyle('invoice') }}" class="mt-1 space-y-1">
                     <a href="{{ route('invoices.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                     {{ request()->routeIs('invoices.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -116,8 +142,7 @@
                         <span>Atur Template</span>
                     </a>
                 </div>
-            </div>
-        @endif
+        </div>
         @if(auth()->user()->hasPermission('view-purchase-order') || auth()->user()->hasPermission('create-purchase-order'))
             <div class="mb-4">
                 <button @click="purchase_order = !purchase_order"
@@ -135,7 +160,7 @@
                     </svg>
                 </button>
 
-                <div x-show="purchase_order" x-collapse class="mt-1 space-y-1">
+                <div x-show="purchase_order" x-collapse style="{{ $sidebarPanelStyle('purchase_order') }}" class="mt-1 space-y-1">
                     @if(auth()->user()->hasPermission('view-purchase-order'))
                         <a href="{{ route('purchase-orders.index') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
@@ -172,7 +197,7 @@
                 </svg>
             </button>
 
-            <div x-show="lead_report" x-collapse class="mt-1 space-y-1">
+            <div x-show="lead_report" x-collapse style="{{ $sidebarPanelStyle('lead_report') }}" class="mt-1 space-y-1">
                 <a href="{{ route('lead-reports.index') }}"
                     class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                         {{ request()->routeIs('lead-reports.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -206,7 +231,7 @@
                     </svg>
                 </button>
 
-                <div x-show="usulan" x-collapse class="mt-1 space-y-1">
+                <div x-show="usulan" x-collapse style="{{ $sidebarPanelStyle('usulan') }}" class="mt-1 space-y-1">
                     <a href="{{ route('usulan.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                             {{ request()->routeIs('usulan.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -241,7 +266,7 @@
                     </svg>
                 </button>
 
-                <div x-show="prospect" x-collapse class="mt-1 space-y-1">
+                <div x-show="prospect" x-collapse style="{{ $sidebarPanelStyle('prospect') }}" class="mt-1 space-y-1">
                     <a href="{{ route('prospects.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                             {{ request()->routeIs('prospects.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -276,7 +301,7 @@
                     </svg>
                 </button>
 
-                <div x-show="pricelist" x-collapse class="mt-1 space-y-1">
+                <div x-show="pricelist" x-collapse style="{{ $sidebarPanelStyle('pricelist') }}" class="mt-1 space-y-1">
                     <a href="{{ route('price_list.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                     {{ request()->routeIs('price_list.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -314,7 +339,7 @@
                     </svg>
                 </button>
 
-                <div x-show="pic" x-collapse class="mt-1 space-y-1">
+                <div x-show="pic" x-collapse style="{{ $sidebarPanelStyle('pic') }}" class="mt-1 space-y-1">
                     <a href="{{ route('pics.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                             {{ request()->routeIs('pics.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -340,7 +365,7 @@
                     </svg>
                 </button>
 
-                <div x-show="users" x-collapse class="mt-1 space-y-1">
+                <div x-show="users" x-collapse style="{{ $sidebarPanelStyle('users') }}" class="mt-1 space-y-1">
                     <a href="{{ route('users.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                             {{ request()->routeIs('users.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
@@ -374,7 +399,7 @@
                     </svg>
                 </button>
 
-                <div x-show="rbac" x-collapse class="mt-1 space-y-1">
+                <div x-show="rbac" x-collapse style="{{ $sidebarPanelStyle('rbac') }}" class="mt-1 space-y-1">
                     <a href="{{ route('roles.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                     {{ request()->routeIs('roles.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">

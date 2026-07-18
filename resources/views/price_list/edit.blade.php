@@ -356,9 +356,6 @@
 
                 e.preventDefault()
 
-                const confirmText = form.getAttribute('data-confirm')
-                if (confirmText && !window.confirm(confirmText)) return
-
                 const url = form.getAttribute('action')
                 const m = (form.getAttribute('data-method') || 'POST').toUpperCase()
                 normalizeRupiahInputs(form)

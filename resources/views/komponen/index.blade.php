@@ -24,14 +24,16 @@
             </div>
         </form>
 
-        <form id="bulkDeleteForm" action="{{ route('komponen.bulk-delete') }}" method="POST" class="mb-4">
+        <form id="bulkDeleteForm" action="{{ route('komponen.bulk-delete') }}" method="POST" class="mb-4"
+            data-confirm-title="Hapus Komponen Terpilih?"
+            data-confirm-delete="Semua komponen yang dipilih akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
             @csrf
             @method('DELETE')
             <div id="bulkActions" class="hidden bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between">
                 <span class="text-sm font-semibold text-red-900">
                     <span id="selectedCount">0</span> item dipilih
                 </span>
-                <button type="submit" onclick="return confirm('Hapus semua item yang dipilih?')"
+                <button type="submit"
                     class="rounded-xl bg-red-600 text-white px-4 py-2 text-sm font-semibold hover:bg-red-700">
                     Hapus Terpilih
                 </button>
@@ -109,7 +111,8 @@
                                             Edit
                                         </button>
                                         <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
-                                            onsubmit="return confirm('Hapus komponen ini?')">
+                                            data-confirm-title="Hapus Komponen?"
+                                            data-confirm-delete="Komponen {{ $k->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                                             @csrf @method('DELETE')
                                             <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
                                         </form>

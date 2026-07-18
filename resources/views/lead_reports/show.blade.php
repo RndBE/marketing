@@ -15,6 +15,8 @@
 
         <div class="flex items-center gap-2">
             <a href="{{ route('lead-reports.download', $leadReport) }}"
+               data-download-loading
+               data-loading-label="Menyiapkan unduhan..."
                class="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 text-sm font-medium rounded-xl
                       text-slate-700 bg-white hover:bg-slate-50 transition-all duration-200 shadow-sm">
                 <i class="ri-download-2-line"></i>
@@ -23,7 +25,8 @@
 
             @if(auth()->user()->hasRole('admin'))
                 <form method="POST" action="{{ route('lead-reports.destroy', $leadReport) }}"
-                      onsubmit="return confirm('Yakin ingin menghapus report ini?')">
+                    data-confirm-title="Hapus Laporan Lead?"
+                    data-confirm-delete="Laporan lead ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                     @csrf @method('DELETE')
                     <button type="submit"
                             class="inline-flex items-center gap-2 px-4 py-2 border border-rose-200 text-sm font-medium rounded-xl

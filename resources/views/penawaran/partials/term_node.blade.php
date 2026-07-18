@@ -20,7 +20,8 @@
                     Edit
                 </button>
                 <form method="POST" action="{{ route('penawaran.terms.delete', [$penawaran->id, $term->id]) }}"
-                    onsubmit="return confirm('Hapus keterangan?')">
+                    data-confirm-title="Hapus Keterangan?"
+                    data-confirm-delete="Keterangan ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
                     @csrf
                     @method('DELETE')
                     <button

@@ -10,14 +10,6 @@
             </a>
         </div>
 
-        @if (session('success'))
-            <div class="mb-4 p-3 bg-green-100 text-green-700 rounded-xl">{{ session('success') }}</div>
-        @endif
-
-        @if (session('error'))
-            <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-xl">{{ session('error') }}</div>
-        @endif
-
         {{-- Filter --}}
         <div class="flex gap-2 mb-4">
             <a href="{{ route('usulan.index') }}"
@@ -59,24 +51,35 @@
                             <td class="px-4 py-3 text-slate-600">
                                 {{ $u->tanggal_dibutuhkan?->format('d/m/Y') ?? '-' }}
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                <a href="{{ route('usulan.show', $u->id) }}"
-                                    class="px-3 py-1 bg-slate-900 text-white rounded-lg text-xs">Lihat</a>
-                                @if ($u->penawaran_id)
-                                    <a href="{{ route('penawaran.show', $u->penawaran_id) }}"
-                                        class="px-3 py-1 bg-green-600 text-white rounded-lg text-xs">Penawaran</a>
-                                @endif
-                                @if (in_array($u->status, ['draft', 'ditolak']))
-                                    <form action="{{ route('usulan.destroy', $u->id) }}" method="POST" class="inline"
-                                        onsubmit="return confirm('Hapus usulan ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button
-                                            class="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs hover:bg-rose-100">
-                                            Hapus
-                                        </button>
-                                    </form>
-                                @endif
+                            <td class="whitespace-nowrap px-4 py-3 text-right">
+                                <x-table-actions scope="usulan" menu-label="Buka aksi usulan"
+                                    :has-menu="(bool) $u->penawaran_id || in_array($u->status, ['draft', 'ditolak'])">
+                                    <x-slot:primary>
+                                        <a data-primary-action="detail" href="{{ route('usulan.show', $u->id) }}"
+                                            class="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800">
+                                            Lihat
+                                        </a>
+                                    </x-slot:primary>
+
+                                    @if ($u->penawaran_id)
+                                        <a href="{{ route('penawaran.show', $u->penawaran_id) }}"
+                                            class="rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
+                                            Lihat Penawaran
+                                        </a>
+                                    @endif
+                                    @if (in_array($u->status, ['draft', 'ditolak']))
+                                        <form action="{{ route('usulan.destroy', $u->id) }}" method="POST"
+                                            data-confirm-title="Hapus Usulan?"
+                                            data-confirm-delete="Usulan {{ $u->judul }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                class="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50">
+                                                Hapus
+                                            </button>
+                                        </form>
+                                    @endif
+                                </x-table-actions>
                             </td>
                         </tr>
                     @empty

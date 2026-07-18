@@ -245,7 +245,9 @@
             </div>
         </form>
 
-        <form id="delete-att-form" method="POST" class="hidden">
+        <form id="delete-att-form" method="POST" class="hidden"
+            data-confirm-title="Hapus Lampiran?"
+            data-confirm-delete="Lampiran ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
             @csrf @method('DELETE')
         </form>
     </div>
@@ -345,8 +347,12 @@
             container.appendChild(row);
         }
 
-        function deleteAttachment(btn, id) {
-            if (!confirm('Hapus lampiran ini?')) return;
+        async function deleteAttachment(btn, id) {
+            const confirmed = await window.requestDeleteConfirmation({
+                title: 'Hapus Lampiran?',
+                message: 'Lampiran ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.'
+            });
+            if (!confirmed) return;
             const form = document.getElementById('delete-att-form');
             form.action = `{{ url('/usulan/attachment') }}/${id}`;
             form.submit();

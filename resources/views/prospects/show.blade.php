@@ -86,7 +86,8 @@
 
             @if ($canDelete)
                 <form method="POST" action="{{ route('prospects.destroy', $prospect) }}"
-                    onsubmit="return confirm('Hapus prospek ini?')">
+                    data-confirm-title="Hapus Prospek?"
+                    data-confirm-delete="Prospek ini beserta progress dan lampirannya akan dihapus permanen. Penawaran dan usulan hanya akan dilepas dari prospek. Tindakan ini tidak dapat dibatalkan.">
                     @csrf
                     @method('DELETE')
                     <button class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-500">
@@ -398,7 +399,9 @@
                                         </a>
                                         @if ($canEdit)
                                             <form method="POST" action="{{ route('prospects.detach-usulan', [$prospect, $usulan]) }}"
-                                                onsubmit="return confirm('Lepas usulan ini dari prospek? Data usulan tidak akan terhapus.')">
+                                                data-confirm-title="Lepas Usulan dari Prospek?"
+                                                data-confirm-action="Relasi usulan akan dilepas dari prospek ini. Data usulan tetap tersimpan."
+                                                data-confirm-label="Lepas Usulan">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button
@@ -547,7 +550,9 @@
                                         </a>
                                         @if ($canEdit)
                                             <form method="POST" action="{{ route('prospects.detach-penawaran', [$prospect, $penawaran]) }}"
-                                                onsubmit="return confirm('Lepas penawaran ini dari prospek? Data penawaran tidak akan terhapus.')">
+                                                data-confirm-title="Lepas Penawaran dari Prospek?"
+                                                data-confirm-action="Relasi penawaran akan dilepas dari prospek ini. Data penawaran tetap tersimpan."
+                                                data-confirm-label="Lepas Penawaran">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button
