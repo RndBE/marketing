@@ -474,7 +474,7 @@
                                         $isWideSignature =
                                             strcasecmp(trim((string) ($sg->nama ?? '')), 'Dewi Setiawati') === 0;
                                         $signatureWrapWidth = $isWideSignature ? '255px' : '220px';
-                                        $signatureImageWidth = $isWideSignature ? '240px' : '100px';
+                                        $signatureImageWidth = $isWideSignature ? '270px' : '100px';
                                     @endphp
                                     <div
                                         style="position:relative; width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
@@ -508,9 +508,15 @@
                                             <img src="{{ $ttdPath }}"
                                                 style="
                 position:absolute;
+                @if ($isWideSignature)
+                left:56%;
+                top:54%;
+                transform:translate(-50%, -50%);
+                @else
                 left:50%;
                 bottom:0;
                 transform:translateX(-50%);
+                @endif
                 width:{{ $signatureImageWidth }};
                 height:auto;
                 z-index:1;

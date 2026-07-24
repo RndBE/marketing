@@ -370,7 +370,7 @@ class PenawaranController extends Controller
                 $akses = $stepAktif->akses_approve ?? [];
                 $userId = (int) ($akses['user_id'] ?? 0);
 
-                $bolehApproveStep = ($userId === (int) auth()->id());
+                $bolehApproveStep = $this->isSuperadmin($user) || $userId === (int) $user->id;
             }
         }
 
