@@ -98,10 +98,6 @@
 
         .item-detail-row td {
             border-top: 0;
-            border-bottom: 0;
-        }
-
-        .item-detail-last td {
             border-bottom: 1px solid black;
         }
 
@@ -331,7 +327,7 @@
                     </tr>
 
                     @foreach ($item->details as $detailIndex => $d)
-                        <tr class="item-detail-row {{ $loop->last ? 'item-detail-last' : '' }}">
+                        <tr class="item-detail-row">
                             <td class="item-detail-empty">&nbsp;</td>
                             <td>
                                 <div class="tight item-detail-text">
