@@ -113,6 +113,16 @@
             padding-left: 12px;
             text-indent: -10px;
         }
+
+        .item-page-break-row td {
+            border: 0;
+            border-top: 1px solid black;
+            height: 0;
+            line-height: 0;
+            font-size: 0;
+            padding: 0 !important;
+            page-break-after: always;
+        }
     </style>
 </head>
 
@@ -156,6 +166,12 @@
             }
 
             return $label;
+        };
+        $detailRowUnits = function ($detail): int {
+            $text = trim((string) ($detail->nama ?? '') . ' ' . (string) ($detail->spesifikasi ?? ''));
+            $text = preg_replace('/\s+/', ' ', $text);
+
+            return max(1, (int) ceil(mb_strlen($text) / 90));
         };
     @endphp
 
@@ -261,7 +277,7 @@
 
 
 
-        <table style="margin-top:8px;width:100%;border-collapse:collapse;">
+        <table class="item-table" style="margin-top:8px;width:100%;border-collapse:collapse;">
             <thead>
                 <tr>
                     <th style="width:5%" class="right" rowspan="2">NO</th>
@@ -274,9 +290,33 @@
                     <th class="right">Total</th>
                 </tr>
             </thead>
-
             <tbody>
-                @php $grand = 0; @endphp
+                @php
+                    $grand = 0;
+                    $itemTablePageUnits = 0;
+                    $itemTablePageLimit = 34;
+                    $itemTableNextPageLimit = 47;
+                    $itemTableHasRows = false;
+                    $itemBreakBeforeRow = function (int $rowUnits) use (
+                        &$itemTablePageUnits,
+                        &$itemTablePageLimit,
+                        $itemTableNextPageLimit,
+                        &$itemTableHasRows
+                    ): bool {
+                        if ($itemTableHasRows && $itemTablePageUnits + $rowUnits > $itemTablePageLimit) {
+                            $itemTablePageUnits = 0;
+                            $itemTablePageLimit = $itemTableNextPageLimit;
+
+                            return true;
+                        }
+
+                        return false;
+                    };
+                    $itemRegisterRow = function (int $rowUnits) use (&$itemTablePageUnits, &$itemTableHasRows): void {
+                        $itemTablePageUnits += $rowUnits;
+                        $itemTableHasRows = true;
+                    };
+                @endphp
 
                 @foreach ($penawaran->items as $i => $item)
                     @php
@@ -284,9 +324,16 @@
                         $volume = $item->resolvedQty();
                         $totalItem = $item->calcSubtotal();
                         $hargaSatuanBundle = $item->calcUnitSubtotal();
+                        $itemHeadingUnits = 2 + (!empty($item->catatan) ? max(1, (int) ceil(mb_strlen($item->catatan) / 90)) : 0);
 
                         $grand += $totalItem;
                     @endphp
+
+                    @if ($itemBreakBeforeRow($itemHeadingUnits))
+                        <tr class="item-page-break-row">
+                            <td colspan="5">&nbsp;</td>
+                        </tr>
+                    @endif
 
                     <tr class="item-heading {{ $detailCount ? 'has-details' : '' }}">
                         <td class="right" style="text-align: center;margin-bottom:0px">{{ $i + 1 }}</td>
@@ -329,8 +376,15 @@
                             </table>
                         </td>
                     </tr>
+                    @php $itemRegisterRow($itemHeadingUnits); @endphp
 
                     @foreach ($item->details as $detailIndex => $d)
+                        @php $currentDetailUnits = $detailRowUnits($d); @endphp
+                        @if ($itemBreakBeforeRow($currentDetailUnits))
+                            <tr class="item-page-break-row">
+                                <td colspan="5">&nbsp;</td>
+                            </tr>
+                        @endif
                         <tr class="item-detail-row {{ $loop->last ? 'item-detail-last' : '' }}">
                             <td class="item-detail-empty">&nbsp;</td>
                             <td>
@@ -346,6 +400,7 @@
                             <td class="item-detail-empty">&nbsp;</td>
                             <td class="item-detail-empty">&nbsp;</td>
                         </tr>
+                        @php $itemRegisterRow($currentDetailUnits); @endphp
                     @endforeach
                 @endforeach
             </tbody>
