@@ -1372,6 +1372,7 @@ class PenawaranController extends Controller
         }
 
         $kop = $this->buildPenawaranKop($penawaran);
+        $dompdfPaths = $this->prepareDompdfWritablePaths();
 
         $pdf = Pdf::loadView('documents.penawaran_full', [
             'penawaran' => $penawaran,
@@ -1381,7 +1382,10 @@ class PenawaranController extends Controller
             'pricelistMode' => $pricelistMode,
         ])
             ->setPaper('a4', 'portrait')
-            ->setOptions(['isRemoteEnabled' => true]);
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('fontDir', $dompdfPaths['fontDir'])
+            ->setOption('fontCache', $dompdfPaths['fontCache'])
+            ->setOption('tempDir', $dompdfPaths['tempDir']);
         $filename = str_replace(['/', '\\'], '-', $penawaran->judul) . '.pdf';
 
         $attachmentPaths = [];
@@ -1532,6 +1536,24 @@ class PenawaranController extends Controller
         }
 
         abort(404);
+    }
+
+    private function prepareDompdfWritablePaths(): array
+    {
+        $basePath = storage_path('framework/dompdf');
+        $paths = [
+            'fontDir' => $basePath . DIRECTORY_SEPARATOR . 'fonts',
+            'fontCache' => $basePath . DIRECTORY_SEPARATOR . 'fonts',
+            'tempDir' => $basePath . DIRECTORY_SEPARATOR . 'temp',
+        ];
+
+        foreach (array_unique($paths) as $path) {
+            if (!is_dir($path)) {
+                @mkdir($path, 0775, true);
+            }
+        }
+
+        return $paths;
     }
 
     /**
