@@ -1265,6 +1265,24 @@ class PenawaranController extends Controller
         return redirect()->route('penawaran.show', $penawaran->id);
     }
 
+    public function deleteSignatureTtd(Penawaran $penawaran, PenawaranSignature $signature)
+    {
+        $this->ensurePenawaranEditAccess($penawaran);
+
+        if ((int) $signature->penawaran_id !== (int) $penawaran->id) {
+            abort(404);
+        }
+
+        if ($signature->ttd_path) {
+            Storage::disk('public')->delete($signature->ttd_path);
+            $signature->forceFill(['ttd_path' => null])->save();
+            $penawaran->update(['date_updated' => now()->timestamp]);
+        }
+
+        return redirect()->route('penawaran.show', $penawaran->id)
+            ->with('success', 'File TTD berhasil dihapus.');
+    }
+
     public function addAttachment(Request $request, Penawaran $penawaran)
     {
         $this->ensurePenawaranEditAccess($penawaran);

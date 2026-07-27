@@ -91,6 +91,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{penawaran}/terms/reorder', [PenawaranController::class, 'reorderTerms'])->name('terms.reorder');
             Route::delete('/{penawaran}/terms/{term}', [PenawaranController::class, 'deleteTerm'])->name('terms.delete');
             Route::post('/{penawaran}/signatures', [PenawaranController::class, 'addSignature'])->name('signatures.add');
+            Route::delete('/{penawaran}/signatures/{signature}/ttd', [PenawaranController::class, 'deleteSignatureTtd'])->name('signatures.ttd.delete');
             Route::delete('/{penawaran}/signatures/{signature}', [PenawaranController::class, 'deleteSignature'])->name('signatures.delete');
             Route::post('/{penawaran}/attachments', [PenawaranController::class, 'addAttachment'])->name('attachments.add');
             Route::delete('/{penawaran}/attachments/{attachment}', [PenawaranController::class, 'deleteAttachment'])->name('attachments.delete');
