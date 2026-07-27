@@ -133,9 +133,7 @@ class UserController extends Controller
         }
 
         if ($request->hasFile('ttd')) {
-            if ($user->ttd && Storage::disk('public')->exists($user->ttd)) {
-                Storage::disk('public')->delete($user->ttd);
-            }
+            $this->deleteTtdFile($user);
             $user->ttd = $request->file('ttd')->store('signatures', 'public');
         }
 
@@ -143,6 +141,18 @@ class UserController extends Controller
         $user->roles()->sync($roleIds);
 
         return redirect()->route('users.index')->with('success', 'User berhasil diupdate.');
+    }
+
+    public function destroyTtd(User $user)
+    {
+        $this->ensureCompanyAccess($user);
+
+        if ($user->ttd) {
+            $this->deleteTtdFile($user);
+            $user->forceFill(['ttd' => null])->save();
+        }
+
+        return back()->with('success', 'TTD user berhasil dihapus.');
     }
 
     public function destroy(User $user)
@@ -199,6 +209,13 @@ class UserController extends Controller
 
         if ($hasAdminRole) {
             abort(403);
+        }
+    }
+
+    private function deleteTtdFile(User $user): void
+    {
+        if ($user->ttd && Storage::disk('public')->exists($user->ttd)) {
+            Storage::disk('public')->delete($user->ttd);
         }
     }
 }

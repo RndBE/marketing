@@ -67,8 +67,13 @@
                     <label class="block text-xs font-semibold mb-1">Tanda Tangan (TTD)</label>
                     
                     @if($user->ttd)
-                        <div class="mb-2">
+                        <div class="mb-2 flex items-start gap-3">
                             <img src="{{ asset('storage/' . $user->ttd) }}" alt="TTD" class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                            <button type="submit"
+                                form="delete-user-ttd-form"
+                                class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                Hapus TTD
+                            </button>
                         </div>
                     @endif
 
@@ -105,5 +110,16 @@
                     class="rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">Simpan Perubahan</button>
             </div>
         </form>
+
+        @if($user->ttd)
+            <form id="delete-user-ttd-form"
+                action="{{ route('users.ttd.destroy', $user->id) }}"
+                method="POST"
+                data-confirm-title="Hapus TTD?"
+                data-confirm-delete="File TTD user ini akan dihapus. Data nama, email, role, dan password tidak ikut berubah.">
+                @csrf
+                @method('DELETE')
+            </form>
+        @endif
     </div>
 @endsection

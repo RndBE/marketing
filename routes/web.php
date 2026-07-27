@@ -241,6 +241,7 @@ Route::middleware(['auth'])->group(function () {
     |---------------- USER MANAGEMENT -----------|
     */
     Route::middleware('permission:manage-users')->group(function () {
+        Route::delete('/users/{user}/ttd', [UserController::class, 'destroyTtd'])->name('users.ttd.destroy');
         Route::resource('users', UserController::class);
     });
 
