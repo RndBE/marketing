@@ -1742,6 +1742,12 @@ class PenawaranController extends Controller
     private function ensurePenawaranViewAccess(Penawaran $penawaran, $user = null): void
     {
         $user ??= auth()->user();
+        $userId = (int) ($user?->id ?? 0);
+
+        if (!$this->isSuperadmin($user) && $userId > 0 && (int) $penawaran->id_user === $userId) {
+            return;
+        }
+
         $companyId = $this->currentCompanyId($user);
 
         if (!$this->isSuperadmin($user) && !$penawaran->isVisibleToCompany($companyId)) {
@@ -2236,19 +2242,22 @@ class PenawaranController extends Controller
 
         $userId = (int) ($user?->id ?? 0);
 
-        $query->visibleToCompany($companyId)
-            ->where(function ($nested) use ($userId, $companyId) {
-                $nested->where('penawaran.id_user', $userId);
+        $query->where(function ($accessQuery) use ($userId, $companyId) {
+            $accessQuery->where('penawaran.id_user', $userId)
+                ->orWhere(function ($visibleQuery) use ($userId, $companyId) {
+                    $visibleQuery->visibleToCompany($companyId)
+                        ->where(function ($nested) use ($userId, $companyId) {
+                            // Penawaran yang user ini menjadi approver-nya (di langkah manapun),
+                            // walaupun dibuat oleh pengaju lain.
+                            $nested->whereHas('approval.steps', function ($stepQuery) use ($userId) {
+                                $stepQuery->where('akses_approve->user_id', $userId);
+                            });
 
-                // Penawaran yang user ini menjadi approver-nya (di langkah manapun),
-                // walaupun dibuat oleh pengaju lain.
-                $nested->orWhereHas('approval.steps', function ($stepQuery) use ($userId) {
-                    $stepQuery->where('akses_approve->user_id', $userId);
+                            if ($companyId) {
+                                $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                            }
+                        });
                 });
-
-                if ($companyId) {
-                    $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
-                }
             });
     }
 

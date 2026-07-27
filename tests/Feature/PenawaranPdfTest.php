@@ -172,8 +172,25 @@ test('penawaran pdf breaks long item details into separate table rows', function
         ->and(substr_count($html, 'class="item-detail-row item-detail-last"'))->toBe(1)
         ->and($html)->toContain('class="item-page-break-row"')
         ->and($html)->toContain('aa.')
-        ->and($html)->toContain('10.000')
+        ->and($html)->not()->toContain('10.000')
         ->and($html)->not()->toContain('<ol');
+
+    $pricelistHtml = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => $docNumber->doc_no,
+        'total' => 1000000,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => true,
+    ])->render();
+
+    expect($pricelistHtml)->toContain('10.000');
 
     $pdfContent = Pdf::loadHTML($html)->setPaper('a4', 'portrait')->output();
 
@@ -253,7 +270,9 @@ test('penawaran pdf does not add manual page break borders for short details', f
         'pricelistMode' => false,
     ])->render();
 
-    expect($html)->not()->toContain('class="item-page-break-row"');
+    expect($html)
+        ->not()->toContain('class="item-page-break-row"')
+        ->and(substr_count($html, '22.000.000'))->toBe(3);
 });
 
 test('penawaran pdf appends suket pp 55 as the last page', function () {

@@ -329,6 +329,12 @@
                         $volume = $item->resolvedQty();
                         $totalItem = $item->calcSubtotal();
                         $hargaSatuanBundle = $item->calcUnitSubtotal();
+                        $itemDetailsHaveAmount =
+                            $item->details &&
+                            $item->details->contains(
+                                fn($detail) => (int) ($detail->harga ?? 0) > 0 || (int) $detail->calcSubtotal() > 0,
+                            );
+                        $showItemAmount = !($pricelistMode ?? false) || !$itemDetailsHaveAmount;
                         $itemHeadingUnits = 2 + (!empty($item->catatan) ? max(1, (int) ceil(mb_strlen($item->catatan) / 90)) : 0);
                         $itemUsesManualPageBreaks =
                             $item->details &&
@@ -355,27 +361,39 @@
                         </td>
 
                         <td style="text-align:center;white-space:nowrap">
-                            {{ number_format($volume, 0, ',', '.') }} {{ $item->satuan ?? 'ls' }}
+                            @if ($showItemAmount)
+                                {{ number_format($volume, 0, ',', '.') }} {{ $item->satuan ?? 'ls' }}
+                            @else
+                                <span class="item-detail-empty">&nbsp;</span>
+                            @endif
                         </td>
 
                         <td class="right" style="white-space:nowrap">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                <tr style="border:none">
-                                    <td align="left" style="border:none">Rp</td>
-                                    <td align="right" style="border:none">
-                                        {{ number_format((int) $hargaSatuanBundle, 0, ',', '.') }}</td>
-                                </tr>
-                            </table>
+                            @if ($showItemAmount)
+                                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <tr style="border:none">
+                                        <td align="left" style="border:none">Rp</td>
+                                        <td align="right" style="border:none">
+                                            {{ number_format((int) $hargaSatuanBundle, 0, ',', '.') }}</td>
+                                    </tr>
+                                </table>
+                            @else
+                                <span class="item-detail-empty">&nbsp;</span>
+                            @endif
                         </td>
 
                         <td class="right" style="white-space:nowrap">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                <tr style="border:none">
-                                    <td align="left" style="border:none">Rp</td>
-                                    <td align="right" style="border:none">
-                                        {{ number_format((int) $totalItem, 0, ',', '.') }}</td>
-                                </tr>
-                            </table>
+                            @if ($showItemAmount)
+                                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <tr style="border:none">
+                                        <td align="left" style="border:none">Rp</td>
+                                        <td align="right" style="border:none">
+                                            {{ number_format((int) $totalItem, 0, ',', '.') }}</td>
+                                    </tr>
+                                </table>
+                            @else
+                                <span class="item-detail-empty">&nbsp;</span>
+                            @endif
                         </td>
                     </tr>
                     @php $itemRegisterRow($itemHeadingUnits); @endphp
@@ -386,7 +404,7 @@
                             $detailQty = (float) ($d->qty ?? 0);
                             $detailPrice = (int) ($d->harga ?? 0);
                             $detailSubtotal = (int) $d->calcSubtotal();
-                            $showDetailAmount = $detailPrice > 0 || $detailSubtotal > 0;
+                            $showDetailAmount = ($pricelistMode ?? false) && ($detailPrice > 0 || $detailSubtotal > 0);
                         @endphp
                         @if ($itemUsesManualPageBreaks && $itemBreakBeforeRow($currentDetailUnits))
                             <tr class="item-page-break-row">

@@ -141,6 +141,29 @@ test('penawaran index prioritizes logged in users company before other companies
         ->assertSee('Penawaran AS Nomor Lebih Baru');
 });
 
+test('user can still access penawaran they created before moving companies', function () {
+    $cv = penawaranIndexCompany('MOVE-AS');
+    $pt = penawaranIndexCompany('MOVE-ATC');
+    $movedUser = User::factory()->create(['company_id' => $cv->id]);
+    $otherUser = User::factory()->create(['company_id' => $cv->id]);
+
+    $ownOldOffer = penawaranIndexCreateOffer($cv, $movedUser, 'Penawaran AS Milik User Pindah', 2026, 7, 57);
+    penawaranIndexCreateOffer($cv, $otherUser, 'Penawaran AS Milik User Lain', 2026, 7, 58);
+
+    $movedUser->update(['company_id' => $pt->id]);
+
+    $this->actingAs($movedUser)
+        ->get(route('penawaran.index'))
+        ->assertOk()
+        ->assertSee('Penawaran AS Milik User Pindah')
+        ->assertDontSee('Penawaran AS Milik User Lain');
+
+    $this->actingAs($movedUser)
+        ->get(route('penawaran.show', $ownOldOffer))
+        ->assertOk()
+        ->assertSee('Penawaran AS Milik User Pindah');
+});
+
 test('penawaran index exposes scoped status counts and filters the selected status', function () {
     $company = penawaranIndexCompany('STATUS');
     $viewer = penawaranIndexUserWithPermissions($company, ['view-all-penawaran']);
