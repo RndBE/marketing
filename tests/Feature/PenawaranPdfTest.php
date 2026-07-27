@@ -122,6 +122,7 @@ test('penawaran pdf breaks long item details into separate table rows', function
     ])->render();
 
     expect(substr_count($html, 'class="item-detail-row'))->toBe(30)
+        ->and(substr_count($html, 'class="item-detail-row item-detail-last"'))->toBe(1)
         ->and($html)->toContain('aa.')
         ->and($html)->not()->toContain('<ol');
 
