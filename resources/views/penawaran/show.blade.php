@@ -887,13 +887,15 @@
                         @if ($signature && $signature->ttd_path)
                             <div>
                                 <label class="block text-xs font-semibold mb-1">Tanda Tangan Saat Ini</label>
-                                <div class="flex items-start gap-3 mb-2">
+                                <div class="relative inline-block mb-2">
                                     <img src="{{ asset('storage/' . $signature->ttd_path) }}" alt="TTD"
                                         class="h-24 border border-slate-200 rounded-lg p-2 bg-slate-50">
                                     <button type="submit"
                                         form="delete-penawaran-signature-ttd-form"
-                                        class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
-                                        Hapus TTD
+                                        aria-label="Hapus TTD"
+                                        title="Hapus TTD"
+                                        class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-sm font-bold leading-none text-rose-700 shadow-sm hover:bg-rose-100">
+                                        &times;
                                     </button>
                                 </div>
                             </div>
