@@ -85,7 +85,7 @@ test('user with view all penawaran can see all companies and filter by company',
     $cvOwner = User::factory()->create(['company_id' => $cv->id]);
     $ptViewer = penawaranIndexUserWithPermissions($pt, ['view-all-penawaran']);
 
-    penawaranIndexCreateOffer($cv, $cvOwner, 'Penawaran CV Terlihat', 2026, 7, 1);
+    $cvOffer = penawaranIndexCreateOffer($cv, $cvOwner, 'Penawaran CV Terlihat', 2026, 7, 1);
     penawaranIndexCreateOffer($pt, $ptViewer, 'Penawaran PT Terlihat', 2026, 7, 2);
 
     $this->actingAs($ptViewer)
@@ -93,6 +93,11 @@ test('user with view all penawaran can see all companies and filter by company',
         ->assertOk()
         ->assertSee('Penawaran CV Terlihat')
         ->assertSee('Penawaran PT Terlihat');
+
+    $this->actingAs($ptViewer)
+        ->get(route('penawaran.show', $cvOffer))
+        ->assertOk()
+        ->assertSee('Penawaran CV Terlihat');
 
     $this->actingAs($ptViewer)
         ->get(route('penawaran.index', ['company_id' => $pt->id]))

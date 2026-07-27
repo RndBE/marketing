@@ -147,6 +147,52 @@
         $taxAmount = $penawaran->calcTaxAmount();
         $grandTotal = $penawaran->calcGrandTotal();
         $hasTerms = $penawaran->terms && $penawaran->terms->count();
+        $pdfImageDataUri = function (?string $path): ?string {
+            if (!$path) {
+                return null;
+            }
+
+            $cleanPath = ltrim((string) $path, '/');
+            $normalizedPath = preg_replace('#^(public|storage)/#', '', $cleanPath);
+            $candidates = array_values(
+                array_unique(
+                    array_filter([
+                        $cleanPath,
+                        $normalizedPath,
+                    ]),
+                ),
+            );
+
+            foreach ($candidates as $candidate) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($candidate)) {
+                    $filePath = \Illuminate\Support\Facades\Storage::disk('public')->path($candidate);
+                } else {
+                    $filePath = null;
+                    foreach ([public_path('storage/' . $candidate), storage_path('app/public/' . $candidate)] as $fallbackPath) {
+                        if (is_file($fallbackPath)) {
+                            $filePath = $fallbackPath;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$filePath || !is_file($filePath)) {
+                    continue;
+                }
+
+                $content = @file_get_contents($filePath);
+                if ($content === false) {
+                    continue;
+                }
+
+                $mime = function_exists('mime_content_type') ? mime_content_type($filePath) : null;
+                $mime = $mime ?: 'image/png';
+
+                return 'data:' . $mime . ';base64,' . base64_encode($content);
+            }
+
+            return asset('storage/' . $normalizedPath);
+        };
         $fallbackSignature = (object) [
             'nama' => $penawaran->user?->name,
             'jabatan' => $penawaran->user?->roles?->pluck('name')->implode(', ') ?: 'Staff',
@@ -629,22 +675,13 @@
                                         style="position:relative; width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
 
                                         @php
-                                            $ttdPath = null;
+                                            $ttdSrc = null;
                                             foreach (
                                                 array_filter([$sg->ttd_path ?? null, $penawaran->user?->ttd ?? null])
                                                 as $candidateTtd
                                             ) {
-                                                $candidateTtd = ltrim((string) $candidateTtd, '/');
-                                                $publicTtdPath = public_path('storage/' . $candidateTtd);
-                                                $storageTtdPath = storage_path('app/public/' . $candidateTtd);
-
-                                                if (is_file($publicTtdPath)) {
-                                                    $ttdPath = $publicTtdPath;
-                                                    break;
-                                                }
-
-                                                if (is_file($storageTtdPath)) {
-                                                    $ttdPath = $storageTtdPath;
+                                                $ttdSrc = $pdfImageDataUri($candidateTtd);
+                                                if ($ttdSrc) {
                                                     break;
                                                 }
                                             }
@@ -653,8 +690,8 @@
                                         @endphp
 
                                         {{-- TTD --}}
-                                        @if ($ttdPath && file_exists($ttdPath))
-                                            <img src="{{ $ttdPath }}"
+                                        @if ($ttdSrc)
+                                            <img src="{{ $ttdSrc }}"
                                                 style="
                 position:absolute;
                 @if ($isWideSignature)

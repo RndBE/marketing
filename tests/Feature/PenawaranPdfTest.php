@@ -6,6 +6,7 @@ use App\Models\Penawaran;
 use App\Models\PenawaranAttachment;
 use App\Models\PenawaranItem;
 use App\Models\PenawaranItemDetail;
+use App\Models\PenawaranSignature;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -91,6 +92,141 @@ test('penawaran pdf route accepts a document number route key', function () {
     $response->assertOk();
 
     expect(penawaranPdfTestResponseContent($response))->toStartWith('%PDF');
+});
+
+test('penawaran pdf embeds signature ttd images from public storage', function () {
+    Storage::fake('public');
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-TTD'],
+        ['name' => 'PDF Signature Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Signature PDF',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-07-27',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Item Test',
+        'qty' => 1,
+        'satuan' => 'Lot',
+        'subtotal' => 750000,
+    ]);
+    PenawaranSignature::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'nama' => 'Afif Faishahuda',
+        'jabatan' => 'Corporate Account Manager',
+        'kota' => 'Sleman',
+        'tanggal' => '2026-07-27',
+        'ttd_path' => 'penawaran/ttd/afif.png',
+    ]);
+
+    Storage::disk('public')->put(
+        'penawaran/ttd/afif.png',
+        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=')
+    );
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TTD-TEST',
+        'total' => 750000,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($html)
+        ->toContain('Afif Faishahuda')
+        ->toContain('<img src=');
+
+    expect(
+        str_contains($html, 'data:image/png;base64,') ||
+        str_contains($html, '/storage/penawaran/ttd/afif.png')
+    )->toBeTrue();
+});
+
+test('penawaran pdf falls back to storage url when signature file is not local', function () {
+    Storage::fake('public');
+    config(['app.url' => 'https://marketing.test']);
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-TTD-URL'],
+        ['name' => 'PDF Signature URL Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Signature URL PDF',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-07-27',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    PenawaranSignature::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'nama' => 'Afif Faishahuda',
+        'jabatan' => 'Corporate Account Manager',
+        'kota' => 'Sleman',
+        'tanggal' => '2026-07-27',
+        'ttd_path' => 'signatures/missing-afif.png',
+    ]);
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TTD-URL-TEST',
+        'total' => 0,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($html)
+        ->toContain('Afif Faishahuda')
+        ->toContain('/storage/signatures/missing-afif.png');
 });
 
 test('penawaran pdf breaks long item details into separate table rows', function () {

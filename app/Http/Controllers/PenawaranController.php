@@ -1379,7 +1379,9 @@ class PenawaranController extends Controller
             'total' => $total,
             'kop' => $kop,
             'pricelistMode' => $pricelistMode,
-        ])->setPaper('a4', 'portrait');
+        ])
+            ->setPaper('a4', 'portrait')
+            ->setOptions(['isRemoteEnabled' => true]);
         $filename = str_replace(['/', '\\'], '-', $penawaran->judul) . '.pdf';
 
         $attachmentPaths = [];
@@ -1744,18 +1746,18 @@ class PenawaranController extends Controller
         $user ??= auth()->user();
         $userId = (int) ($user?->id ?? 0);
 
-        if (!$this->isSuperadmin($user) && $userId > 0 && (int) $penawaran->id_user === $userId) {
+        if ($this->isSuperadmin($user) || $user?->hasPermission('view-all-penawaran')) {
+            return;
+        }
+
+        if ($userId > 0 && (int) $penawaran->id_user === $userId) {
             return;
         }
 
         $companyId = $this->currentCompanyId($user);
 
-        if (!$this->isSuperadmin($user) && !$penawaran->isVisibleToCompany($companyId)) {
+        if (!$penawaran->isVisibleToCompany($companyId)) {
             abort(403);
-        }
-
-        if ($this->isSuperadmin($user) || $user->hasRole('admin') || $user->hasPermission('view-all-penawaran')) {
-            return;
         }
 
         if ($companyId && (int) $penawaran->company_id !== (int) $companyId && $penawaran->isVisibleToCompany($companyId)) {
