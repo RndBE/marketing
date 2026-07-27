@@ -4,7 +4,10 @@ use App\Models\Company;
 use App\Models\DocNumber;
 use App\Models\Penawaran;
 use App\Models\PenawaranAttachment;
+use App\Models\PenawaranItem;
+use App\Models\PenawaranItemDetail;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -42,6 +45,90 @@ function penawaranPdfTestResponseContent($response): string
         ? $response->streamedContent()
         : $response->getContent();
 }
+
+test('penawaran pdf breaks long item details into separate table rows', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-LONG'],
+        ['name' => 'PDF Long Detail Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $docNumber = DocNumber::create([
+        'company_id' => $company->id,
+        'prefix' => 'LONG',
+        'seq' => 27,
+        'month' => 7,
+        'year' => 2026,
+        'doc_no' => '027/LONG/TEST/VII/2026',
+    ]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'doc_number_id' => $docNumber->id,
+        'judul' => 'Penawaran Detail Panjang',
+        'instansi_tujuan' => 'Instansi Test',
+        'nama_pekerjaan' => 'Pekerjaan Detail Panjang',
+        'lokasi_pekerjaan' => 'Yogyakarta',
+        'tanggal_penawaran' => '2026-07-24',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    $item = PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Automatic Water Level Recorder',
+        'qty' => 1,
+        'satuan' => 'paket',
+        'subtotal' => 1000000,
+    ]);
+
+    foreach (range(1, 30) as $index) {
+        PenawaranItemDetail::create([
+            'penawaran_item_id' => $item->id,
+            'urutan' => $index,
+            'nama' => 'Long Specification Detail ' . $index,
+            'spesifikasi' => str_repeat('Weather station technical specification with installation notes. ', 10),
+            'qty' => 1,
+            'harga' => 10000,
+            'subtotal' => 10000,
+        ]);
+    }
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => $docNumber->doc_no,
+        'total' => 1000000,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect(substr_count($html, 'class="item-detail-row'))->toBe(30)
+        ->and($html)->toContain('aa.')
+        ->and($html)->not()->toContain('<ol');
+
+    $pdfContent = Pdf::loadHTML($html)->setPaper('a4', 'portrait')->output();
+
+    expect(penawaranPdfTestPageSizes($pdfContent))->not()->toBeEmpty();
+});
 
 test('penawaran pdf appends suket pp 55 as the last page', function () {
     config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);

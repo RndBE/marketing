@@ -91,6 +91,28 @@
             padding-top: 1px !important;
             padding-bottom: 1px !important;
         }
+
+        .item-heading.has-details td {
+            border-bottom: 0;
+        }
+
+        .item-detail-row td {
+            border-top: 0;
+            border-bottom: 0;
+        }
+
+        .item-detail-last td {
+            border-bottom: 1px solid black;
+        }
+
+        .item-detail-empty {
+            color: transparent;
+        }
+
+        .item-detail-text {
+            padding-left: 12px;
+            text-indent: -10px;
+        }
     </style>
 </head>
 
@@ -123,6 +145,18 @@
         $hasWideSignature = $signatureRows->contains(
             fn($signature) => strcasecmp(trim((string) ($signature->nama ?? '')), 'Dewi Setiawati') === 0,
         );
+        $detailLabel = function (int $index): string {
+            $label = '';
+            $number = $index + 1;
+
+            while ($number > 0) {
+                $number--;
+                $label = chr(97 + ($number % 26)) . $label;
+                $number = intdiv($number, 26);
+            }
+
+            return $label;
+        };
     @endphp
 
     @include('documents.partials.penawaran_cover', [
@@ -254,7 +288,7 @@
                         $grand += $totalItem;
                     @endphp
 
-                    <tr>
+                    <tr class="item-heading {{ $detailCount ? 'has-details' : '' }}">
                         <td class="right" style="text-align: center;margin-bottom:0px">{{ $i + 1 }}</td>
 
                         <td>
@@ -266,23 +300,9 @@
                                 </div>
                             @endif
 
-                            @if ($detailCount)
-                                <ol style="margin:0px 0 5px 10px;padding-top:0;padding-bottom:0px;padding-left:7px;padding-right:7px"
-                                    type="a">
-                                    @foreach ($item->details as $d)
-                                        <li style="margin:0 0 0px 0;">
-                                            <div class="tight">
-                                                {{ $d->nama }}
-                                                @if (!empty($d->spesifikasi))
-                                                    <span class="muted"> — {{ $d->spesifikasi }}</span>
-                                                @endif
-                                            </div>
-                                        </li>
-                                    @endforeach
-                                </ol>
-                            @else
+                            @unless ($detailCount)
                                 <div class="muted">-</div>
-                            @endif
+                            @endunless
                         </td>
 
                         <td style="text-align:center;white-space:nowrap">
@@ -309,6 +329,24 @@
                             </table>
                         </td>
                     </tr>
+
+                    @foreach ($item->details as $detailIndex => $d)
+                        <tr class="item-detail-row {{ $loop->last ? 'item-detail-last' : '' }}">
+                            <td class="item-detail-empty">&nbsp;</td>
+                            <td>
+                                <div class="tight item-detail-text">
+                                    {{ $detailLabel($detailIndex) }}.
+                                    {{ $d->nama }}
+                                    @if (!empty($d->spesifikasi))
+                                        <span class="muted"> - {{ $d->spesifikasi }}</span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="item-detail-empty">&nbsp;</td>
+                            <td class="item-detail-empty">&nbsp;</td>
+                            <td class="item-detail-empty">&nbsp;</td>
+                        </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
