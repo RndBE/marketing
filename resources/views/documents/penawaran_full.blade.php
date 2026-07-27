@@ -114,6 +114,11 @@
             text-indent: -10px;
         }
 
+        .item-detail-price {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
         .item-page-break-row td {
             border: 0;
             border-top: 1px solid black;
@@ -325,15 +330,12 @@
                         $totalItem = $item->calcSubtotal();
                         $hargaSatuanBundle = $item->calcUnitSubtotal();
                         $itemHeadingUnits = 2 + (!empty($item->catatan) ? max(1, (int) ceil(mb_strlen($item->catatan) / 90)) : 0);
+                        $itemUsesManualPageBreaks =
+                            $item->details &&
+                            $item->details->max(fn($detail) => $detailRowUnits($detail)) >= 4;
 
                         $grand += $totalItem;
                     @endphp
-
-                    @if ($itemBreakBeforeRow($itemHeadingUnits))
-                        <tr class="item-page-break-row">
-                            <td colspan="5">&nbsp;</td>
-                        </tr>
-                    @endif
 
                     <tr class="item-heading {{ $detailCount ? 'has-details' : '' }}">
                         <td class="right" style="text-align: center;margin-bottom:0px">{{ $i + 1 }}</td>
@@ -379,8 +381,14 @@
                     @php $itemRegisterRow($itemHeadingUnits); @endphp
 
                     @foreach ($item->details as $detailIndex => $d)
-                        @php $currentDetailUnits = $detailRowUnits($d); @endphp
-                        @if ($itemBreakBeforeRow($currentDetailUnits))
+                        @php
+                            $currentDetailUnits = $detailRowUnits($d);
+                            $detailQty = (float) ($d->qty ?? 0);
+                            $detailPrice = (int) ($d->harga ?? 0);
+                            $detailSubtotal = (int) $d->calcSubtotal();
+                            $showDetailAmount = $detailPrice > 0 || $detailSubtotal > 0;
+                        @endphp
+                        @if ($itemUsesManualPageBreaks && $itemBreakBeforeRow($currentDetailUnits))
                             <tr class="item-page-break-row">
                                 <td colspan="5">&nbsp;</td>
                             </tr>
@@ -396,9 +404,39 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="item-detail-empty">&nbsp;</td>
-                            <td class="item-detail-empty">&nbsp;</td>
-                            <td class="item-detail-empty">&nbsp;</td>
+                            <td style="text-align:center;white-space:nowrap">
+                                @if ($showDetailAmount && $detailQty > 0)
+                                    {{ number_format($detailQty, 0, ',', '.') }} {{ $d->satuan ?? '' }}
+                                @else
+                                    <span class="item-detail-empty">&nbsp;</span>
+                                @endif
+                            </td>
+                            <td class="right item-detail-price">
+                                @if ($showDetailAmount)
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none">Rp</td>
+                                            <td align="right" style="border:none">
+                                                {{ number_format($detailPrice, 0, ',', '.') }}</td>
+                                        </tr>
+                                    </table>
+                                @else
+                                    <span class="item-detail-empty">&nbsp;</span>
+                                @endif
+                            </td>
+                            <td class="right item-detail-price">
+                                @if ($showDetailAmount)
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none">Rp</td>
+                                            <td align="right" style="border:none">
+                                                {{ number_format($detailSubtotal, 0, ',', '.') }}</td>
+                                        </tr>
+                                    </table>
+                                @else
+                                    <span class="item-detail-empty">&nbsp;</span>
+                                @endif
+                            </td>
                         </tr>
                         @php $itemRegisterRow($currentDetailUnits); @endphp
                     @endforeach

@@ -3,6 +3,7 @@
 @section('content')
     @php
         $docNo = $penawaran->docNumber?->doc_no ?? 'PNW-' . str_pad((string) $penawaran->id, 6, '0', STR_PAD_LEFT);
+        $pdfRouteKey = $penawaran->pdfRouteKey();
         $total = $penawaran->calcItemsSubtotal();
         $discountAmount = $penawaran->calcDiscountAmount();
         $dpp = $penawaran->calcDppTotal();
@@ -87,7 +88,7 @@
                 </summary>
                 <div
                     class="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-                    <a href="{{ route('penawaran.pdf', $penawaran->id) }}"
+                    <a href="{{ route('penawaran.pdf', $pdfRouteKey) }}"
                         data-download-loading
                         data-loading-label="Menyiapkan PDF..."
                         data-download-timeout="30000"
@@ -96,7 +97,7 @@
                         Mode Full
                         <span class="block text-xs font-normal text-slate-500">Dengan ringkasan total</span>
                     </a>
-                    <a href="{{ route('penawaran.pdf', ['penawaran' => $penawaran->id, 'mode' => 'pricelist']) }}"
+                    <a href="{{ route('penawaran.pdf', ['penawaran' => $pdfRouteKey, 'mode' => 'pricelist']) }}"
                         data-download-loading
                         data-loading-label="Menyiapkan PDF..."
                         data-download-timeout="30000"

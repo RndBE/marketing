@@ -102,6 +102,17 @@ class Penawaran extends Model
         return $this->belongsTo(DocNumber::class, 'doc_number_id');
     }
 
+    public function pdfRouteKey(): string
+    {
+        $docNo = $this->docNumber?->doc_no;
+
+        if (!$docNo) {
+            return (string) $this->getKey();
+        }
+
+        return str_replace(['/', '\\'], '-', $docNo);
+    }
+
     public function approval()
     {
         return $this->belongsTo(Approval::class, 'approval_id');

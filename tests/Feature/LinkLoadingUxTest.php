@@ -52,7 +52,8 @@ test('generated document links expose a dedicated download loading state', funct
     $leadReportShow = file_get_contents(resource_path('views/lead_reports/show.blade.php'));
 
     expect($penawaranShow)
-        ->toContain("route('penawaran.pdf', \$penawaran->id)")
+        ->toContain("\$pdfRouteKey = \$penawaran->pdfRouteKey()")
+        ->toContain("route('penawaran.pdf', \$pdfRouteKey)")
         ->toContain('data-download-loading')
         ->toContain('data-loading-label="Menyiapkan PDF..."')
         ->toContain('data-download-timeout="30000"')

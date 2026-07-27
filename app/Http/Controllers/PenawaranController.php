@@ -1341,8 +1341,10 @@ class PenawaranController extends Controller
         return response()->json(['message' => 'Lampiran berhasil dihapus']);
     }
 
-    public function downloadPdf(Request $request, Penawaran $penawaran)
+    public function downloadPdf(Request $request, string $penawaran)
     {
+        $penawaran = $this->resolvePenawaranPdfRouteKey($penawaran);
+
         $this->ensurePenawaranViewAccess($penawaran);
 
         $pricelistMode = $request->query('mode') === 'pricelist';
@@ -1501,6 +1503,33 @@ class PenawaranController extends Controller
                 }
             }
         }
+    }
+
+    private function resolvePenawaranPdfRouteKey(string $routeKey): Penawaran
+    {
+        if (ctype_digit($routeKey)) {
+            return Penawaran::findOrFail((int) $routeKey);
+        }
+
+        $docNo = str_replace('-', '/', $routeKey);
+
+        $penawaran = Penawaran::whereHas('docNumber', fn($query) => $query->where('doc_no', $docNo))
+            ->first();
+
+        if ($penawaran) {
+            return $penawaran;
+        }
+
+        $penawaran = Penawaran::with('docNumber')
+            ->whereHas('docNumber')
+            ->get()
+            ->first(fn(Penawaran $row) => $row->pdfRouteKey() === $routeKey);
+
+        if ($penawaran) {
+            return $penawaran;
+        }
+
+        abort(404);
     }
 
     /**

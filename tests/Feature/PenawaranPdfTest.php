@@ -46,6 +46,53 @@ function penawaranPdfTestResponseContent($response): string
         : $response->getContent();
 }
 
+test('penawaran pdf route accepts a document number route key', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-KEY'],
+        ['name' => 'PDF Route Key Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $docNumber = DocNumber::create([
+        'company_id' => $company->id,
+        'prefix' => 'SPH02',
+        'seq' => 57,
+        'month' => 3,
+        'year' => 2026,
+        'doc_no' => '057/SPH02/AS/III/2026',
+    ]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'doc_number_id' => $docNumber->id,
+        'judul' => 'Penawaran Route Key',
+        'instansi_tujuan' => 'Instansi Test',
+        'nama_pekerjaan' => 'Pekerjaan Test',
+        'lokasi_pekerjaan' => 'Yogyakarta',
+        'tanggal_penawaran' => '2026-03-19',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Item Test',
+        'qty' => 1,
+        'satuan' => 'Paket',
+        'subtotal' => 1000000,
+    ]);
+
+    expect($penawaran->load('docNumber')->pdfRouteKey())->toBe('057-SPH02-AS-III-2026');
+
+    $response = $this->actingAs($user)
+        ->get(route('penawaran.pdf', $penawaran->pdfRouteKey()));
+
+    $response->assertOk();
+
+    expect(penawaranPdfTestResponseContent($response))->toStartWith('%PDF');
+});
+
 test('penawaran pdf breaks long item details into separate table rows', function () {
     config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
 
@@ -125,11 +172,88 @@ test('penawaran pdf breaks long item details into separate table rows', function
         ->and(substr_count($html, 'class="item-detail-row item-detail-last"'))->toBe(1)
         ->and($html)->toContain('class="item-page-break-row"')
         ->and($html)->toContain('aa.')
+        ->and($html)->toContain('10.000')
         ->and($html)->not()->toContain('<ol');
 
     $pdfContent = Pdf::loadHTML($html)->setPaper('a4', 'portrait')->output();
 
     expect(penawaranPdfTestPageSizes($pdfContent))->not()->toBeEmpty();
+});
+
+test('penawaran pdf does not add manual page break borders for short details', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-SHORT'],
+        ['name' => 'PDF Short Detail Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $docNumber = DocNumber::create([
+        'company_id' => $company->id,
+        'prefix' => 'SHORT',
+        'seq' => 153,
+        'month' => 6,
+        'year' => 2026,
+        'doc_no' => '153/SHORT/TEST/VI/2026',
+    ]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'doc_number_id' => $docNumber->id,
+        'judul' => 'Penawaran Detail Pendek',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-06-10',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    $item = PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Instalasi Perangkat AWLR',
+        'qty' => 1,
+        'satuan' => 'lot',
+        'subtotal' => 22000000,
+    ]);
+
+    foreach (range(1, 12) as $index) {
+        PenawaranItemDetail::create([
+            'penawaran_item_id' => $item->id,
+            'urutan' => $index,
+            'nama' => 'Detail pendek ' . $index,
+            'qty' => 1,
+            'satuan' => 'lot',
+            'harga' => $index === 1 ? 22000000 : 0,
+            'subtotal' => $index === 1 ? 22000000 : 0,
+        ]);
+    }
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => $docNumber->doc_no,
+        'total' => 22000000,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($html)->not()->toContain('class="item-page-break-row"');
 });
 
 test('penawaran pdf appends suket pp 55 as the last page', function () {
