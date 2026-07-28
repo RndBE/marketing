@@ -5,6 +5,14 @@
 
     $subtitleText = trim((string)  ($penawaran->judul ?? ''));
     $coverSubtitle = $subtitleText !== '' ? $subtitleText : '-';
+    $subtitleLength = mb_strlen($coverSubtitle);
+    $subtitleClass = 'cover-subtitle';
+    if ($subtitleLength > 95) {
+        $subtitleClass .= ' is-long';
+    }
+    if ($subtitleLength > 145) {
+        $subtitleClass .= ' is-extra-long';
+    }
 
     $pillText = trim((string) ($penawaran->nama_pekerjaan ?? ''));
     $coverPill = $pillText !== '' ? $pillText : '-';
@@ -97,17 +105,30 @@
     }
 
     .cover-title {
-        font-size: 30pt;
+        font-size: 27pt;
         font-weight: bold;
-        line-height: 1.2;
+        line-height: 1.15;
     }
 
     .cover-subtitle {
-        width: 120mm;
-        font-size: 18pt;
+        width: 132mm;
+        font-size: 14pt;
         font-weight: bold;
-        margin-top: 4mm;
-        line-height: 1.25;
+        margin-top: 6mm;
+        line-height: 1.22;
+        letter-spacing: 0;
+    }
+
+    .cover-subtitle.is-long {
+        width: 140mm;
+        font-size: 12.5pt;
+        line-height: 1.18;
+    }
+
+    .cover-subtitle.is-extra-long {
+        width: 146mm;
+        font-size: 11.5pt;
+        line-height: 1.14;
     }
 
     .cover-line {
@@ -115,21 +136,21 @@
         height: 1mm;
         border-radius: 10px;
         background: #111;
-        margin-top: 4mm;
+        margin-top: 3mm;
     }
 
     .cover-pill {
         position: absolute;
         left: 12mm;
-        bottom: 48mm;
+        bottom: 50mm;
         width: 186mm;
         display: block;
         text-align: center;
-        padding: 4mm 8mm;
+        padding: 4mm 10mm;
         border-radius: 999px;
         background: #e3d2a8;
         font-weight: normal;
-        font-size: 14pt;
+        font-size: 13pt;
         line-height: 1.2;
         box-sizing: border-box;
     }
@@ -137,9 +158,9 @@
     .cover-client {
         position: absolute;
         left: 12mm;
-        bottom: 38mm;
+        bottom: 39mm;
         width: 186mm;
-        font-size: 16pt;
+        font-size: 15pt;
         font-weight: 700;
         text-align: left;
     }
@@ -206,7 +227,7 @@
             </table>
         @endif
         <div class="cover-title">{!! nl2br(e($coverTitle)) !!}</div>
-        <div class="cover-subtitle">{{ $coverSubtitle }}</div>
+        <div class="{{ $subtitleClass }}">{{ $coverSubtitle }}</div>
         <div class="cover-line"></div>
     </div>
 
