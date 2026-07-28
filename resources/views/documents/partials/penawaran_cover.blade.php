@@ -107,6 +107,7 @@
         font-size: 18pt;
         font-weight: bold;
         margin-top: 4mm;
+        line-height: 1.25;
     }
 
     .cover-line {
@@ -118,32 +119,38 @@
     }
 
     .cover-pill {
+        position: absolute;
+        left: 12mm;
+        bottom: 48mm;
         width: 186mm;
         display: block;
         text-align: center;
-        margin-top: 8mm;
-        padding-top: 4mm;
-        padding-bottom: 4mm;
+        padding: 4mm 8mm;
         border-radius: 999px;
         background: #e3d2a8;
         font-weight: normal;
-        font-size: 16pt;
+        font-size: 14pt;
+        line-height: 1.2;
         box-sizing: border-box;
     }
 
     .cover-client {
-        margin-top: 3mm;
+        position: absolute;
+        left: 12mm;
+        bottom: 38mm;
+        width: 186mm;
         font-size: 16pt;
         font-weight: 700;
+        text-align: left;
     }
 
     .cover-footer {
         position: absolute;
         left: 12mm;
-        bottom: 20mm;
+        bottom: 24mm;
         width: 186mm;
         text-align: right;
-        font-size: 12pt;
+        font-size: 10pt;
     }
 
     .cover-footer .footer-item {
@@ -201,9 +208,10 @@
         <div class="cover-title">{!! nl2br(e($coverTitle)) !!}</div>
         <div class="cover-subtitle">{{ $coverSubtitle }}</div>
         <div class="cover-line"></div>
-        <div class="cover-pill">{{ $coverPill }}</div>
-        <div class="cover-client">{{ $coverClient }}</div>
     </div>
+
+    <div class="cover-pill">{{ $coverPill }}</div>
+    <div class="cover-client">{{ $coverClient }}</div>
 
     <div class="cover-footer">
         <span class="footer-item"><span class="footer-icon"><img src="{{ public_path('templates/email.png') }}"
