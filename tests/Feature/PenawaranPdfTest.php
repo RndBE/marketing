@@ -229,6 +229,64 @@ test('penawaran pdf falls back to storage url when signature file is not local',
         ->toContain('/storage/signatures/missing-afif.png');
 });
 
+test('penawaran pdf raises akhmad zaeni signature slightly', function () {
+    Storage::fake('public');
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-TTD-AKHMAD'],
+        ['name' => 'PDF Signature Akhmad Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Signature Akhmad PDF',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-07-28',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    PenawaranSignature::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'nama' => 'Akhmad Zaeni Mustofa',
+        'jabatan' => 'Business Development',
+        'kota' => 'Sleman',
+        'tanggal' => '2026-07-28',
+        'ttd_path' => 'penawaran/ttd/akhmad.png',
+    ]);
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TTD-AKHMAD-TEST',
+        'total' => 0,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($html)
+        ->toContain('Akhmad Zaeni Mustofa')
+        ->toContain('bottom:14px;');
+});
+
 test('penawaran pdf breaks long item details into separate table rows', function () {
     config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
 

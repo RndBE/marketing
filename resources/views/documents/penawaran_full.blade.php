@@ -666,10 +666,13 @@
 
                                 <div style="text-align:center; margin-top:4px;">
                                     @php
+                                        $signatureName = trim((string) ($sg->nama ?? ''));
                                         $isWideSignature =
-                                            strcasecmp(trim((string) ($sg->nama ?? '')), 'Dewi Setiawati') === 0;
+                                            strcasecmp($signatureName, 'Dewi Setiawati') === 0;
+                                        $isRaisedSignature = str_contains(strtolower($signatureName), 'akhmad zaeni');
                                         $signatureWrapWidth = $isWideSignature ? '255px' : '220px';
                                         $signatureImageWidth = $isWideSignature ? '270px' : '100px';
+                                        $signatureImageBottom = $isRaisedSignature ? '14px' : '0';
                                     @endphp
                                     <div
                                         style="position:relative; width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
@@ -700,7 +703,7 @@
                 transform:translate(-50%, -50%);
                 @else
                 left:50%;
-                bottom:0;
+                bottom:{{ $signatureImageBottom }};
                 transform:translateX(-50%);
                 @endif
                 width:{{ $signatureImageWidth }};
