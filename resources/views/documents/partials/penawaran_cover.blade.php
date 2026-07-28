@@ -150,12 +150,12 @@
 
     .cover-pill {
         position: absolute;
-        left: 18mm;
+        left: 12mm;
         bottom: 52mm;
-        width: 174mm;
-        display: block;
+        display: inline-block;
+        max-width: 176mm;
         text-align: center;
-        padding: 3.6mm 10mm;
+        padding: 3.4mm 9mm;
         border-radius: 999px;
         background: #e3d2a8;
         font-weight: normal;
@@ -166,9 +166,9 @@
 
     .cover-client {
         position: absolute;
-        left: 18mm;
+        left: 12mm;
         bottom: 40mm;
-        width: 174mm;
+        width: 176mm;
         font-size: 15pt;
         font-weight: 700;
         text-align: left;
@@ -176,9 +176,9 @@
 
     .cover-footer {
         position: absolute;
-        left: 18mm;
+        left: 12mm;
         bottom: 24mm;
-        width: 174mm;
+        width: 186mm;
         text-align: right;
         font-size: 10pt;
     }
