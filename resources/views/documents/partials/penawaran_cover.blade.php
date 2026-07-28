@@ -7,11 +7,14 @@
     $coverSubtitle = $subtitleText !== '' ? $subtitleText : '-';
     $subtitleLength = mb_strlen($coverSubtitle);
     $subtitleClass = 'cover-subtitle';
-    if ($subtitleLength > 95) {
+    if ($subtitleLength > 70) {
         $subtitleClass .= ' is-long';
     }
-    if ($subtitleLength > 145) {
+    if ($subtitleLength > 120) {
         $subtitleClass .= ' is-extra-long';
+    }
+    if ($subtitleLength > 170) {
+        $subtitleClass .= ' is-ultra-long';
     }
 
     $pillText = trim((string) ($penawaran->nama_pekerjaan ?? ''));
@@ -111,24 +114,30 @@
     }
 
     .cover-subtitle {
-        width: 132mm;
-        font-size: 14pt;
+        width: 142mm;
+        font-size: 24pt;
         font-weight: bold;
         margin-top: 6mm;
-        line-height: 1.22;
+        line-height: 1.12;
         letter-spacing: 0;
     }
 
     .cover-subtitle.is-long {
-        width: 140mm;
-        font-size: 12.5pt;
-        line-height: 1.18;
+        width: 148mm;
+        font-size: 20pt;
+        line-height: 1.1;
     }
 
     .cover-subtitle.is-extra-long {
-        width: 146mm;
-        font-size: 11.5pt;
-        line-height: 1.14;
+        width: 152mm;
+        font-size: 17pt;
+        line-height: 1.08;
+    }
+
+    .cover-subtitle.is-ultra-long {
+        width: 156mm;
+        font-size: 15pt;
+        line-height: 1.08;
     }
 
     .cover-line {
