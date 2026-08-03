@@ -627,7 +627,10 @@
                                     ) {
                                         $items = $termsByParent[$parentId] ?? collect();
 
-                                        foreach ($items->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $term) {
+                                        foreach ($items->sort(function ($a, $b) {
+                                            return [(int) $a->urutan, (int) $a->id]
+                                                <=> [(int) $b->urutan, (int) $b->id];
+                                        }) as $term) {
                                             echo '<div style="margin-left:' . $level * 8 . 'px;">';
 
                                             if ($level == 0) {

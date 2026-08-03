@@ -7,6 +7,7 @@ use App\Models\PenawaranAttachment;
 use App\Models\PenawaranItem;
 use App\Models\PenawaranItemDetail;
 use App\Models\PenawaranSignature;
+use App\Models\PenawaranTerm;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -92,6 +93,65 @@ test('penawaran pdf route accepts a document number route key', function () {
     $response->assertOk();
 
     expect(penawaranPdfTestResponseContent($response))->toStartWith('%PDF');
+});
+
+test('penawaran pdf keeps numeric term order when there are more than nine terms', function () {
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-TERM-ORDER'],
+        ['name' => 'PDF Term Order Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Term Order PDF',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-07-27',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+
+    foreach (range(1, 12) as $urutan) {
+        PenawaranTerm::create([
+            'penawaran_id' => $penawaran->id,
+            'urutan' => $urutan,
+            'isi' => sprintf('Keterangan urutan %02d', $urutan),
+        ]);
+    }
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TERM-ORDER-TEST',
+        'total' => 0,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    $positions = collect(range(1, 12))
+        ->map(fn($urutan) => strpos($html, sprintf('Keterangan urutan %02d', $urutan)))
+        ->all();
+
+    expect($positions)
+        ->not->toContain(false)
+        ->toBe(collect($positions)->sort()->values()->all());
 });
 
 test('penawaran pdf embeds signature ttd images from public storage', function () {

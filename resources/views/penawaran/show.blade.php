@@ -695,7 +695,10 @@
                     $termOptions = [];
                     $walk = function ($parentKey, $prefix) use (&$walk, &$termOptions, $termsByParent) {
                         $children = $termsByParent[$parentKey] ?? collect();
-                        foreach ($children->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $t) {
+                        foreach ($children->sort(function ($a, $b) {
+                            return [(int) $a->urutan, (int) $a->id]
+                                <=> [(int) $b->urutan, (int) $b->id];
+                        }) as $t) {
                             $termOptions[] = [
                                 'id' => $t->id,
                                 'label' => $prefix . \Illuminate\Support\Str::limit(trim((string) $t->isi), 60),

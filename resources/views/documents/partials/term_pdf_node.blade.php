@@ -8,7 +8,10 @@
 </div>
 
 @if ($children->count())
-    @foreach ($children->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $c)
+    @foreach ($children->sort(function ($a, $b) {
+        return [(int) $a->urutan, (int) $a->id]
+            <=> [(int) $b->urutan, (int) $b->id];
+    }) as $c)
         @include('documents.partials.term_node_pdf', [
             'term' => $c,
             'termsByParent' => $termsByParent,

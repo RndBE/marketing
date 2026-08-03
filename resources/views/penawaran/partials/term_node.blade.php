@@ -60,7 +60,10 @@
 
     @if ($children->count())
         <div class="mt-2 space-y-2 term-list" data-parent-id="{{ $term->id }}">
-            @foreach ($children->sortBy(fn($x) => $x->urutan . '-' . $x->id) as $c)
+            @foreach ($children->sort(function ($a, $b) {
+                return [(int) $a->urutan, (int) $a->id]
+                    <=> [(int) $b->urutan, (int) $b->id];
+            }) as $c)
                 @include('penawaran.partials.term_node', [
                     'penawaran' => $penawaran,
                     'term' => $c,
