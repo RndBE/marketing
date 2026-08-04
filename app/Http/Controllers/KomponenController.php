@@ -30,9 +30,7 @@ class KomponenController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $activeCompanyId = $this->currentCompanyId($request->user());
-
-        return view('komponen.index', compact('komponen', 'q', 'perPage', 'activeCompanyId'));
+        return view('komponen.index', compact('komponen', 'q', 'perPage'));
     }
 
     public function store(Request $request)
@@ -63,8 +61,6 @@ class KomponenController extends Controller
 
     public function update(Request $request, Komponen $komponen)
     {
-        $this->ensureCompanyAccess($komponen);
-
         $payload = $request->validate([
             'kode' => 'nullable|string|max:50|unique:komponen,kode,' . $komponen->id . ',id,company_id,' . $komponen->company_id,
             'nama' => 'required|string|max:255',
@@ -98,7 +94,6 @@ class KomponenController extends Controller
 
     public function destroy(Komponen $komponen)
     {
-        $this->ensureCompanyAccess($komponen);
         $komponen->delete();
         return redirect()->route('komponen.index')->with('success', 'Komponen berhasil dihapus');
     }
@@ -246,7 +241,6 @@ class KomponenController extends Controller
         ]);
 
         $count = Komponen::query()
-            ->when($this->currentCompanyId($request->user()), fn($query, $companyId) => $query->where('company_id', $companyId))
             ->whereIn('id', $request->ids)
             ->delete();
 

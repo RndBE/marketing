@@ -58,17 +58,10 @@
                     </thead>
                     <tbody class="divide-y">
                         @forelse ($komponen as $k)
-                            @php
-                                $canManageRow = auth()->user()->hasRole('admin') || (int) $k->company_id === (int) $activeCompanyId;
-                            @endphp
                             <tr>
                                 <td class="px-4 py-3 text-center">
-                                    @if ($canManageRow)
-                                        <input type="checkbox" name="ids[]" value="{{ $k->id }}"
-                                            class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
-                                    @else
-                                        <span class="text-slate-300">-</span>
-                                    @endif
+                                    <input type="checkbox" name="ids[]" value="{{ $k->id }}"
+                                        class="item-checkbox rounded border-slate-300" onchange="updateBulkActions()">
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     @if ($k->foto)
@@ -100,25 +93,21 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right space-x-2">
-                                    @if ($canManageRow)
-                                        <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
-                                            data-id="{{ $k->id }}" data-kode="{{ e($k->kode) }}"
-                                            data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
-                                            data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
-                                            data-is_active="{{ $k->is_active ? '1' : '0' }}"
-                                            data-foto="{{ $k->foto ? Storage::url($k->foto) : '' }}"
-                                            onclick="openEditModal(this)">
-                                            Edit
-                                        </button>
-                                        <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
-                                            data-confirm-title="Hapus Komponen?"
-                                            data-confirm-delete="Komponen {{ $k->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
-                                            @csrf @method('DELETE')
-                                            <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
-                                        </form>
-                                    @else
-                                        <span class="text-xs text-slate-400">Lihat saja</span>
-                                    @endif
+                                    <button type="button" class="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs"
+                                        data-id="{{ $k->id }}" data-kode="{{ e($k->kode) }}"
+                                        data-nama="{{ e($k->nama) }}" data-spesifikasi="{{ e($k->spesifikasi) }}"
+                                        data-satuan="{{ e($k->satuan) }}" data-harga="{{ $k->harga }}"
+                                        data-is_active="{{ $k->is_active ? '1' : '0' }}"
+                                        data-foto="{{ $k->foto ? Storage::url($k->foto) : '' }}"
+                                        onclick="openEditModal(this)">
+                                        Edit
+                                    </button>
+                                    <form action="{{ route('komponen.destroy', $k->id) }}" method="POST" class="inline"
+                                        data-confirm-title="Hapus Komponen?"
+                                        data-confirm-delete="Komponen {{ $k->nama }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
+                                        @csrf @method('DELETE')
+                                        <button class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Hapus</button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty
