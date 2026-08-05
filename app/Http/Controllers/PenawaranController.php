@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
+use App\Models\AlurPenawaran;
+use App\Models\Approval;
+use App\Models\ApprovalStep;
 use App\Models\Company;
 use App\Models\DocNumber;
 use App\Models\Penawaran;
@@ -14,14 +16,11 @@ use App\Models\PenawaranSignature;
 use App\Models\PenawaranTerm;
 use App\Models\PenawaranTermTemplate;
 use App\Models\PenawaranValidity;
+use App\Models\PenghapusanPenawaran;
 use App\Models\Pic;
 use App\Models\Product;
-use App\Models\Approval;
-use App\Models\ApprovalStep;
-use App\Models\AlurPenawaran;
-use App\Models\PenghapusanPenawaran;
-use App\Models\ProductDetail;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -55,25 +54,25 @@ class PenawaranController extends Controller
         // Closure filter tanggal untuk dipakai di semua query
         $applyDateRange = function ($query) use ($dateFrom, $dateTo) {
             if ($dateFrom) {
-                $query->where('penawaran.updated_at', '>=', $dateFrom . ' 00:00:00');
+                $query->where('penawaran.updated_at', '>=', $dateFrom.' 00:00:00');
             }
 
             if ($dateTo) {
-                $query->where('penawaran.updated_at', '<=', $dateTo . ' 23:59:59');
+                $query->where('penawaran.updated_at', '<=', $dateTo.' 23:59:59');
             }
         };
 
         $baseQuery = Penawaran::query()
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
             ->leftJoin('approvals as list_approval', 'list_approval.id', '=', 'penawaran.approval_id')
-            ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
+            ->tap(fn ($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
                     $query->where(function ($qq) use ($token) {
                         $qq->where('penawaran.judul', 'like', "%{$token}%")
                             ->orWhere('penawaran.instansi_tujuan', 'like', "%{$token}%")
-                            ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
+                            ->orWhereHas('docNumber', fn ($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
                     });
                 }
             })
@@ -173,6 +172,7 @@ class PenawaranController extends Controller
         $pics = Pic::query()
             ->orderBy('nama')
             ->get(['id', 'nama', 'instansi']);
+
         return view('penawaran.create', compact('pics'));
     }
 
@@ -189,7 +189,7 @@ class PenawaranController extends Controller
             $companyId = (int) $this->currentCompanyId($user);
             $company = $this->currentCompany($user);
 
-            if (!empty($payload['id_pic'])) {
+            if (! empty($payload['id_pic'])) {
                 Pic::findOrFail($payload['id_pic']);
             }
 
@@ -204,7 +204,7 @@ class PenawaranController extends Controller
                 'date_created' => now()->timestamp,
                 'date_updated' => now()->timestamp,
                 'judul' => $payload['judul'] ?? null,
-                'catatan' => $payload['catatan'] ?? null
+                'catatan' => $payload['catatan'] ?? null,
             ]);
 
             PenawaranCover::create([
@@ -223,35 +223,31 @@ class PenawaranController extends Controller
                 'mulai' => now()->toDateString(),
                 'sampai' => now()->addDays(30)->toDateString(),
                 'berlaku_hari' => 30,
-                'keterangan' => 'Penawaran berlaku 30 hari.'
+                'keterangan' => 'Penawaran berlaku 30 hari.',
             ]);
 
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
                 ->where('company_id', $companyId)
                 ->where('status', 'aktif')
-                ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
+                ->with(['langkah' => fn ($q) => $q->orderBy('no_langkah')])
                 ->first();
 
-            if (!$alur || $alur->langkah->isEmpty()) {
+            if (! $alur || $alur->langkah->isEmpty()) {
                 throw new \Exception('Alur penawaran aktif belum dibuat');
             }
 
-
             $firstStep = $alur->langkah->first()->no_langkah;
-
 
             $approval = Approval::create([
                 'status' => 'menunggu',
                 'current_step' => $firstStep,
                 'module' => 'penawaran',
-                'ref_id' => $penawaran->id
+                'ref_id' => $penawaran->id,
             ]);
-
 
             foreach ($alur->langkah as $step) {
 
                 $approverId = null;
-
 
                 if ($step->user_id) {
                     $approverId = $step->user_id;
@@ -268,14 +264,14 @@ class PenawaranController extends Controller
                     // disesuaikan saja untuk kedepannya
                     'akses_approve' => [
                         'user_id' => (int) $approverId,
-                        'ref_penawaran' => (int) $penawaran->id
+                        'ref_penawaran' => (int) $penawaran->id,
                     ],
                 ]);
             }
 
             $penawaran->update([
                 'approval_id' => $approval->id,
-                'status' => 'menunggu_approval'
+                'status' => 'menunggu_approval',
             ]);
 
             $templates = PenawaranTermTemplate::query()
@@ -288,8 +284,6 @@ class PenawaranController extends Controller
             foreach ($templates as $t) {
                 $this->cloneTemplateTerm($penawaran->id, $t, null);
             }
-
-
 
             $roleNames = $user->roles->pluck('name')->implode(', ');
 
@@ -306,7 +300,6 @@ class PenawaranController extends Controller
             return redirect()->route('penawaran.index', $penawaran->id);
         });
     }
-
 
     private function cloneTemplateTerm(int $penawaranId, $template, ?int $parentId): void
     {
@@ -341,7 +334,7 @@ class PenawaranController extends Controller
             'sharedCompanies',
             'attachments',
             'items.details',
-            'approval.steps'
+            'approval.steps',
         ]);
 
         $visibilityCompanies = Company::query()->orderBy('name')->get(['id', 'name', 'code']);
@@ -385,12 +378,12 @@ class PenawaranController extends Controller
         ));
     }
 
-
     public function edit(Penawaran $penawaran)
     {
         $this->ensurePenawaranEditAccess($penawaran);
         $penawaran->load(['cover', 'validity']);
         $pics = Pic::query()->orderBy('nama')->get();
+
         return view('penawaran.edit', compact('penawaran', 'pics'));
     }
 
@@ -401,10 +394,10 @@ class PenawaranController extends Controller
         $payload = $request->validate([
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string'],
-            'id_pic' => ['nullable', 'exists:pics,id']
+            'id_pic' => ['nullable', 'exists:pics,id'],
         ]);
 
-        if (!empty($payload['id_pic'])) {
+        if (! empty($payload['id_pic'])) {
             Pic::findOrFail($payload['id_pic']);
         }
 
@@ -412,7 +405,7 @@ class PenawaranController extends Controller
             'judul' => $payload['judul'] ?? null,
             'id_pic' => $payload['id_pic'] ?? null,
             'catatan' => $payload['catatan'] ?? null,
-            'date_updated' => now()->timestamp
+            'date_updated' => now()->timestamp,
         ]);
 
         return redirect()->route('penawaran.show', $penawaran->id);
@@ -420,7 +413,7 @@ class PenawaranController extends Controller
 
     public function destroy(Penawaran $penawaran)
     {
-        $this->ensurePenawaranEditAccess($penawaran);
+        $this->ensurePenawaranDestructiveAccess($penawaran);
 
         // $penawaran->delete();
         // return redirect()->route('penawaran.index');
@@ -433,7 +426,7 @@ class PenawaranController extends Controller
             // ===============================
             $bolehHapusLangsung = false;
 
-            if (!$approval) {
+            if (! $approval) {
                 // Belum pernah masuk approval
                 $bolehHapusLangsung = true;
             } elseif ($approval->module === 'penawaran' && $approval->current_step == 1 && $approval->status === 'menunggu') {
@@ -444,7 +437,7 @@ class PenawaranController extends Controller
             $approval->update([
                 'status' => 'dihapus',
                 'approved_by' => auth()->id(),
-                'approved_at' => now()
+                'approved_at' => now(),
             ]);
 
             // ===============================
@@ -453,7 +446,7 @@ class PenawaranController extends Controller
             if ($bolehHapusLangsung) {
 
                 PenghapusanPenawaran::create([
-                    'nomor_penghapusan' => 'DEL-' . str_pad($penawaran->id, 6, '0', STR_PAD_LEFT),
+                    'nomor_penghapusan' => 'DEL-'.str_pad($penawaran->id, 6, '0', STR_PAD_LEFT),
                     'tanggal_penghapusan' => now(),
                     'metode' => 'hapus',
                     'alasan' => 'Dihapus langsung saat masih tahap awal approval',
@@ -462,7 +455,7 @@ class PenawaranController extends Controller
                     'approval_id' => $approval?->id, // bisa null
                     'deleted_by' => auth()->id(),
                     'deleted_at' => now(),
-                    'keterangan' => 'Dihapus langsung saat masih tahap awal approval'
+                    'keterangan' => 'Dihapus langsung saat masih tahap awal approval',
                 ]);
 
                 // Soft delete penawaran
@@ -521,7 +514,7 @@ class PenawaranController extends Controller
                 'approval_id' => null,
                 'date_created' => now()->timestamp,
                 'date_updated' => now()->timestamp,
-                'judul' => '[COPY] ' . ($penawaran->judul ?? ''),
+                'judul' => '[COPY] '.($penawaran->judul ?? ''),
                 'catatan' => $penawaran->catatan,
                 'instansi_tujuan' => $penawaran->instansi_tujuan ?? null,
                 'nama_pekerjaan' => $penawaran->nama_pekerjaan ?? null,
@@ -643,10 +636,10 @@ class PenawaranController extends Controller
             $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
                 ->where('company_id', $new->company_id)
                 ->where('status', 'aktif')
-                ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
+                ->with(['langkah' => fn ($q) => $q->orderBy('no_langkah')])
                 ->first();
 
-            if (!$alur || $alur->langkah->isEmpty()) {
+            if (! $alur || $alur->langkah->isEmpty()) {
                 throw new \Exception('Alur penawaran aktif belum dibuat');
             }
 
@@ -719,7 +712,7 @@ class PenawaranController extends Controller
             'perusahaan_email' => ['nullable', 'string', 'max:255'],
             'perusahaan_telp' => ['nullable', 'string', 'max:100'],
             'intro_text' => ['nullable', 'string'],
-            'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048']
+            'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ]);
 
         return DB::transaction(function () use ($payload, $penawaran, $request) {
@@ -749,7 +742,7 @@ class PenawaranController extends Controller
             'mulai' => ['nullable', 'date'],
             'sampai' => ['nullable', 'date'],
             'berlaku_hari' => ['nullable', 'integer', 'min:1'],
-            'keterangan' => ['nullable', 'string']
+            'keterangan' => ['nullable', 'string'],
         ]);
 
         PenawaranValidity::updateOrCreate(
@@ -761,8 +754,6 @@ class PenawaranController extends Controller
 
         return redirect()->route('penawaran.show', $penawaran->id);
     }
-
-
 
     public function addBundle(Request $request, Penawaran $penawaran)
     {
@@ -819,7 +810,7 @@ class PenawaranController extends Controller
 
         $payload = $request->validate([
             'judul' => ['required', 'string', 'max:255'],
-            'catatan' => ['nullable', 'string']
+            'catatan' => ['nullable', 'string'],
         ]);
 
         $urutan = $this->nextItemOrder($penawaran->id);
@@ -946,7 +937,7 @@ class PenawaranController extends Controller
             'spesifikasi' => ['nullable', 'string'],
             'qty' => ['required', 'numeric', 'min:0.01'],
             'satuan' => ['nullable', 'string', 'max:50'],
-            'harga' => ['required', 'integer', 'min:0']
+            'harga' => ['required', 'integer', 'min:0'],
         ]);
 
         return DB::transaction(function () use ($payload, $penawaran, $item) {
@@ -966,7 +957,7 @@ class PenawaranController extends Controller
                 'qty' => $qty,
                 'satuan' => $payload['satuan'] ?? null,
                 'harga' => $harga,
-                'subtotal' => $subtotal
+                'subtotal' => $subtotal,
             ]);
 
             $this->recalcItemSubtotal($item);
@@ -1000,8 +991,9 @@ class PenawaranController extends Controller
             $qty = (float) $payload['qty'];
             $harga = (int) $payload['harga'];
             $markup = (float) ($payload['markup'] ?? $detail->markup ?? 1);
-            if ($markup <= 0)
+            if ($markup <= 0) {
                 $markup = 1;
+            }
             $subtotal = (int) round($qty * $harga * $markup);
 
             $detail->update([
@@ -1013,7 +1005,6 @@ class PenawaranController extends Controller
                 'subtotal' => $subtotal,
                 'markup' => $markup,
             ]);
-
 
             $this->recalcItemSubtotal($item);
             $penawaran->update(['date_updated' => now()->timestamp]);
@@ -1186,7 +1177,6 @@ class PenawaranController extends Controller
         return response()->json(['message' => 'Urutan keterangan diperbarui']);
     }
 
-
     public function deleteTerm(Penawaran $penawaran, PenawaranTerm $term)
     {
         $this->ensurePenawaranEditAccess($penawaran);
@@ -1210,7 +1200,7 @@ class PenawaranController extends Controller
             'jabatan' => ['nullable', 'string', 'max:255'],
             'kota' => ['nullable', 'string', 'max:120'],
             'tanggal' => ['nullable', 'date'],
-            'ttd' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048']
+            'ttd' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ]);
 
         // Get existing signature or create with urutan 1
@@ -1220,7 +1210,7 @@ class PenawaranController extends Controller
             'nama' => $payload['nama'],
             'jabatan' => $payload['jabatan'] ?? null,
             'kota' => $payload['kota'] ?? null,
-            'tanggal' => $payload['tanggal'] ?? null
+            'tanggal' => $payload['tanggal'] ?? null,
         ];
 
         if ($request->hasFile('ttd')) {
@@ -1291,7 +1281,7 @@ class PenawaranController extends Controller
             'judul' => ['nullable', 'array'],
             'judul.*' => ['nullable', 'string', 'max:255'],
             'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'mimes:pdf', 'max:10240']
+            'files.*' => ['file', 'mimes:pdf', 'max:10240'],
         ]);
 
         $files = $request->file('files', []);
@@ -1301,7 +1291,7 @@ class PenawaranController extends Controller
         $urutan = $urutan > 0 ? $urutan + 1 : 1;
 
         foreach ($files as $idx => $file) {
-            if (!$file) {
+            if (! $file) {
                 continue;
             }
 
@@ -1314,7 +1304,7 @@ class PenawaranController extends Controller
                 'judul' => $judul !== '' ? $judul : $file->getClientOriginalName(),
                 'file_path' => $path,
                 'mime' => $file->getClientMimeType(),
-                'size' => $file->getSize()
+                'size' => $file->getSize(),
             ]);
 
             $urutan++;
@@ -1362,9 +1352,9 @@ class PenawaranController extends Controller
             'user.roles',
             'signatures',
             'attachments',
-            'items.details'
+            'items.details',
         ]);
-        $docNo = $penawaran->docNumber?->doc_no ?? ('PNW-' . str_pad((string) $penawaran->id, 6, '0', STR_PAD_LEFT));
+        $docNo = $penawaran->docNumber?->doc_no ?? ('PNW-'.str_pad((string) $penawaran->id, 6, '0', STR_PAD_LEFT));
 
         $total = 0;
         foreach ($penawaran->items as $it) {
@@ -1386,17 +1376,18 @@ class PenawaranController extends Controller
             ->setOption('fontDir', $dompdfPaths['fontDir'])
             ->setOption('fontCache', $dompdfPaths['fontCache'])
             ->setOption('tempDir', $dompdfPaths['tempDir']);
-        $filename = str_replace(['/', '\\'], '-', $penawaran->judul) . '.pdf';
+        $filename = str_replace(['/', '\\'], '-', $penawaran->judul).'.pdf';
 
         $attachmentPaths = [];
         foreach ($penawaran->attachments as $attachment) {
             $fullPath = $this->resolvePublicDiskPath($attachment->file_path);
-            if (!$fullPath) {
+            if (! $fullPath) {
                 Log::warning('Lampiran penawaran tidak ditemukan saat generate PDF', [
                     'penawaran_id' => $penawaran->id,
                     'attachment_id' => $attachment->id,
                     'file_path' => $attachment->file_path,
                 ]);
+
                 continue;
             }
             $mime = strtolower((string) $attachment->mime);
@@ -1421,7 +1412,7 @@ class PenawaranController extends Controller
             }
         }
 
-        if (!$attachmentPaths) {
+        if (! $attachmentPaths) {
             return $pdf->stream($filename);
         }
 
@@ -1430,6 +1421,7 @@ class PenawaranController extends Controller
             Log::warning('Gagal membuat file temporary untuk merge lampiran penawaran', [
                 'penawaran_id' => $penawaran->id,
             ]);
+
             return $pdf->stream($filename);
         }
         $tempFiles = [$tmpMain];
@@ -1437,7 +1429,7 @@ class PenawaranController extends Controller
             file_put_contents($tmpMain, $pdf->output());
             $filesToMerge = array_merge([$tmpMain], $attachmentPaths);
 
-            $merged = new Fpdi();
+            $merged = new Fpdi;
             foreach ($filesToMerge as $index => $filePath) {
                 $sourcePath = $filePath;
                 try {
@@ -1457,6 +1449,7 @@ class PenawaranController extends Controller
                             'file_path' => $filePath,
                             'error' => $sourceError->getMessage(),
                         ]);
+
                         continue;
                     }
 
@@ -1470,6 +1463,7 @@ class PenawaranController extends Controller
                             'file_path' => $filePath,
                             'error' => $normalizedError->getMessage(),
                         ]);
+
                         continue;
                     }
                 }
@@ -1495,12 +1489,14 @@ class PenawaranController extends Controller
             }
 
             $content = $merged->Output('S');
+
             return response($content, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $filename . '"'
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
             ]);
         } catch (\Throwable $e) {
             report($e);
+
             return $pdf->stream($filename);
         } finally {
             foreach ($tempFiles as $tempFile) {
@@ -1519,7 +1515,7 @@ class PenawaranController extends Controller
 
         $docNo = str_replace('-', '/', $routeKey);
 
-        $penawaran = Penawaran::whereHas('docNumber', fn($query) => $query->where('doc_no', $docNo))
+        $penawaran = Penawaran::whereHas('docNumber', fn ($query) => $query->where('doc_no', $docNo))
             ->first();
 
         if ($penawaran) {
@@ -1529,7 +1525,7 @@ class PenawaranController extends Controller
         $penawaran = Penawaran::with('docNumber')
             ->whereHas('docNumber')
             ->get()
-            ->first(fn(Penawaran $row) => $row->pdfRouteKey() === $routeKey);
+            ->first(fn (Penawaran $row) => $row->pdfRouteKey() === $routeKey);
 
         if ($penawaran) {
             return $penawaran;
@@ -1542,13 +1538,13 @@ class PenawaranController extends Controller
     {
         $basePath = storage_path('framework/dompdf');
         $paths = [
-            'fontDir' => $basePath . DIRECTORY_SEPARATOR . 'fonts',
-            'fontCache' => $basePath . DIRECTORY_SEPARATOR . 'fonts',
-            'tempDir' => $basePath . DIRECTORY_SEPARATOR . 'temp',
+            'fontDir' => $basePath.DIRECTORY_SEPARATOR.'fonts',
+            'fontCache' => $basePath.DIRECTORY_SEPARATOR.'fonts',
+            'tempDir' => $basePath.DIRECTORY_SEPARATOR.'temp',
         ];
 
         foreach (array_unique($paths) as $path) {
-            if (!is_dir($path)) {
+            if (! is_dir($path)) {
                 @mkdir($path, 0775, true);
             }
         }
@@ -1611,7 +1607,7 @@ class PenawaranController extends Controller
                 '-dSAFER',
                 '-sDEVICE=pdfwrite',
                 '-dCompatibilityLevel=1.4',
-                '-sOutputFile=' . $target,
+                '-sOutputFile='.$target,
                 $source,
             ];
         }
@@ -1630,7 +1626,7 @@ class PenawaranController extends Controller
 
         foreach ($names as $name) {
             foreach ($dirs as $dir) {
-                $path = $dir . '/' . $name;
+                $path = $dir.'/'.$name;
                 if (is_file($path) && is_executable($path)) {
                     $found[] = $path;
                 }
@@ -1643,7 +1639,7 @@ class PenawaranController extends Controller
 
     private function resolvePublicDiskPath(?string $path): ?string
     {
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 
@@ -1653,7 +1649,7 @@ class PenawaranController extends Controller
         $candidates = array_values(array_unique(array_filter([
             $cleanPath,
             $normalizedPath,
-        ], fn($v) => is_string($v) && $v !== '')));
+        ], fn ($v) => is_string($v) && $v !== '')));
 
         $disk = Storage::disk('public');
         foreach ($candidates as $candidate) {
@@ -1668,12 +1664,12 @@ class PenawaranController extends Controller
                 }
             }
 
-            $storageFile = storage_path('app/public/' . $candidate);
+            $storageFile = storage_path('app/public/'.$candidate);
             if (is_file($storageFile)) {
                 return $storageFile;
             }
 
-            $publicFile = public_path('storage/' . $candidate);
+            $publicFile = public_path('storage/'.$candidate);
             if (is_file($publicFile)) {
                 return $publicFile;
             }
@@ -1685,11 +1681,11 @@ class PenawaranController extends Controller
     private function makeTempPdfPath(string $prefix): string|false
     {
         $tmpDir = storage_path('framework/tmp');
-        if (!is_dir($tmpDir)) {
+        if (! is_dir($tmpDir)) {
             @mkdir($tmpDir, 0775, true);
         }
 
-        if (!is_dir($tmpDir) || !is_writable($tmpDir)) {
+        if (! is_dir($tmpDir) || ! is_writable($tmpDir)) {
             return tempnam(sys_get_temp_dir(), $prefix);
         }
 
@@ -1710,12 +1706,9 @@ class PenawaranController extends Controller
             9 => 'IX',
             10 => 'X',
             11 => 'XI',
-            12 => 'XII'
+            12 => 'XII',
         ][$month];
     }
-
-
-
 
     private function createDocNumber(?int $companyId = null, ?int $userId = null): DocNumber
     {
@@ -1740,17 +1733,17 @@ class PenawaranController extends Controller
                 9 => 'IX',
                 10 => 'X',
                 11 => 'XI',
-                12 => 'XII'
+                12 => 'XII',
             ];
             $last = DocNumber::where('company_id', $companyId)
                 ->orderByDesc('seq')
                 ->first();
             $seq = $last ? $last->seq + 1 : 1;
 
-            $userCode = 'SPH' . str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
+            $userCode = 'SPH'.str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
 
             $docNo = str_pad($seq, 3, '0', STR_PAD_LEFT)
-                . "/{$userCode}/{$companyCode}/{$romawi[$month]}/{$year}";
+                ."/{$userCode}/{$companyCode}/{$romawi[$month]}/{$year}";
 
             return DocNumber::create([
                 'company_id' => $companyId,
@@ -1758,7 +1751,7 @@ class PenawaranController extends Controller
                 'seq' => $seq,
                 'month' => $month,
                 'year' => $year,
-                'doc_no' => $docNo
+                'doc_no' => $docNo,
             ]);
         });
     }
@@ -1778,7 +1771,7 @@ class PenawaranController extends Controller
 
         $companyId = $this->currentCompanyId($user);
 
-        if (!$penawaran->isVisibleToCompany($companyId)) {
+        if (! $penawaran->isVisibleToCompany($companyId)) {
             abort(403);
         }
 
@@ -1792,6 +1785,21 @@ class PenawaranController extends Controller
     }
 
     private function ensurePenawaranEditAccess(Penawaran $penawaran, $user = null): void
+    {
+        $user ??= auth()->user();
+
+        if ($this->isSuperadmin($user) || $user->hasRole('admin')) {
+            return;
+        }
+
+        if ((int) $penawaran->id_user === (int) $user->id) {
+            return;
+        }
+
+        abort(403);
+    }
+
+    private function ensurePenawaranDestructiveAccess(Penawaran $penawaran, $user = null): void
     {
         $user ??= auth()->user();
 
@@ -1912,7 +1920,7 @@ class PenawaranController extends Controller
             'module' => 'penawaran',
             'ref_id' => $penawaran->id,
             'status' => 'menunggu',
-            'current_step' => 1
+            'current_step' => 1,
         ]);
 
         foreach ($alur->langkah()->orderBy('urutan')->get() as $step) {
@@ -1920,7 +1928,7 @@ class PenawaranController extends Controller
                 'approval_id' => $approval->id,
                 'step_order' => $step->urutan,
                 'step_name' => $step->nama_langkah,
-                'role_slug' => $step->role_slug
+                'role_slug' => $step->role_slug,
             ]);
         }
 
@@ -1935,8 +1943,8 @@ class PenawaranController extends Controller
     {
         $deleted = PenghapusanPenawaran::with(['penawaran', 'user', 'dibuat'])
             ->when(
-                !$this->isSuperadmin(),
-                fn($query) => $query->whereHas('penawaran', fn($penawaranQuery) => $penawaranQuery->visibleToCompany($this->currentCompanyId()))
+                ! $this->isSuperadmin(),
+                fn ($query) => $query->whereHas('penawaran', fn ($penawaranQuery) => $penawaranQuery->visibleToCompany($this->currentCompanyId()))
             )
             ->latest()
             ->paginate(15);
@@ -1946,7 +1954,7 @@ class PenawaranController extends Controller
 
     public function requestDelete(Penawaran $penawaran)
     {
-        $this->ensurePenawaranEditAccess($penawaran);
+        $this->ensurePenawaranDestructiveAccess($penawaran);
 
         if ($penawaran->status === 'menunggu_penghapusan') {
             return back()->with('error', 'Penghapusan sudah diajukan.');
@@ -1957,10 +1965,10 @@ class PenawaranController extends Controller
             $alur = AlurPenawaran::where('berlaku_untuk', 'penghapusan')
                 ->where('company_id', $penawaran->company_id)
                 ->where('status', 'aktif')
-                ->with(['langkah' => fn($q) => $q->orderBy('no_langkah')])
+                ->with(['langkah' => fn ($q) => $q->orderBy('no_langkah')])
                 ->first();
 
-            if (!$alur || $alur->langkah->isEmpty()) {
+            if (! $alur || $alur->langkah->isEmpty()) {
                 throw new \Exception('Alur approval penghapusan belum dibuat.');
             }
 
@@ -1971,7 +1979,7 @@ class PenawaranController extends Controller
                 'module' => 'penghapusan',
                 'ref_id' => $penawaran->id,
                 'status' => 'menunggu',
-                'current_step' => $firstStep
+                'current_step' => $firstStep,
             ]);
 
             foreach ($alur->langkah as $step) {
@@ -1981,15 +1989,15 @@ class PenawaranController extends Controller
                     'step_name' => $step->nama_langkah,
                     'status' => 'menunggu',
                     'akses_approve' => [
-                        'user_id' => (int) $step->user_id
-                    ]
+                        'user_id' => (int) $step->user_id,
+                    ],
                 ]);
             }
 
             // ⬇️ Status penawaran mengikuti jenis approval
             $penawaran->update([
                 'status' => 'menunggu_penghapusan',
-                'approval_id' => $approval->id
+                'approval_id' => $approval->id,
             ]);
         });
 
@@ -1999,7 +2007,7 @@ class PenawaranController extends Controller
     public function toggleGoal(Penawaran $penawaran)
     {
         $this->ensurePenawaranEditAccess($penawaran);
-        $penawaran->is_goal = !$penawaran->is_goal;
+        $penawaran->is_goal = ! $penawaran->is_goal;
         $penawaran->goal_at = $penawaran->is_goal ? now() : null;
         $penawaran->save();
 
@@ -2015,8 +2023,8 @@ class PenawaranController extends Controller
     // ───────────────────────────────────────────────────────────────────────
     public function exportExcel(Request $request)
     {
-        $q        = trim((string) $request->query('q', ''));
-        $user     = auth()->user();
+        $q = trim((string) $request->query('q', ''));
+        $user = auth()->user();
         $canViewAll = $this->canViewAllPenawaran($user);
         $companyId = $this->currentCompanyId($user);
         $companyFilterId = $this->resolvePenawaranCompanyFilterId($request, $canViewAll);
@@ -2027,38 +2035,53 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->tap(fn($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
+            ->tap(fn ($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
                 foreach ($tokens as $token) {
                     $query->where(function ($qq) use ($token) {
                         $qq->where('judul', 'like', "%{$token}%")
-                           ->orWhere('instansi_tujuan', 'like', "%{$token}%")
-                           ->orWhereHas('docNumber', fn($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
+                            ->orWhere('instansi_tujuan', 'like', "%{$token}%")
+                            ->orWhereHas('docNumber', fn ($qd) => $qd->where('doc_no', 'like', "%{$token}%"));
                     });
                 }
             })
-            ->when($dateFrom, fn($query) => $query->where('penawaran.updated_at', '>=', $dateFrom . ' 00:00:00'))
-            ->when($dateTo, fn($query) => $query->where('penawaran.updated_at', '<=', $dateTo . ' 23:59:59'))
-            ->tap(fn($query) => $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId))
+            ->when($dateFrom, fn ($query) => $query->where('penawaran.updated_at', '>=', $dateFrom.' 00:00:00'))
+            ->when($dateTo, fn ($query) => $query->where('penawaran.updated_at', '<=', $dateTo.' 23:59:59'))
+            ->tap(fn ($query) => $this->applyPenawaranDocNumberOrdering($query, $companyId, $companyFilterId))
             ->select('penawaran.*')
             ->get();
 
         // ── Helpers kalkulasi harga (sama dengan di index) ──
-        $calcGrandTotal = fn($penawaran): int => $penawaran->calcGrandTotal();
+        $calcGrandTotal = fn ($penawaran): int => $penawaran->calcGrandTotal();
 
         // ── Tentukan label status ──
         $statusLabel = function ($pnw): string {
             $ap = $pnw->approval;
-            if (!$ap) return 'Draft';
+            if (! $ap) {
+                return 'Draft';
+            }
             $s = $ap->status ?? '';
             $m = $ap->module ?? '';
-            if ($s === 'menunggu' && $m === 'penawaran')    return 'Menunggu Approval (Step ' . $ap->current_step . ')';
-            if ($s === 'disetujui' && $m === 'penawaran')   return 'Disetujui';
-            if ($s === 'ditolak' && $m === 'penawaran')     return 'Ditolak';
-            if ($s === 'menunggu' && $m === 'penghapusan')  return 'Menunggu Penghapusan (Step ' . $ap->current_step . ')';
-            if ($s === 'disetujui' && $m === 'penghapusan') return 'Disetujui Dihapus';
-            if ($s === 'dihapus')                           return 'Dihapus';
+            if ($s === 'menunggu' && $m === 'penawaran') {
+                return 'Menunggu Approval (Step '.$ap->current_step.')';
+            }
+            if ($s === 'disetujui' && $m === 'penawaran') {
+                return 'Disetujui';
+            }
+            if ($s === 'ditolak' && $m === 'penawaran') {
+                return 'Ditolak';
+            }
+            if ($s === 'menunggu' && $m === 'penghapusan') {
+                return 'Menunggu Penghapusan (Step '.$ap->current_step.')';
+            }
+            if ($s === 'disetujui' && $m === 'penghapusan') {
+                return 'Disetujui Dihapus';
+            }
+            if ($s === 'dihapus') {
+                return 'Dihapus';
+            }
+
             return 'Draft';
         };
 
@@ -2070,14 +2093,14 @@ class PenawaranController extends Controller
             if ($pnw->approval?->status === 'dihapus' || $pnw->approval?->module === 'penghapusan') {
                 continue;
             }
-            $docNo     = $pnw->docNumber?->doc_no ?? ('PNW-' . str_pad($pnw->id, 6, '0', STR_PAD_LEFT));
-            $picName   = trim(($pnw->pic?->honorific ? $pnw->pic->honorific . ' ' : '') . ($pnw->pic?->nama ?? '-'));
-            $instansi  = $pnw->pic?->instansi ?? $pnw->instansi_tujuan ?? '-';
-            $grand     = $calcGrandTotal($pnw);
-            $status    = $statusLabel($pnw);
-            $isGoal    = $pnw->is_goal ? 'Ya' : 'Tidak';
-            $goalAt    = $pnw->goal_at ? $pnw->goal_at->format('d/m/Y H:i') : '-';
-            $dibuatOleh= $pnw->user?->name ?? '-';
+            $docNo = $pnw->docNumber?->doc_no ?? ('PNW-'.str_pad($pnw->id, 6, '0', STR_PAD_LEFT));
+            $picName = trim(($pnw->pic?->honorific ? $pnw->pic->honorific.' ' : '').($pnw->pic?->nama ?? '-'));
+            $instansi = $pnw->pic?->instansi ?? $pnw->instansi_tujuan ?? '-';
+            $grand = $calcGrandTotal($pnw);
+            $status = $statusLabel($pnw);
+            $isGoal = $pnw->is_goal ? 'Ya' : 'Tidak';
+            $goalAt = $pnw->goal_at ? $pnw->goal_at->format('d/m/Y H:i') : '-';
+            $dibuatOleh = $pnw->user?->name ?? '-';
             $tglUpdate = $pnw->updated_at?->format('d/m/Y H:i') ?? '-';
             $tglPenawaran = $pnw->tanggal_penawaran?->format('d/m/Y') ?? '-';
 
@@ -2098,7 +2121,7 @@ class PenawaranController extends Controller
         }
 
         // ── Generate XLSX menggunakan XML SpreadsheetML ──
-        $filename = 'data-penawaran-' . now()->format('Ymd-His') . '.xlsx';
+        $filename = 'data-penawaran-'.now()->format('Ymd-His').'.xlsx';
 
         $headers = [
             'No', 'No. Dokumen', 'Judul Penawaran', 'PIC', 'Instansi/Klien',
@@ -2123,8 +2146,8 @@ class PenawaranController extends Controller
         ]);
 
         $companyIds = collect($payload['company_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0 && $id !== (int) $penawaran->company_id)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0 && $id !== (int) $penawaran->company_id)
             ->unique()
             ->values()
             ->all();
@@ -2140,14 +2163,15 @@ class PenawaranController extends Controller
     private function writeXlsx(array $headers, array $rows): void
     {
         // ── shared strings ──
-        $strings  = [];
+        $strings = [];
         $strIndex = [];
 
         $addStr = function (string $val) use (&$strings, &$strIndex): int {
-            if (!isset($strIndex[$val])) {
+            if (! isset($strIndex[$val])) {
                 $strIndex[$val] = count($strings);
-                $strings[]      = $val;
+                $strings[] = $val;
             }
+
             return $strIndex[$val];
         };
 
@@ -2158,7 +2182,7 @@ class PenawaranController extends Controller
         $sheetXmlRows .= '<row r="1">';
         foreach ($headers as $ci => $h) {
             $col = $this->xlsxColName($ci);
-            $si  = $addStr((string) $h);
+            $si = $addStr((string) $h);
             $sheetXmlRows .= "<c r=\"{$col}1\" t=\"s\"><v>{$si}</v></c>";
         }
         $sheetXmlRows .= '</row>';
@@ -2172,7 +2196,7 @@ class PenawaranController extends Controller
                 if (is_int($val) || is_float($val)) {
                     $sheetXmlRows .= "<c r=\"{$col}{$rowNum}\"><v>{$val}</v></c>";
                 } else {
-                    $si = $addStr((string)($val ?? ''));
+                    $si = $addStr((string) ($val ?? ''));
                     $sheetXmlRows .= "<c r=\"{$col}{$rowNum}\" t=\"s\"><v>{$si}</v></c>";
                 }
             }
@@ -2181,54 +2205,54 @@ class PenawaranController extends Controller
 
         // ── Build XML files ──
         $sharedStringsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="' . count($strings) . '" uniqueCount="' . count($strings) . '">';
+            .'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'.count($strings).'" uniqueCount="'.count($strings).'">';
         foreach ($strings as $s) {
-            $sharedStringsXml .= '<si><t xml:space="preserve">' . htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</t></si>';
+            $sharedStringsXml .= '<si><t xml:space="preserve">'.htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8').'</t></si>';
         }
         $sharedStringsXml .= '</sst>';
 
         $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
-            . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<sheetData>' . $sheetXmlRows . '</sheetData>'
-            . '</worksheet>';
+            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+            .' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            .'<sheetData>'.$sheetXmlRows.'</sheetData>'
+            .'</worksheet>';
 
         $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
-            . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<sheets><sheet name="Data Penawaran" sheetId="1" r:id="rId1"/></sheets>'
-            . '</workbook>';
+            .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+            .' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            .'<sheets><sheet name="Data Penawaran" sheetId="1" r:id="rId1"/></sheets>'
+            .'</workbook>';
 
         $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
-            . '</Relationships>';
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
+            .'</Relationships>';
 
         $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-            . '<Default Extension="xml" ContentType="application/xml"/>'
-            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-            . '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
-            . '</Types>';
+            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            .'<Default Extension="xml" ContentType="application/xml"/>'
+            .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+            .'</Types>';
 
         $rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
-            . '</Relationships>';
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            .'</Relationships>';
 
         // ── Write XLSX (ZIP) directly to output ──
         $tmpFile = tempnam(sys_get_temp_dir(), 'xlsxexp_');
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($tmpFile, \ZipArchive::OVERWRITE);
-        $zip->addFromString('[Content_Types].xml',               $contentTypes);
-        $zip->addFromString('_rels/.rels',                       $rootRels);
-        $zip->addFromString('xl/workbook.xml',                   $workbookXml);
-        $zip->addFromString('xl/_rels/workbook.xml.rels',        $workbookRels);
-        $zip->addFromString('xl/worksheets/sheet1.xml',          $sheetXml);
-        $zip->addFromString('xl/sharedStrings.xml',              $sharedStringsXml);
+        $zip->addFromString('[Content_Types].xml', $contentTypes);
+        $zip->addFromString('_rels/.rels', $rootRels);
+        $zip->addFromString('xl/workbook.xml', $workbookXml);
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $workbookRels);
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+        $zip->addFromString('xl/sharedStrings.xml', $sharedStringsXml);
         $zip->close();
 
         readfile($tmpFile);
@@ -2242,7 +2266,7 @@ class PenawaranController extends Controller
 
     private function resolvePenawaranCompanyFilterId(Request $request, bool $canViewAll): ?int
     {
-        if (!$canViewAll) {
+        if (! $canViewAll) {
             return null;
         }
 
@@ -2278,11 +2302,11 @@ class PenawaranController extends Controller
                             });
 
                             if ($companyId) {
-                                $nested->orWhereHas('sharedCompanies', fn($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
+                                $nested->orWhereHas('sharedCompanies', fn ($sharedQuery) => $sharedQuery->where('companies.id', $companyId));
                             }
                         });
                 });
-            });
+        });
     }
 
     private function applyPenawaranDocNumberOrdering($query, ?int $companyId, ?int $companyFilterId): void
@@ -2342,7 +2366,7 @@ class PenawaranController extends Controller
 
     private function applyPenawaranCompanyPriority($query, ?int $companyId, ?int $companyFilterId): void
     {
-        if ($companyId && !$companyFilterId) {
+        if ($companyId && ! $companyFilterId) {
             $query->orderByRaw('CASE WHEN penawaran.company_id = ? THEN 0 ELSE 1 END ASC', [$companyId]);
         }
     }
@@ -2402,10 +2426,11 @@ class PenawaranController extends Controller
         $name = '';
         $index++;
         while ($index > 0) {
-            $mod  = ($index - 1) % 26;
-            $name = chr(65 + $mod) . $name;
-            $index = (int)(($index - $mod) / 26);
+            $mod = ($index - 1) % 26;
+            $name = chr(65 + $mod).$name;
+            $index = (int) (($index - $mod) / 26);
         }
+
         return $name;
     }
 }
