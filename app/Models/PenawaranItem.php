@@ -58,13 +58,8 @@ class PenawaranItem extends Model
 
     public function calcBaseUnitSubtotal(): int
     {
-        $detailTotal = (int) $this->details->sum(fn($detail) => $detail->calcSubtotal());
-        if ($detailTotal > 0) {
-            return $detailTotal;
-        }
-
-        if ($this->relationLoaded('details') && $this->details->count() === 0) {
-            return 0;
+        if ($this->relationLoaded('details')) {
+            return (int) $this->details->sum(fn ($detail) => $detail->calcSubtotal());
         }
 
         return max((int) ($this->subtotal ?? 0), 0);
@@ -87,7 +82,7 @@ class PenawaranItem extends Model
 
     public function calcDiscountAmount(): int
     {
-        if (!$this->discount_enabled) {
+        if (! $this->discount_enabled) {
             return 0;
         }
 
@@ -103,6 +98,7 @@ class PenawaranItem extends Model
     public function calcSubtotal(): int
     {
         $raw = $this->calcRawSubtotal();
+
         return max(0, $raw - $this->calcDiscountAmount());
     }
 }

@@ -1857,7 +1857,7 @@ class PenawaranController extends Controller
 
     private function recalcItemSubtotal($item): void
     {
-        $item->loadMissing('details');
+        $item->load('details');
         $item->subtotal = $item->calcSubtotal();
         $item->save();
     }
