@@ -203,7 +203,7 @@
                 return 'data:' . $mime . ';base64,' . base64_encode($content);
             }
 
-            return null;
+            return asset('storage/' . $normalizedPath);
         };
         $fallbackSignature = (object) [
             'nama' => $penawaran->user?->name,
@@ -793,10 +793,13 @@
                                         $signatureName = trim((string) ($sg->nama ?? ''));
                                         $isWideSignature =
                                             strcasecmp($signatureName, 'Dewi Setiawati') === 0;
+                                        $isRaisedSignature = str_contains(strtolower($signatureName), 'akhmad zaeni');
                                         $signatureWrapWidth = $isWideSignature ? '255px' : '220px';
+                                        $signatureImageWidth = $isWideSignature ? '270px' : '100px';
+                                        $signatureImageBottom = $isRaisedSignature ? '14px' : '0';
                                     @endphp
                                     <div
-                                        style="width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
+                                        style="position:relative; width:{{ $signatureWrapWidth }}; height:100px; margin:0 auto;">
 
                                         @php
                                             $ttdSrc = null;
@@ -810,33 +813,43 @@
                                                 }
                                             }
 
-                                            $stampPath = $kop['stamp'] ?? null;
-                                            $showStamp = $penawaran->approval
-                                                && $penawaran->approval->status === 'disetujui'
-                                                && $stampPath
-                                                && is_file($stampPath);
+                                            $stampPath = $kop['stamp'] ?? public_path('images/cap_arsol.png');
                                         @endphp
-                                        <table style="width:100%; height:76px; border-collapse:collapse; table-layout:fixed;">
-                                            <tr>
-                                                @if ($showStamp)
-                                                    <td @if (!$ttdSrc) colspan="2" @endif
-                                                        style="height:76px; padding:2px 5px; border:0; text-align:center; vertical-align:middle;">
-                                                        <img src="{{ $stampPath }}"
-                                                            style="display:inline-block; max-width:92px; max-height:70px; width:auto; height:auto; opacity:0.82;">
-                                                    </td>
-                                                @endif
-                                                @if ($ttdSrc)
-                                                    <td @if (!$showStamp) colspan="2" @endif
-                                                        style="height:76px; padding:2px 5px; border:0; text-align:center; vertical-align:middle;">
-                                                        <img src="{{ $ttdSrc }}"
-                                                            style="display:inline-block; max-width:{{ $isWideSignature ? '125px' : '105px' }}; max-height:62px; width:auto; height:auto;">
-                                                    </td>
-                                                @endif
-                                                @if (!$showStamp && !$ttdSrc)
-                                                    <td colspan="2" style="height:76px; padding:0; border:0;">&nbsp;</td>
-                                                @endif
-                                            </tr>
-                                        </table>
+
+                                        {{-- TTD --}}
+                                        @if ($ttdSrc)
+                                            <img src="{{ $ttdSrc }}"
+                                                style="
+                position:absolute;
+                @if ($isWideSignature)
+                left:56%;
+                top:54%;
+                transform:translate(-50%, -50%);
+                @else
+                left:50%;
+                bottom:{{ $signatureImageBottom }};
+                transform:translateX(-50%);
+                @endif
+                width:{{ $signatureImageWidth }};
+                height:auto;
+                z-index:1;
+            ">
+                                        @endif
+
+                                        {{-- STEMPEL --}}
+                                        @if ($penawaran->approval && $penawaran->approval->status === 'disetujui' && file_exists($stampPath))
+                                            <img src="{{ $stampPath }}"
+                                                style="
+                position:absolute;
+                left:50%;
+                top:50%;
+                transform:translate(-50%, -50%);
+                width:220px;
+                opacity:0.5;
+                z-index:2;
+            ">
+                                        @endif
+
                                     </div>
 
 

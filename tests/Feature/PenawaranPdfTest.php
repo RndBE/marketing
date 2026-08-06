@@ -230,7 +230,7 @@ test('penawaran pdf embeds signature ttd images from public storage', function (
     )->toBeTrue();
 });
 
-test('penawaran pdf hides a missing signature image instead of rendering a broken image', function () {
+test('penawaran pdf falls back to storage url when signature file is not local', function () {
     Storage::fake('public');
     config(['app.url' => 'https://marketing.test']);
 
@@ -286,10 +286,10 @@ test('penawaran pdf hides a missing signature image instead of rendering a broke
 
     expect($html)
         ->toContain('Afif Faishahuda')
-        ->not->toContain('/storage/signatures/missing-afif.png');
+        ->toContain('/storage/signatures/missing-afif.png');
 });
 
-test('penawaran pdf keeps signature image inside its aligned signature cell', function () {
+test('penawaran pdf raises akhmad zaeni signature slightly', function () {
     Storage::fake('public');
 
     $company = Company::firstOrCreate(
@@ -315,10 +315,6 @@ test('penawaran pdf keeps signature image inside its aligned signature cell', fu
         'tanggal' => '2026-07-28',
         'ttd_path' => 'penawaran/ttd/akhmad.png',
     ]);
-    Storage::disk('public')->put(
-        'penawaran/ttd/akhmad.png',
-        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=')
-    );
 
     $penawaran->load([
         'docNumber',
@@ -348,8 +344,7 @@ test('penawaran pdf keeps signature image inside its aligned signature cell', fu
 
     expect($html)
         ->toContain('Akhmad Zaeni Mustofa')
-        ->toContain('max-height:62px')
-        ->not->toContain('bottom:14px;');
+        ->toContain('bottom:14px;');
 });
 
 test('penawaran pdf breaks long item details into separate table rows', function () {
