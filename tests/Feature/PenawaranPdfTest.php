@@ -529,6 +529,377 @@ test('penawaran pdf does not add manual page break borders for short details', f
         ->and(substr_count($html, '22.000.000'))->toBe(3);
 });
 
+test('penawaran pdf shows a per item discount column that marks undiscounted items', function () {
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-ITEM-DISC'],
+        ['name' => 'PDF Item Discount Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Diskon Per Item',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-08-06',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+
+    $discounted = PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Pompa Air',
+        'qty' => 2,
+        'satuan' => 'unit',
+        'subtotal' => 5000000,
+        'discount_enabled' => true,
+        'discount_type' => 'percent',
+        'discount_value' => 10,
+    ]);
+    PenawaranItemDetail::create([
+        'penawaran_item_id' => $discounted->id,
+        'urutan' => 1,
+        'nama' => 'Pompa Air Sentrifugal',
+        'qty' => 1,
+        'satuan' => 'unit',
+        'harga' => 5000000,
+        'subtotal' => 5000000,
+    ]);
+
+    $plain = PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 2,
+        'judul' => 'Instalasi',
+        'qty' => 1,
+        'satuan' => 'lot',
+        'subtotal' => 2000000,
+    ]);
+    PenawaranItemDetail::create([
+        'penawaran_item_id' => $plain->id,
+        'urutan' => 1,
+        'nama' => 'Pemasangan di lokasi',
+        'qty' => 1,
+        'satuan' => 'lot',
+        'harga' => 2000000,
+        'subtotal' => 2000000,
+    ]);
+
+    $kop = [
+        'logo' => public_path('images/logo_arsol.png'),
+        'stamp' => public_path('images/cap_arsol.png'),
+        'nama' => $company->name,
+        'alamat' => 'Alamat Test',
+        'telp' => '000',
+        'email' => 'test@example.com',
+    ];
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-ITEM-DISC-TEST',
+        'total' => 11000000,
+        'kop' => $kop,
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($html)
+        ->toContain('>Diskon</th>')
+        ->toContain('10%')
+        // Item tanpa diskon ditandai strip, bukan dibiarkan kosong.
+        ->toContain('<span class="muted">-</span>')
+        ->toContain('colspan="3"')
+        // 5.000.000 x 2 = 10.000.000, diskon 10% -> total item 9.000.000.
+        ->toContain('9.000.000')
+        // Jumlah keseluruhan: 9.000.000 + 2.000.000.
+        ->toContain('11.000.000');
+
+    // Tanpa diskon per item, tabel tetap memakai lima kolom seperti sebelumnya.
+    $discounted->forceFill(['discount_enabled' => false])->save();
+    $penawaran->load('items.details');
+
+    $plainHtml = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-ITEM-DISC-TEST',
+        'total' => 12000000,
+        'kop' => $kop,
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($plainHtml)
+        ->not()->toContain('>Diskon</th>')
+        ->toContain('12.000.000');
+});
+
+test('penawaran pdf totals reconcile item discount and global discount separately', function () {
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-TOTAL-DISC'],
+        ['name' => 'PDF Total Discount Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Rekap Diskon',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-08-06',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+        'discount_enabled' => true,
+        'discount_type' => 'percent',
+        'discount_value' => 5,
+        'tax_enabled' => true,
+        'tax_rate' => 11,
+    ]);
+
+    $rows = [
+        ['Pompa Air', 2, 5000000, true],
+        ['Instalasi', 1, 2000000, false],
+    ];
+
+    foreach ($rows as $i => [$judul, $qty, $harga, $withDiscount]) {
+        $item = PenawaranItem::create([
+            'penawaran_id' => $penawaran->id,
+            'urutan' => $i + 1,
+            'judul' => $judul,
+            'qty' => $qty,
+            'satuan' => 'unit',
+            'subtotal' => $harga,
+            'discount_enabled' => $withDiscount,
+            'discount_type' => $withDiscount ? 'percent' : null,
+            'discount_value' => $withDiscount ? 10 : null,
+        ]);
+        PenawaranItemDetail::create([
+            'penawaran_item_id' => $item->id,
+            'urutan' => 1,
+            'nama' => $judul . ' lengkap',
+            'qty' => 1,
+            'satuan' => 'unit',
+            'harga' => $harga,
+            'subtotal' => $harga,
+        ]);
+    }
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TOTAL-DISC-TEST',
+        'total' => $penawaran->calcGrandTotal(),
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    // Rantai lengkap: 12.000.000 - 1.000.000 (diskon item) - 550.000 (diskon global 5%)
+    // = 10.450.000, lalu PPN 11% = 1.149.500, total 11.599.500.
+    expect($html)
+        ->toContain('Harga Sebelum Diskon')
+        ->toContain('12.000.000')
+        ->toContain('Diskon (%) Instalasi')
+        ->toContain('1.000.000')
+        ->toContain('Diskon Tambahan (5%)')
+        ->toContain('550.000')
+        ->toContain('Harga Sebelum Pajak')
+        ->toContain('10.450.000')
+        ->toContain('1.149.500')
+        ->toContain('11.599.500');
+
+    expect($penawaran->calcGrandTotal())->toBe(11599500);
+
+    // Diskon global saja: label lama "Diskon (5%)" harus tetap dipakai supaya
+    // dokumen yang belum pernah pakai diskon per item tidak berubah bunyinya.
+    PenawaranItem::where('penawaran_id', $penawaran->id)->update(['discount_enabled' => false]);
+    $penawaran->load('items.details');
+
+    $globalOnlyHtml = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TOTAL-DISC-TEST',
+        'total' => $penawaran->calcGrandTotal(),
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($globalOnlyHtml)
+        ->toContain('Diskon (5%)')
+        ->not()->toContain('Diskon Tambahan')
+        ->not()->toContain('Diskon Alat')
+        ->not()->toContain('Diskon (%) Instalasi')
+        ->toContain('Harga Sebelum Pajak');
+
+    // Tanpa diskon sama sekali, blok total kembali ke bentuk lama.
+    $penawaran->forceFill(['discount_enabled' => false])->save();
+    $penawaran->load('items.details');
+
+    $plainHtml = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-TOTAL-DISC-TEST',
+        'total' => $penawaran->calcGrandTotal(),
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($plainHtml)
+        ->not()->toContain('Harga Sebelum Diskon')
+        ->not()->toContain('Diskon Alat')
+        ->not()->toContain('Diskon (%) Instalasi')
+        ->not()->toContain('Harga Sebelum Pajak')
+        ->toContain('12.000.000');
+});
+
+test('penawaran pdf labels nominal item discounts as alat and percentage ones as instalasi', function () {
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-MIX-DISC'],
+        ['name' => 'PDF Mixed Discount Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'judul' => 'Penawaran Diskon Campuran',
+        'instansi_tujuan' => 'Instansi Test',
+        'tanggal_penawaran' => '2026-08-06',
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+        'tax_enabled' => true,
+        'tax_rate' => 11,
+    ]);
+
+    $rows = [
+        ['Instalasi dan Commissioning', 2, 24500000, 'percent', 10],
+        ['Rain Gauge Tipping Bucket', 3, 8750000, 'fixed', 1500000],
+        ['Pekerjaan Sipil', 1, 12000000, null, null],
+    ];
+
+    foreach ($rows as $i => [$judul, $qty, $harga, $type, $value]) {
+        $item = PenawaranItem::create([
+            'penawaran_id' => $penawaran->id,
+            'urutan' => $i + 1,
+            'judul' => $judul,
+            'qty' => $qty,
+            'satuan' => 'unit',
+            'subtotal' => $harga,
+            'discount_enabled' => $type !== null,
+            'discount_type' => $type,
+            'discount_value' => $value,
+        ]);
+        PenawaranItemDetail::create([
+            'penawaran_item_id' => $item->id,
+            'urutan' => 1,
+            'nama' => $judul . ' lengkap',
+            'qty' => 1,
+            'satuan' => 'unit',
+            'harga' => $harga,
+            'subtotal' => $harga,
+        ]);
+    }
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $html = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-MIX-DISC-TEST',
+        'total' => $penawaran->calcGrandTotal(),
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    // Kotor 87.250.000 - 1.500.000 (nominal) - 4.900.000 (persen) = 80.850.000,
+    // PPN 11% = 8.893.500, total 89.743.500.
+    expect($html)
+        ->toContain('Diskon Alat')
+        ->toContain('Diskon (%) Instalasi')
+        ->not()->toContain('Diskon Item')
+        ->toContain('87.250.000')
+        ->toContain('1.500.000')
+        ->toContain('80.850.000')
+        ->toContain('89.743.500');
+
+    // Nilai rupiah diskon persen muncul dua kali: di kolom item dan di baris rekap.
+    expect(substr_count($html, '4.900.000'))->toBeGreaterThanOrEqual(2);
+
+    expect($penawaran->calcGrandTotal())->toBe(89743500);
+
+    // Kalau tipe nominal tidak dipakai, baris "Diskon Alat" ikut hilang.
+    PenawaranItem::where('penawaran_id', $penawaran->id)
+        ->where('discount_type', 'fixed')
+        ->update(['discount_enabled' => false]);
+    $penawaran->load('items.details');
+
+    $singleTypeHtml = view('documents.penawaran_full', [
+        'penawaran' => $penawaran,
+        'docNo' => 'PNW-MIX-DISC-TEST',
+        'total' => $penawaran->calcGrandTotal(),
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+        'pricelistMode' => false,
+    ])->render();
+
+    expect($singleTypeHtml)
+        ->toContain('Diskon (%) Instalasi')
+        ->not()->toContain('Diskon Alat');
+});
+
 test('penawaran pdf appends suket pp 55 as the last page', function () {
     config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
     Storage::fake('public');

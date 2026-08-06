@@ -21,6 +21,11 @@
         $dpp = $penawaran->calcDppTotal();
         $taxAmount = $penawaran->calcTaxAmount();
         $grandTotal = $penawaran->calcGrandTotal();
+        // $total sudah dipotong diskon per item, jadi harga kotornya dihitung terpisah
+        // supaya label ringkasan tidak menyesatkan.
+        $grossItemsTotal = (int) $penawaran->items->sum(fn($item) => $item->calcRawSubtotal());
+        $itemDiscountTotal = (int) $penawaran->items->sum(fn($item) => $item->calcDiscountAmount());
+        $totalDiscount = $itemDiscountTotal + (int) $discountAmount;
     @endphp
 
     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-5">
@@ -36,12 +41,31 @@
             @endif
 
             <div id="penawaran-totals">
-                <div class="text-sm font-semibold text-slate-700 mt-3">
-                    Total Penawaran sebelum pajak dan diskon : Rp {{ number_format((int) $total, 0, ',', '.') }}
-                </div>
-                <div class="text-sm font-semibold text-slate-700">
-                    Total Penawaran setelah pajak dan diskon : Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}
-                </div>
+                @if ($totalDiscount > 0)
+                    <div class="text-sm font-semibold text-slate-700 mt-3">
+                        Harga sebelum diskon : Rp {{ number_format($grossItemsTotal, 0, ',', '.') }}
+                    </div>
+                    <div class="text-sm font-semibold text-rose-700">
+                        Total diskon : Rp {{ number_format($totalDiscount, 0, ',', '.') }}
+                        @if ($itemDiscountTotal > 0 && $discountAmount > 0)
+                            <span class="font-normal text-xs text-slate-500">
+                                (diskon item Rp {{ number_format($itemDiscountTotal, 0, ',', '.') }}
+                                + diskon tambahan Rp {{ number_format((int) $discountAmount, 0, ',', '.') }})
+                            </span>
+                        @endif
+                    </div>
+                    <div class="text-sm font-semibold text-slate-700">
+                        Total Penawaran setelah diskon dan pajak : Rp
+                        {{ number_format((int) $grandTotal, 0, ',', '.') }}
+                    </div>
+                @else
+                    <div class="text-sm font-semibold text-slate-700 mt-3">
+                        Total Penawaran sebelum pajak : Rp {{ number_format((int) $total, 0, ',', '.') }}
+                    </div>
+                    <div class="text-sm font-semibold text-slate-700">
+                        Total Penawaran setelah pajak : Rp {{ number_format((int) $grandTotal, 0, ',', '.') }}
+                    </div>
+                @endif
             </div>
 
             @if ($penawaran->is_goal)

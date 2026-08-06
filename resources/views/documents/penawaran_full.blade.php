@@ -146,6 +146,18 @@
         $dpp = $penawaran->calcDppTotal();
         $taxAmount = $penawaran->calcTaxAmount();
         $grandTotal = $penawaran->calcGrandTotal();
+        // Kolom "Diskon" per item hanya muncul bila memang ada item yang didiskon,
+        // supaya penawaran tanpa diskon tetap memakai layout tabel yang lama.
+        $hasItemDiscount = $penawaran->items->contains(
+            fn($item) => $item->discount_enabled && (int) $item->calcDiscountAmount() > 0,
+        );
+        $itemDiscountLabel = function ($item): string {
+            $value = (float) ($item->discount_value ?? 0);
+
+            return ($item->discount_type ?? 'percent') === 'percent'
+                ? rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',') . '%'
+                : 'Rp ' . number_format((int) round($value), 0, ',', '.');
+        };
         $hasTerms = $penawaran->terms && $penawaran->terms->count();
         $pdfImageDataUri = function (?string $path): ?string {
             if (!$path) {
@@ -332,18 +344,27 @@
             <thead>
                 <tr>
                     <th style="width:5%" class="right" rowspan="2">NO</th>
-                    <th style="width:60%" rowspan="2">ITEM DAN URAIAN SPESIFIKASI PEKERJAAN</th>
-                    <th style="width:15%" rowspan="2">VOLUME/SATUAN</th>
-                    <th style="width:20%" colspan="2" class="right">Harga</th>
+                    <th style="width:{{ $hasItemDiscount ? '50%' : '60%' }}" rowspan="2">ITEM DAN URAIAN SPESIFIKASI
+                        PEKERJAAN</th>
+                    <th style="width:{{ $hasItemDiscount ? '12%' : '15%' }}" rowspan="2">VOLUME/SATUAN</th>
+                    <th style="width:{{ $hasItemDiscount ? '33%' : '20%' }}"
+                        colspan="{{ $hasItemDiscount ? 3 : 2 }}" class="right">Harga</th>
                 </tr>
                 <tr>
-                    <th class="right">Satuan</th>
-                    <th class="right">Total</th>
+                    <th class="right" style="width:12%">Satuan</th>
+                    @if ($hasItemDiscount)
+                        <th class="right" style="width:9%">Diskon</th>
+                    @endif
+                    <th class="right" style="width:12%">Total</th>
                 </tr>
             </thead>
             <tbody>
                 @php
                     $grand = 0;
+                    $grossItemsTotal = 0;
+                    $itemDiscountTotal = 0;
+                    $itemDiscountPercentTotal = 0;
+                    $itemDiscountFixedTotal = 0;
                     $itemTablePageUnits = 0;
                     $itemTablePageLimit = 34;
                     $itemTableNextPageLimit = 47;
@@ -381,12 +402,27 @@
                                 fn($detail) => (int) ($detail->harga ?? 0) > 0 || (int) $detail->calcSubtotal() > 0,
                             );
                         $showItemAmount = !($pricelistMode ?? false) || !$itemDetailsHaveAmount;
-                        $itemHeadingUnits = 2 + (!empty($item->catatan) ? max(1, (int) ceil(mb_strlen($item->catatan) / 90)) : 0);
+                        $itemDiscountAmount = (int) $item->calcDiscountAmount();
+                        $itemHasDiscount = $item->discount_enabled && $itemDiscountAmount > 0;
+                        $itemDiscountIsPercent = $itemHasDiscount && ($item->discount_type ?? 'percent') === 'percent';
+                        // Diskon persen memakai dua baris (persentase + rupiahnya), jadi baris
+                        // itemnya satu satuan lebih tinggi untuk perhitungan page break.
+                        $itemHeadingUnits =
+                            2 +
+                            (!empty($item->catatan) ? max(1, (int) ceil(mb_strlen($item->catatan) / 90)) : 0) +
+                            ($itemDiscountIsPercent ? 1 : 0);
                         $itemUsesManualPageBreaks =
                             $item->details &&
                             $item->details->max(fn($detail) => $detailRowUnits($detail)) >= 4;
 
                         $grand += $totalItem;
+                        $grossItemsTotal += $item->calcRawSubtotal();
+                        $itemDiscountTotal += $itemDiscountAmount;
+                        if ($itemDiscountIsPercent) {
+                            $itemDiscountPercentTotal += $itemDiscountAmount;
+                        } else {
+                            $itemDiscountFixedTotal += $itemDiscountAmount;
+                        }
                     @endphp
 
                     <tr class="item-heading {{ $detailCount ? 'has-details' : '' }}">
@@ -428,6 +464,23 @@
                             @endif
                         </td>
 
+                        @if ($hasItemDiscount)
+                            <td style="white-space:nowrap;text-align:center;font-size:10px;line-height:1.15">
+                                @if (!$showItemAmount)
+                                    <span class="item-detail-empty">&nbsp;</span>
+                                @elseif ($itemHasDiscount)
+                                    {{ $itemDiscountLabel($item) }}
+                                    @if ($itemDiscountIsPercent)
+                                        <div class="muted" style="font-size:9px">
+                                            Rp {{ number_format($itemDiscountAmount, 0, ',', '.') }}
+                                        </div>
+                                    @endif
+                                @else
+                                    <span class="muted">-</span>
+                                @endif
+                            </td>
+                        @endif
+
                         <td class="right" style="white-space:nowrap">
                             @if ($showItemAmount)
                                 <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
@@ -454,7 +507,7 @@
                         @endphp
                         @if ($itemUsesManualPageBreaks && $itemBreakBeforeRow($currentDetailUnits))
                             <tr class="item-page-break-row">
-                                <td colspan="5">&nbsp;</td>
+                                <td colspan="{{ $hasItemDiscount ? 6 : 5 }}">&nbsp;</td>
                             </tr>
                         @endif
                         <tr class="item-detail-row {{ $loop->last ? 'item-detail-last' : '' }}">
@@ -488,6 +541,11 @@
                                     <span class="item-detail-empty">&nbsp;</span>
                                 @endif
                             </td>
+                            @if ($hasItemDiscount)
+                                <td class="right item-detail-price">
+                                    <span class="item-detail-empty">&nbsp;</span>
+                                </td>
+                            @endif
                             <td class="right item-detail-price">
                                 @if ($showDetailAmount)
                                     <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
@@ -513,6 +571,27 @@
              ke halaman berikutnya bila tidak muat — tanpa header biru tabel item ikut terulang. --}}
         @php
             $hargaSebelumPajak = max(0, (int) $grand - (int) $discountAmount);
+            $hasGlobalDiscount = $penawaran->discount_enabled && $discountAmount > 0;
+            $hasAnyDiscount = $itemDiscountTotal > 0 || $hasGlobalDiscount;
+            // Baris pertama menampilkan harga kotor supaya potongannya bisa direkonsiliasi
+            // pembaca: harga - diskon item - diskon tambahan = harga sebelum pajak.
+            $hargaBaris1 = $hasAnyDiscount ? (int) $grossItemsTotal : (int) $grand;
+            $labelBaris1 = $hasAnyDiscount
+                ? 'Harga Sebelum Diskon'
+                : (!$penawaran->tax_enabled ? 'Harga belum termasuk PPN' : 'Harga');
+            $labelSetelahDiskon = $penawaran->tax_enabled
+                ? 'Harga Sebelum Pajak'
+                : 'Harga Setelah Diskon (belum termasuk PPN)';
+            // Dokumen yang cuma pakai diskon global tetap memakai label lama "Diskon".
+            $labelDiskonGlobal = $itemDiscountTotal > 0 ? 'Diskon Tambahan' : 'Diskon';
+            // Konvensi perusahaan: diskon alat dipakai dalam bentuk nominal, diskon
+            // instalasi dalam bentuk persen. Label mengikuti tipe diskon yang tersimpan.
+            $itemDiscountRows = array_values(
+                array_filter([
+                    $itemDiscountFixedTotal > 0 ? ['Diskon Alat', (int) $itemDiscountFixedTotal] : null,
+                    $itemDiscountPercentTotal > 0 ? ['Diskon (%) Instalasi', (int) $itemDiscountPercentTotal] : null,
+                ]),
+            );
         @endphp
         @unless ($pricelistMode ?? false)
         <table style="width:100%; border-collapse:collapse; border:0; margin-top:6px;">
@@ -522,24 +601,42 @@
                     <table style="width:100%; border-collapse:collapse;">
                         <tr>
                             <td style="text-align:right; width:58%;"><strong>
-                                    {{ !$penawaran->tax_enabled ? 'Harga belum termasuk PPN' : 'Harga' }}
+                                    {{ $labelBaris1 }}
                                 </strong></td>
                             <td class="right" style="white-space:nowrap">
                                 <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none"><strong>Rp</strong></td>
                                         <td align="right" style="border:none">
-                                            <strong>{{ number_format((int) $grand, 0, ',', '.') }}</strong>
+                                            <strong>{{ number_format($hargaBaris1, 0, ',', '.') }}</strong>
                                         </td>
                                     </tr>
                                 </table>
                             </td>
                         </tr>
 
-                        @if ($penawaran->discount_enabled && $discountAmount > 0)
+                        @foreach ($itemDiscountRows as [$labelDiskonItem, $nilaiDiskonItem])
                             <tr>
                                 <td style="text-align:right">
-                                    <strong>Diskon ({{ $discountLabel }})</strong>
+                                    <strong>{{ $labelDiskonItem }}</strong>
+                                </td>
+                                <td class="right" style="white-space:nowrap">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none"><strong>Rp</strong></td>
+                                            <td align="right" style="border:none">
+                                                <strong>{{ number_format($nilaiDiskonItem, 0, ',', '.') }}</strong>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        @endforeach
+
+                        @if ($hasGlobalDiscount)
+                            <tr>
+                                <td style="text-align:right">
+                                    <strong>{{ $labelDiskonGlobal }} ({{ $discountLabel }})</strong>
                                 </td>
                                 <td class="right" style="white-space:nowrap">
                                     <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
@@ -552,8 +649,11 @@
                                     </table>
                                 </td>
                             </tr>
+                        @endif
+
+                        @if ($hasAnyDiscount)
                             <tr>
-                                <td style="text-align:right"><strong>Harga Sebelum Pajak</strong></td>
+                                <td style="text-align:right"><strong>{{ $labelSetelahDiskon }}</strong></td>
                                 <td class="right" style="white-space:nowrap">
                                     <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
