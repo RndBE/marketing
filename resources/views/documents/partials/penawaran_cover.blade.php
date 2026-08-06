@@ -3,22 +3,32 @@
     $titleText = trim((string) ($cover?->judul_cover ?? ''));
     $coverTitle = $defaultTitle;
 
-    $subtitleText = trim((string)  ($penawaran->judul ?? ''));
+    $subtitleText = preg_replace('/\s+/u', ' ', trim((string) ($penawaran->judul ?? '')));
     $coverSubtitle = $subtitleText !== '' ? $subtitleText : '-';
     $subtitleLength = mb_strlen($coverSubtitle);
+    $subtitleWords = preg_split('/\s+/u', $coverSubtitle, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $longestSubtitleWord = collect($subtitleWords)->max(fn ($word) => mb_strlen($word)) ?? 0;
+    $subtitleScore = $subtitleLength + max(0, $longestSubtitleWord - 18) * 2;
     $subtitleClass = 'cover-subtitle';
-    if ($subtitleLength > 70) {
+    if ($subtitleScore > 200) {
+        $subtitleClass .= ' is-maximum';
+    } elseif ($subtitleScore > 135) {
+        $subtitleClass .= ' is-ultra-long';
+    } elseif ($subtitleScore > 90) {
+        $subtitleClass .= ' is-extra-long';
+    } elseif ($subtitleScore > 45) {
         $subtitleClass .= ' is-long';
     }
-    if ($subtitleLength > 120) {
-        $subtitleClass .= ' is-extra-long';
-    }
-    if ($subtitleLength > 170) {
-        $subtitleClass .= ' is-ultra-long';
-    }
 
-    $pillText = trim((string) ($penawaran->nama_pekerjaan ?? ''));
+    $pillText = preg_replace('/\s+/u', ' ', trim((string) ($penawaran->nama_pekerjaan ?? '')));
     $coverPill = $pillText !== '' ? $pillText : '-';
+    $pillLength = mb_strlen($coverPill);
+    $pillClass = 'cover-pill';
+    if ($pillLength > 130) {
+        $pillClass .= ' is-extra-long';
+    } elseif ($pillLength > 70) {
+        $pillClass .= ' is-long';
+    }
 
     $clientText = trim((string) ($penawaran->instansi_tujuan ?? ($penawaran->pic?->instansi ?? '')));
     $coverClient = $clientText !== '' ? $clientText : '-';
@@ -120,24 +130,36 @@
         margin-top: 6mm;
         line-height: 1.12;
         letter-spacing: 0;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
     }
 
     .cover-subtitle.is-long {
-        width: 148mm;
-        font-size: 20pt;
-        line-height: 1.1;
+        width: 150mm;
+        font-size: 19.5pt;
+        line-height: 1.08;
+        letter-spacing: -0.05pt;
     }
 
     .cover-subtitle.is-extra-long {
-        width: 152mm;
-        font-size: 17pt;
-        line-height: 1.08;
+        width: 154mm;
+        font-size: 16.5pt;
+        line-height: 1.06;
+        letter-spacing: -0.1pt;
     }
 
     .cover-subtitle.is-ultra-long {
-        width: 156mm;
-        font-size: 15pt;
-        line-height: 1.08;
+        width: 158mm;
+        font-size: 13.5pt;
+        line-height: 1.05;
+        letter-spacing: -0.1pt;
+    }
+
+    .cover-subtitle.is-maximum {
+        width: 162mm;
+        font-size: 11pt;
+        line-height: 1.04;
+        letter-spacing: -0.1pt;
     }
 
     .cover-line {
@@ -162,6 +184,20 @@
         font-size: 13pt;
         line-height: 1.2;
         box-sizing: border-box;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    .cover-pill.is-long {
+        padding: 2.8mm 8mm;
+        font-size: 11pt;
+        line-height: 1.15;
+    }
+
+    .cover-pill.is-extra-long {
+        padding: 2.2mm 7mm;
+        font-size: 9pt;
+        line-height: 1.1;
     }
 
     .cover-client {
@@ -240,7 +276,7 @@
         <div class="cover-line"></div>
     </div>
 
-    <div class="cover-pill">{{ $coverPill }}</div>
+    <div class="{{ $pillClass }}">{{ $coverPill }}</div>
     <div class="cover-client">{{ $coverClient }}</div>
 
     <div class="cover-footer">
