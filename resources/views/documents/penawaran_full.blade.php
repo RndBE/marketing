@@ -465,18 +465,39 @@
                         </td>
 
                         @if ($hasItemDiscount)
-                            <td style="white-space:nowrap;text-align:center;font-size:10px;line-height:1.15">
+                            <td class="right" style="white-space:nowrap">
                                 @if (!$showItemAmount)
                                     <span class="item-detail-empty">&nbsp;</span>
+                                @elseif ($itemDiscountIsPercent)
+                                    {{-- Persentase jadi nilai utama, rupiahnya keterangan kecil di bawahnya.
+                                         Baris pertama memakai tabel dalam seperti kolom Harga Satuan dan
+                                         Total; dompdf menempatkan <div> sedikit lebih rendah dari <table>,
+                                         jadi strukturnya harus sama agar tingginya sejajar. --}}
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="center" style="border:none">
+                                                {{ $itemDiscountLabel($item) }}</td>
+                                        </tr>
+                                    </table>
+                                    <div class="muted" style="font-size:9px;text-align:center;line-height:1.15">
+                                        Rp {{ number_format($itemDiscountAmount, 0, ',', '.') }}
+                                    </div>
                                 @elseif ($itemHasDiscount)
-                                    {{ $itemDiscountLabel($item) }}
-                                    @if ($itemDiscountIsPercent)
-                                        <div class="muted" style="font-size:9px">
-                                            Rp {{ number_format($itemDiscountAmount, 0, ',', '.') }}
-                                        </div>
-                                    @endif
+                                    {{-- Diskon nominal dipisah "Rp" dan angkanya persis seperti kolom
+                                         Harga Satuan dan Total supaya sejajar antar kolom. --}}
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none">Rp</td>
+                                            <td align="right" style="border:none">
+                                                {{ number_format($itemDiscountAmount, 0, ',', '.') }}</td>
+                                        </tr>
+                                    </table>
                                 @else
-                                    <span class="muted">-</span>
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="center" class="muted" style="border:none">-</td>
+                                        </tr>
+                                    </table>
                                 @endif
                             </td>
                         @endif

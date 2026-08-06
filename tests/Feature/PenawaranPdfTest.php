@@ -616,7 +616,7 @@ test('penawaran pdf shows a per item discount column that marks undiscounted ite
         ->toContain('>Diskon</th>')
         ->toContain('10%')
         // Item tanpa diskon ditandai strip, bukan dibiarkan kosong.
-        ->toContain('<span class="muted">-</span>')
+        ->toContain('<td align="center" class="muted" style="border:none">-</td>')
         ->toContain('colspan="3"')
         // 5.000.000 x 2 = 10.000.000, diskon 10% -> total item 9.000.000.
         ->toContain('9.000.000')
