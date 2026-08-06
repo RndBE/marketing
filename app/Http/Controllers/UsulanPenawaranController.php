@@ -25,6 +25,35 @@ use Illuminate\Support\Facades\Storage;
 
 class UsulanPenawaranController extends Controller
 {
+    /**
+     * Daftar Penawaran Harga: permintaan masuk yang penawarannya sudah diterbitkan
+     * atau masih perlu diterbitkan. Hanya perusahaan penjual yang melihatnya, karena
+     * dialah yang menyusun penawaran.
+     */
+    public function quotationIndex(Request $request)
+    {
+        $status = in_array($request->query('status'), ['draft', 'sent', 'accepted', 'revision_requested', 'rejected'], true)
+            ? $request->query('status')
+            : '';
+        $q = trim((string) $request->query('q', ''));
+        $companyId = $this->currentCompanyId($request->user());
+
+        $quotations = UsulanPenawaran::query()
+            ->with(['company', 'targetCompany', 'creator', 'penawaran.docNumber', 'penawaran.items.details'])
+            ->where('target_company_id', $companyId)
+            ->whereNotNull('penawaran_id')
+            ->when($status, fn ($query) => $query->where('penawaran_status', $status))
+            ->when($q !== '', fn ($query) => $query->where(fn ($nested) => $nested
+                ->where('judul', 'like', "%{$q}%")
+                ->orWhereHas('company', fn ($c) => $c->where('name', 'like', "%{$q}%"))
+                ->orWhereHas('penawaran.docNumber', fn ($d) => $d->where('doc_no', 'like', "%{$q}%"))))
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('usulan.quotation_index', compact('quotations', 'status', 'q'));
+    }
+
     public function index(Request $request)
     {
         $status = $request->query('status', '');

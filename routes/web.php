@@ -119,6 +119,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [UsulanPenawaranController::class, 'index'])->name('index')->middleware('permission:view-usulan');
         Route::get('/create', [UsulanPenawaranController::class, 'create'])->name('create')->middleware('permission:create-usulan');
         Route::post('/', [UsulanPenawaranController::class, 'store'])->name('store')->middleware('permission:create-usulan');
+        // Harus di atas rute /{usulan} supaya tidak tertangkap sebagai id permintaan.
+        Route::get('/penawaran-harga', [UsulanPenawaranController::class, 'quotationIndex'])->name('quotation.index')->middleware('permission:view-usulan');
         Route::get('/{usulan}/pdf', [UsulanPenawaranController::class, 'downloadPdf'])->name('pdf')->middleware('permission:view-usulan');
         Route::get('/{usulan}/penawaran-pdf', [UsulanPenawaranController::class, 'downloadQuotationPdf'])->name('quotation.pdf')->middleware('permission:view-usulan');
         Route::get('/{usulan}/penawaran', [UsulanPenawaranController::class, 'showQuotation'])->name('quotation.show')->middleware('permission:view-usulan');

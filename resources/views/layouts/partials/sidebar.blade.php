@@ -3,7 +3,8 @@
         'invoice' => request()->routeIs('invoices.*', 'templates.*'),
         'purchase_order' => request()->routeIs('purchase-orders.*'),
         'penawaran' => request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*'),
-        'usulan' => request()->routeIs('usulan.*'),
+        'usulan' => request()->routeIs('usulan.*') && ! request()->routeIs('usulan.quotation.*'),
+        'penawaran_harga' => request()->routeIs('usulan.quotation.*'),
         'prospect' => request()->routeIs('prospects.*'),
         'lead_report' => request()->routeIs('lead-reports.*'),
         'pricelist' => request()->routeIs('price_list.*', 'komponen.*'),
@@ -42,6 +43,7 @@
         purchase_order: {{ $sidebarGroups['purchase_order'] ? 'true' : 'false' }},
         penawaran: {{ $sidebarGroups['penawaran'] ? 'true' : 'false' }},
         usulan: {{ $sidebarGroups['usulan'] ? 'true' : 'false' }},
+        penawaranHarga: {{ $sidebarGroups['penawaran_harga'] ? 'true' : 'false' }},
         prospect: {{ $sidebarGroups['prospect'] ? 'true' : 'false' }},
         lead_report: {{ $sidebarGroups['lead_report'] ? 'true' : 'false' }},
         pricelist: {{ $sidebarGroups['pricelist'] ? 'true' : 'false' }},
@@ -223,7 +225,7 @@
                         <span class="inline-flex w-5 justify-center">
                             <i class="fa-regular fa-lightbulb fa-fw text-[18px] leading-none"></i>
                         </span>
-                        <span>Permintaan Harga</span>
+                        <span>Usulan</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': usulan }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
@@ -235,16 +237,45 @@
                     <a href="{{ route('usulan.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                             {{ request()->routeIs('usulan.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
-                        <span>Daftar Permintaan</span>
+                        <span>Daftar Usulan</span>
                     </a>
 
                     @if(auth()->user()->hasPermission('create-usulan'))
                         <a href="{{ route('usulan.create') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                                                     {{ request()->routeIs('usulan.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
-                            <span>Buat Permintaan</span>
+                            <span>Buat Usulan</span>
                         </a>
                     @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- Penawaran Harga: dokumen yang kita terbitkan atas usulan yang masuk. --}}
+        @if(auth()->user()->hasPermission('view-usulan'))
+            <div class="mb-4">
+                <button @click="penawaranHarga = !penawaranHarga"
+                    :class="penawaranHarga ? 'bg-slate-100 text-slate-900' : 'text-slate-700'"
+                    class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded-lg transition">
+                    <span class="inline-flex items-center gap-2">
+                        <span class="inline-flex w-5 justify-center">
+                            <i class="fa-regular fa-file-lines fa-fw text-[18px] leading-none"></i>
+                        </span>
+                        <span>Penawaran Harga</span>
+                    </span>
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': penawaranHarga }" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+
+                <div x-show="penawaranHarga" x-collapse style="{{ $sidebarPanelStyle('penawaran_harga') }}"
+                    class="mt-1 space-y-1">
+                    <a href="{{ route('usulan.quotation.index') }}"
+                        class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                               {{ request()->routeIs('usulan.quotation.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                        <span>Daftar Penawaran Harga</span>
+                    </a>
                 </div>
             </div>
         @endif

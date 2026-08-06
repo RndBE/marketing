@@ -523,3 +523,61 @@ test('quotation signature block follows the same positioning contract as request
             ->toBeLessThan(strpos($template, 'class="stamp" src='));
     }
 });
+
+test('quotation list shows only quotations issued by the seller company', function () {
+    $f = usulanQuotationFixture();
+
+    // Penjual (perusahaan penerima permintaan) melihat penawaran yang ia terbitkan.
+    $this->actingAs($f['seller'])
+        ->get(route('usulan.quotation.index'))
+        ->assertOk()
+        ->assertSee('Daftar Penawaran Harga')
+        ->assertSee('001/SPH06/ATC/VIII/2026')
+        ->assertSee($f['sender']->name);
+
+    // Pembeli tidak melihatnya di daftar ini -- dia yang meminta, bukan yang menerbitkan.
+    $this->actingAs($f['creator'])
+        ->get(route('usulan.quotation.index'))
+        ->assertOk()
+        ->assertDontSee('001/SPH06/ATC/VIII/2026');
+});
+
+test('quotation list can be filtered by status and searched', function () {
+    $f = usulanQuotationFixture();
+
+    // Fixture menandai penawaran sudah terkirim.
+    $this->actingAs($f['seller'])
+        ->get(route('usulan.quotation.index', ['status' => 'sent']))
+        ->assertOk()
+        ->assertSee('001/SPH06/ATC/VIII/2026');
+
+    $this->actingAs($f['seller'])
+        ->get(route('usulan.quotation.index', ['status' => 'rejected']))
+        ->assertOk()
+        ->assertDontSee('001/SPH06/ATC/VIII/2026');
+
+    $this->actingAs($f['seller'])
+        ->get(route('usulan.quotation.index', ['q' => 'SPH06']))
+        ->assertOk()
+        ->assertSee('001/SPH06/ATC/VIII/2026');
+
+    $this->actingAs($f['seller'])
+        ->get(route('usulan.quotation.index', ['q' => 'tidak-ada-nomor-ini']))
+        ->assertOk()
+        ->assertDontSee('001/SPH06/ATC/VIII/2026');
+});
+
+test('sidebar keeps Usulan and adds a separate Penawaran Harga group', function () {
+    $f = usulanPdfFixture();
+
+    $html = $this->actingAs($f['creator'])->get(route('usulan.index'))->assertOk()->getContent();
+
+    expect($html)
+        ->toContain('<span>Usulan</span>')
+        ->toContain('<span>Daftar Usulan</span>')
+        ->toContain('<span>Penawaran Harga</span>')
+        ->toContain('<span>Daftar Penawaran Harga</span>')
+        // Penamaan lama dari commit borongan tidak boleh kembali.
+        ->not()->toContain('<span>Permintaan Harga</span>')
+        ->not()->toContain('<span>Daftar Permintaan</span>');
+});
