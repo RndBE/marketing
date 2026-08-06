@@ -3,8 +3,8 @@
 @section('content')
     <div class="w-full max-w-4xl">
         <div class="mb-5">
-            <h1 class="text-xl font-semibold">Buat Usulan Penawaran</h1>
-            <p class="mt-1 text-sm text-slate-500">Usulan dapat dikirim dari perusahaan mana pun ke perusahaan tujuan.</p>
+            <h1 class="text-xl font-semibold">Buat Permintaan Harga</h1>
+            <p class="mt-1 text-sm text-slate-500">Permintaan dapat dikirim dari perusahaan mana pun ke perusahaan tujuan.</p>
         </div>
 
         <form method="POST" action="{{ route('penawaran-harga.store') }}" enctype="multipart/form-data" class="space-y-4">
@@ -12,7 +12,7 @@
 
             <div class="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold mb-1">Judul Prospek *</label>
+                    <label class="block text-xs font-semibold mb-1">Judul Permintaan *</label>
                     <input type="text" name="judul" value="{{ old('judul') }}"
                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" required>
                 </div>
@@ -77,7 +77,7 @@
 
             <div class="bg-white rounded-xl border border-slate-200 p-5">
                 <div class="flex items-center justify-between mb-2">
-                    <label class="block text-xs font-semibold">Item Usulan (Opsional)</label>
+                    <label class="block text-xs font-semibold">Item yang Diminta (Opsional)</label>
                     <button type="button" onclick="addItemRow()" class="text-sm text-blue-600 hover:underline">+
                         Tambah item</button>
                 </div>

@@ -4,12 +4,12 @@
     <div class="w-full">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-xl font-bold">Usulan Penawaran</h1>
+                <h1 class="text-xl font-bold">Permintaan Harga</h1>
                 <p class="mt-1 text-sm text-slate-500">Pisahkan permintaan yang Anda kirim dan yang perlu ditanggapi perusahaan Anda.</p>
             </div>
             <a href="{{ route('penawaran-harga.create') }}"
                 class="inline-flex justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
-                Buat Usulan
+                Buat Permintaan
             </a>
         </div>
 
@@ -18,9 +18,9 @@
                 <a href="{{ route('penawaran-harga.index', array_filter(['status' => $status])) }}"
                     class="rounded-lg px-3 py-2 text-sm font-semibold {{ !$direction ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700' }}">Semua Arah</a>
                 <a href="{{ route('penawaran-harga.index', array_filter(['direction' => 'outgoing', 'status' => $status])) }}"
-                    class="rounded-lg px-3 py-2 text-sm font-semibold {{ $direction === 'outgoing' ? 'bg-violet-600 text-white' : 'bg-violet-50 text-violet-700' }}">Usulan Keluar</a>
+                    class="rounded-lg px-3 py-2 text-sm font-semibold {{ $direction === 'outgoing' ? 'bg-violet-600 text-white' : 'bg-violet-50 text-violet-700' }}">Permintaan Keluar</a>
                 <a href="{{ route('penawaran-harga.index', array_filter(['direction' => 'incoming', 'status' => $status])) }}"
-                    class="rounded-lg px-3 py-2 text-sm font-semibold {{ $direction === 'incoming' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700' }}">Usulan Masuk</a>
+                    class="rounded-lg px-3 py-2 text-sm font-semibold {{ $direction === 'incoming' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700' }}">Permintaan Masuk</a>
             </div>
             <div class="flex flex-wrap gap-2 border-t border-slate-100 pt-3" aria-label="Filter status permintaan">
                 <a href="{{ route('penawaran-harga.index', array_filter(['direction' => $direction])) }}"

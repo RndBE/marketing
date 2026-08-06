@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Detail Usulan Penawaran'])
+@extends('layouts.app', ['title' => 'Detail Permintaan Harga'])
 
 @section('content')
     @php
@@ -75,7 +75,7 @@
                 $nextTitle = 'Kirim permintaan ke perusahaan tujuan';
                 $nextDescription = 'Lengkapi data kebutuhan, lalu kirim agar penjual dapat menanggapinya.';
                 $nextActionUrl = route('penawaran-harga.edit', $usulan);
-                $nextActionLabel = 'Lengkapi Usulan';
+                $nextActionLabel = 'Lengkapi Permintaan';
             } elseif ($usulan->penawaran_status === 'sent') {
                 $nextTitle = 'Periksa dan putuskan penawaran';
                 $nextDescription = 'Anda dapat menyetujui, meminta revisi, atau menolak penawaran dari penjual.';
@@ -104,7 +104,7 @@
                 $nextTitle = 'Tanggapi dan buat penawaran';
                 $nextDescription = 'Konfirmasi permintaan pembeli, kemudian siapkan harga penawaran.';
                 $nextActionUrl = '#aksi-transaksi';
-                $nextActionLabel = 'Tanggapi Usulan';
+                $nextActionLabel = 'Tanggapi Permintaan';
             } elseif (in_array($usulan->penawaran_status, ['draft', 'revision_requested'], true)) {
                 $nextTitle = $usulan->penawaran_status === 'revision_requested' ? 'Perbaiki penawaran' : 'Lengkapi penawaran';
                 $nextDescription = 'Periksa item dan harga sebelum penawaran dikirim kepada pembeli.';
@@ -147,7 +147,7 @@
 
         <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4" aria-label="Progres transaksi">
             <div class="rounded-xl border p-3 {{ $stepClasses[$requestStepTone] }}">
-                <div class="text-xs font-semibold">1. Usulan Penawaran</div>
+                <div class="text-xs font-semibold">1. Permintaan Harga</div>
                 <div class="mt-1 text-sm font-medium">{{ $requestStepLabel }}</div>
             </div>
             <div class="rounded-xl border p-3 {{ $stepClasses[$quotationStepTone] }}">
@@ -335,7 +335,7 @@
 
         @if ($usulan->attachments->count())
             <div class="mb-4 rounded-xl border border-slate-200 bg-white p-5">
-                <div class="mb-2 text-sm font-semibold">Lampiran Usulan</div>
+                <div class="mb-2 text-sm font-semibold">Lampiran Permintaan</div>
                 <div class="space-y-2">
                     @foreach ($usulan->attachments as $att)
                         <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
@@ -420,7 +420,7 @@
             <a href="{{ route('penawaran-harga.index') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Kembali</a>
 
             @if ($isRequester && in_array($usulan->status, ['draft', 'menunggu'], true) && !$usulan->penawaran_id)
-                <a href="{{ route('penawaran-harga.edit', $usulan) }}" class="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white">Edit Usulan</a>
+                <a href="{{ route('penawaran-harga.edit', $usulan) }}" class="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white">Edit Permintaan</a>
             @endif
 
             @if ($canRespond && in_array($usulan->status, ['menunggu', 'ditanggapi'], true) && !$usulan->penawaran_id)
@@ -440,7 +440,7 @@
             @endif
 
             @if ($isRequester && $usulan->status === 'draft' && !$usulan->penawaran_id)
-                <form action="{{ route('penawaran-harga.destroy', $usulan) }}" method="POST" data-confirm-title="Hapus Usulan?" data-confirm-delete="Usulan {{ $usulan->judul }} akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.">
+                <form action="{{ route('penawaran-harga.destroy', $usulan) }}" method="POST" data-confirm-title="Hapus Permintaan?" data-confirm-delete="Permintaan harga ini akan dihapus permanen.">
                     @csrf
                     @method('DELETE')
                     <button class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700">Hapus</button>
@@ -452,7 +452,7 @@
     @if($canRespond)
         <div id="tanggapanModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onclick="if(event.target===this)this.classList.add('hidden')">
             <div class="w-full max-w-lg rounded-xl bg-white p-6" onclick="event.stopPropagation()">
-                <h2 class="mb-4 text-lg font-semibold">Tanggapi Usulan</h2>
+                <h2 class="mb-4 text-lg font-semibold">Tanggapi Permintaan Harga</h2>
                 <form method="POST" action="{{ route('penawaran-harga.tanggapi', $usulan) }}">
                     @csrf
                     <label class="mb-1 block text-xs font-semibold">Tanggapan</label>

@@ -316,7 +316,7 @@ test('request price form handles null flashed item input', function () {
         ]])
         ->get(route('penawaran-harga.create'))
         ->assertOk()
-        ->assertSee('Buat Usulan Penawaran')
+        ->assertSee('Buat Permintaan Harga')
         ->assertSee('value="barang" selected>Barang</option>', false)
         ->assertSee('value="jasa"', false)
         ->assertSee('>Jasa</option>', false)
