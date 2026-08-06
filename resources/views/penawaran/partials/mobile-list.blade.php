@@ -1,6 +1,8 @@
 <div data-penawaran-mobile-list class="space-y-3 md:hidden">
     @forelse($visibleRows as $row)
-        @php($presentation = $rowPresentation[$row->id])
+        @php
+            $presentation = $rowPresentation[$row->id];
+        @endphp
         <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">

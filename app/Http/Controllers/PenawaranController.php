@@ -65,6 +65,9 @@ class PenawaranController extends Controller
         $baseQuery = Penawaran::query()
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
             ->leftJoin('approvals as list_approval', 'list_approval.id', '=', 'penawaran.approval_id')
+            // Penawaran paperless dari Permohonan Harga dikelola di alur Usulan,
+            // bukan di Daftar Penawaran mandiri.
+            ->whereDoesntHave('usulan')
             ->tap(fn ($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
@@ -322,6 +325,13 @@ class PenawaranController extends Controller
         $user = auth()->user();
         $this->ensurePenawaranViewAccess($penawaran, $user);
 
+        // Penawaran yang lahir dari Permohonan Harga memiliki halaman dan PDF
+        // tersendiri. Jangan pernah membukanya dengan tampilan Penawaran umum.
+        $requestQuotation = $penawaran->usulan()->first();
+        if ($requestQuotation) {
+            return redirect()->route('usulan.quotation.show', $requestQuotation);
+        }
+
         $penawaran->load([
             'docNumber',
             'company',
@@ -334,6 +344,7 @@ class PenawaranController extends Controller
             'sharedCompanies',
             'attachments',
             'items.details',
+            'usulan',
             'approval.steps',
         ]);
 
@@ -1234,7 +1245,8 @@ class PenawaranController extends Controller
 
         $penawaran->update(['date_updated' => now()->timestamp]);
 
-        return redirect()->route('penawaran.show', $penawaran->id);
+        return redirect()->route('penawaran.show', $penawaran->id)
+            ->with('success', 'Tanda tangan Penawaran Harga berhasil disimpan.');
     }
 
     public function deleteSignature(Penawaran $penawaran, PenawaranSignature $signature)
@@ -1336,6 +1348,13 @@ class PenawaranController extends Controller
         $penawaran = $this->resolvePenawaranPdfRouteKey($penawaran);
 
         $this->ensurePenawaranViewAccess($penawaran);
+
+        // URL export Penawaran lama mungkin masih tersimpan di bookmark atau
+        // riwayat browser. Paksa dokumen permohonan memakai template khususnya.
+        $requestQuotation = $penawaran->usulan()->first();
+        if ($requestQuotation) {
+            return redirect()->route('usulan.quotation.pdf', $requestQuotation);
+        }
 
         $pricelistMode = $request->query('mode') === 'pricelist';
 
@@ -1822,8 +1841,12 @@ class PenawaranController extends Controller
         $logo = $company?->logoFullPath()
             ?: $this->resolvePublicDiskPath($cover?->logo_path)
             ?: public_path('images/logo_arsol.png');
+        $fallbackStamp = match (strtoupper((string) $company?->code)) {
+            'AS', 'ARSOL' => public_path('images/cap_arsol.png'),
+            default => null,
+        };
         $stamp = $company?->stampFullPath()
-            ?: public_path('images/cap_arsol.png');
+            ?: ($fallbackStamp && is_file($fallbackStamp) ? $fallbackStamp : null);
 
         return [
             'logo' => $logo,
@@ -2035,6 +2058,7 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
+            ->whereDoesntHave('usulan')
             ->tap(fn ($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));

@@ -14,7 +14,9 @@ class UsulanPenawaran extends Model
 
     protected $fillable = [
         'company_id',
+        'target_company_id',
         'judul',
+        'jenis_transaksi',
         'pic_id',
         'prospect_id',
         'deskripsi',
@@ -26,12 +28,20 @@ class UsulanPenawaran extends Model
         'tanggal_ditanggapi',
         'tanggal_dibutuhkan',
         'penawaran_id',
+        'penawaran_status',
+        'penawaran_tanggapan',
+        'signature_name',
+        'signature_position',
+        'signature_city',
+        'signature_date',
+        'signature_path',
     ];
 
     protected $casts = [
         'nilai_estimasi' => 'integer',
         'tanggal_ditanggapi' => 'datetime',
         'tanggal_dibutuhkan' => 'date',
+        'signature_date' => 'date',
     ];
 
     public function pic(): BelongsTo
@@ -42,6 +52,11 @@ class UsulanPenawaran extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function targetCompany(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'target_company_id');
     }
 
     public function sharedCompanies(): BelongsToMany
@@ -56,13 +71,26 @@ class UsulanPenawaran extends Model
 
     public function scopeVisibleToCompany(Builder $query, ?int $companyId): Builder
     {
-        // Usulan bersifat lintas perusahaan.
-        return $query;
+        if (! $companyId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $nested) use ($companyId) {
+            $nested->where('company_id', $companyId)
+                ->orWhere('target_company_id', $companyId)
+                ->orWhereNull('target_company_id');
+        });
     }
 
     public function isVisibleToCompany(?int $companyId): bool
     {
-        return (int) $companyId > 0;
+        if (! $companyId) {
+            return false;
+        }
+
+        return $this->target_company_id === null
+            || (int) $this->company_id === (int) $companyId
+            || (int) $this->target_company_id === (int) $companyId;
     }
 
     public function creator(): BelongsTo
@@ -83,6 +111,21 @@ class UsulanPenawaran extends Model
     public function prospect(): BelongsTo
     {
         return $this->belongsTo(Prospect::class, 'prospect_id');
+    }
+
+    public function purchaseOrder()
+    {
+        return $this->hasOne(PurchaseOrder::class, 'usulan_id');
+    }
+
+    public function isRequesterCompany(?int $companyId): bool
+    {
+        return $companyId !== null && (int) $this->company_id === (int) $companyId;
+    }
+
+    public function isSupplierCompany(?int $companyId): bool
+    {
+        return $companyId !== null && (int) $this->target_company_id === (int) $companyId;
     }
 
     public function attachments(): HasMany

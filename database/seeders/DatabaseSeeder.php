@@ -4,8 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\AlurPenawaran;
 use App\Models\LangkahAlurPenawaran;
-use App\Models\Permission;
 use App\Models\PenawaranTermTemplate;
+use App\Models\Permission;
 use App\Models\Pic;
 use App\Models\Product;
 use App\Models\ProductDetail;
@@ -130,6 +130,7 @@ class DatabaseSeeder extends Seeder
             ['permission_id' => 9, 'role_id' => 2],
             ['permission_id' => 10, 'role_id' => 2],
             ['permission_id' => 12, 'role_id' => 2],
+            ['permission_id' => 13, 'role_id' => 2],
             ['permission_id' => 15, 'role_id' => 2],
             ['permission_id' => 16, 'role_id' => 2],
             ['permission_id' => 18, 'role_id' => 2],

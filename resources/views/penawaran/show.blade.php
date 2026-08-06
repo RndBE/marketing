@@ -35,8 +35,9 @@
             <div class="text-sm text-slate-600 mt-1">{{ $penawaran->judul ?? '-' }}</div>
 
             @if ($penawaran->usulan)
-                <div class="text-sm text-slate-600 mt-1">
-                    <span class="font-medium">Diusulkan oleh:</span> {{ $penawaran->usulan->creator->name ?? '-' }}
+                <div class="mt-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800">
+                    <div><span class="font-semibold">Penawaran untuk permintaan harga:</span> {{ $penawaran->usulan->judul }}</div>
+                    <div class="mt-1 text-xs">Setelah item dan harga siap, kembali ke Permintaan Harga untuk mengirim penawaran kepada pembeli.</div>
                 </div>
             @endif
 
@@ -109,9 +110,9 @@
                     Penghapusan Penawaran
                 </button>
             @endif
-            <a href="{{ route('penawaran.index') }}"
+            <a href="{{ $penawaran->usulan ? route('usulan.show', $penawaran->usulan) : route('penawaran.index') }}"
                 class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50">
-                Kembali
+                {{ $penawaran->usulan ? 'Kembali ke Permintaan' : 'Kembali' }}
             </a>
             <details class="relative inline-block">
                 <summary
@@ -894,8 +895,9 @@
 
 
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                <h2 class="font-semibold mb-3">Tanda Tangan</h2>
+            <div id="tanda-tangan-penawaran" class="scroll-mt-4 rounded-2xl border border-slate-200 bg-white p-5">
+                <h2 class="font-semibold">Tanda Tangan Penawaran Harga</h2>
+                <p class="mb-3 mt-1 text-xs text-slate-500">TTD ini khusus untuk dokumen Penawaran Harga dan tidak mengubah TTD Permohonan Penawaran.</p>
                 @php
                     $signature = $penawaran->signatures->first();
                 @endphp
@@ -948,7 +950,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold mb-1">
-                                {{ $signature && $signature->ttd_path ? 'Upload Tanda Tangan Baru (Opsional)' : 'Upload Tanda Tangan' }}
+                                {{ $signature && $signature->ttd_path ? 'Import Tanda Tangan Baru (Opsional)' : 'Import / Upload Tanda Tangan' }}
                             </label>
                             <input type="file" name="ttd" accept="image/*"
                                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">

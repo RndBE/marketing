@@ -119,14 +119,23 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [UsulanPenawaranController::class, 'index'])->name('index')->middleware('permission:view-usulan');
         Route::get('/create', [UsulanPenawaranController::class, 'create'])->name('create')->middleware('permission:create-usulan');
         Route::post('/', [UsulanPenawaranController::class, 'store'])->name('store')->middleware('permission:create-usulan');
+        Route::get('/{usulan}/pdf', [UsulanPenawaranController::class, 'downloadPdf'])->name('pdf')->middleware('permission:view-usulan');
+        Route::get('/{usulan}/penawaran-pdf', [UsulanPenawaranController::class, 'downloadQuotationPdf'])->name('quotation.pdf')->middleware('permission:view-usulan');
+        Route::get('/{usulan}/penawaran', [UsulanPenawaranController::class, 'showQuotation'])->name('quotation.show')->middleware('permission:view-usulan');
+        Route::put('/{usulan}/penawaran', [UsulanPenawaranController::class, 'updateQuotation'])->name('quotation.update')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/signature', [UsulanPenawaranController::class, 'updateSignature'])->name('signature.update')->middleware('permission:edit-usulan');
+        Route::delete('/{usulan}/signature', [UsulanPenawaranController::class, 'deleteSignature'])->name('signature.delete')->middleware('permission:edit-usulan');
         Route::get('/{usulan}', [UsulanPenawaranController::class, 'show'])->name('show')->middleware('permission:view-usulan');
         Route::get('/{usulan}/edit', [UsulanPenawaranController::class, 'edit'])->name('edit')->middleware('permission:edit-usulan');
         Route::put('/{usulan}', [UsulanPenawaranController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
         Route::post('/{usulan}/visibility', [UsulanPenawaranController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
         Route::post('/{usulan}/tanggapi', [UsulanPenawaranController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
         Route::post('/{usulan}/buat-penawaran', [UsulanPenawaranController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/kirim-penawaran', [UsulanPenawaranController::class, 'sendQuotation'])->name('kirim-penawaran')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/tanggapi-penawaran', [UsulanPenawaranController::class, 'respondQuotation'])->name('tanggapi-penawaran')->middleware('permission:view-usulan');
         Route::delete('/{usulan}', [UsulanPenawaranController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
         Route::delete('/attachment/{attachment}', [UsulanPenawaranController::class, 'deleteAttachment'])->name('attachment.delete')->middleware('permission:edit-usulan');
+        Route::get('/{usulan}/attachments/{attachment}/download', [UsulanPenawaranController::class, 'downloadAttachment'])->name('attachments.download')->middleware('permission:view-usulan');
     });
 
     /*
@@ -339,6 +348,30 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])
             ->middleware('permission:view-purchase-order')
             ->name('show');
+        Route::get('/{purchaseOrder}/document', [PurchaseOrderController::class, 'downloadDocument'])
+            ->middleware('permission:view-purchase-order')
+            ->name('document.download');
+        Route::get('/{purchaseOrder}/terms/{term}/documents/{document}', [PurchaseOrderController::class, 'downloadTermDocument'])
+            ->middleware('permission:view-purchase-order')
+            ->name('terms.documents.download');
+        Route::post('/{purchaseOrder}/verify', [PurchaseOrderController::class, 'verify'])
+            ->middleware('permission:create-purchase-order')
+            ->name('verify');
+        Route::post('/{purchaseOrder}/terms', [PurchaseOrderController::class, 'storeTerm'])
+            ->middleware('permission:create-purchase-order')
+            ->name('terms.store');
+        Route::put('/{purchaseOrder}/terms/{term}', [PurchaseOrderController::class, 'updateTerm'])
+            ->middleware('permission:create-purchase-order')
+            ->name('terms.update');
+        Route::put('/{purchaseOrder}/terms/{term}/billing', [PurchaseOrderController::class, 'updateBilling'])
+            ->middleware('permission:create-purchase-order')
+            ->name('terms.billing.update');
+        Route::put('/{purchaseOrder}/terms/{term}/payment', [PurchaseOrderController::class, 'updatePayment'])
+            ->middleware('permission:create-purchase-order')
+            ->name('terms.payment.update');
+        Route::delete('/{purchaseOrder}/terms/{term}', [PurchaseOrderController::class, 'destroyTerm'])
+            ->middleware('permission:create-purchase-order')
+            ->name('terms.destroy');
     });
 
     /*

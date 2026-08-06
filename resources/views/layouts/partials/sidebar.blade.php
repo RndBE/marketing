@@ -223,7 +223,7 @@
                         <span class="inline-flex w-5 justify-center">
                             <i class="fa-regular fa-lightbulb fa-fw text-[18px] leading-none"></i>
                         </span>
-                        <span>Usulan</span>
+                        <span>Permintaan Harga</span>
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': usulan }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
@@ -235,14 +235,14 @@
                     <a href="{{ route('usulan.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                             {{ request()->routeIs('usulan.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
-                        <span>Daftar Usulan</span>
+                        <span>Daftar Permintaan</span>
                     </a>
 
                     @if(auth()->user()->hasPermission('create-usulan'))
                         <a href="{{ route('usulan.create') }}"
                             class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                                                                                     {{ request()->routeIs('usulan.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
-                            <span>Buat Usulan</span>
+                            <span>Buat Permintaan</span>
                         </a>
                     @endif
                 </div>
