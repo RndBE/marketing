@@ -3,8 +3,8 @@
         'invoice' => request()->routeIs('invoices.*', 'templates.*'),
         'purchase_order' => request()->routeIs('purchase-orders.*'),
         'penawaran' => request()->routeIs('alurpenawaran.*', 'penawaran.*', 'term_templates.*'),
-        'usulan' => request()->routeIs('usulan.*') && ! request()->routeIs('usulan.quotation.*'),
-        'penawaran_harga' => request()->routeIs('usulan.quotation.*'),
+        'usulan' => request()->routeIs('usulan.*'),
+        'penawaran_harga' => request()->routeIs('penawaran-harga.*'),
         'prospect' => request()->routeIs('prospects.*'),
         'lead_report' => request()->routeIs('lead-reports.*'),
         'pricelist' => request()->routeIs('price_list.*', 'komponen.*'),
@@ -271,11 +271,19 @@
 
                 <div x-show="penawaranHarga" x-collapse style="{{ $sidebarPanelStyle('penawaran_harga') }}"
                     class="mt-1 space-y-1">
-                    <a href="{{ route('usulan.quotation.index') }}"
+                    <a href="{{ route('penawaran-harga.index') }}"
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
-                               {{ request()->routeIs('usulan.quotation.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                               {{ request()->routeIs('penawaran-harga.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Daftar Penawaran Harga</span>
                     </a>
+
+                    @if(auth()->user()->hasPermission('create-usulan'))
+                        <a href="{{ route('penawaran-harga.create') }}"
+                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+                                   {{ request()->routeIs('penawaran-harga.create') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
+                            <span>Buat Penawaran Harga</span>
+                        </a>
+                    @endif
                 </div>
             </div>
         @endif

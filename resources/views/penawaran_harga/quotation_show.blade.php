@@ -40,9 +40,9 @@
                 </div>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('usulan.show', $usulan) }}"
+                <a href="{{ route('penawaran-harga.show', $usulan) }}"
                     class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Kembali ke Permohonan</a>
-                <a href="{{ route('usulan.quotation.pdf', $usulan) }}" target="_blank"
+                <a href="{{ route('penawaran-harga.quotation.pdf', $usulan) }}" target="_blank"
                     data-download-loading data-loading-label="Menyiapkan PDF..." data-download-timeout="30000"
                     class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Export PDF Khusus</a>
             </div>
@@ -58,7 +58,7 @@
             @endif
         </div>
 
-        <form id="quotation-form" method="POST" action="{{ route('usulan.quotation.update', $usulan) }}" enctype="multipart/form-data" class="space-y-4">
+        <form id="quotation-form" method="POST" action="{{ route('penawaran-harga.quotation.update', $usulan) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @method('PUT')
 
@@ -305,7 +305,7 @@
                     <p class="mt-1 text-sm text-emerald-800">Simpan terlebih dahulu, periksa PDF, lalu kirim kepada pembeli.</p>
                 </div>
                 @if($grandTotal > 0)
-                    <form method="POST" action="{{ route('usulan.kirim-penawaran', $usulan) }}">
+                    <form method="POST" action="{{ route('penawaran-harga.kirim-penawaran', $usulan) }}">
                         @csrf
                         <button class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
                             {{ $usulan->penawaran_status === 'revision_requested' ? 'Kirim Ulang ke Pembeli' : 'Kirim ke Pembeli' }}

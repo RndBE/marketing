@@ -108,9 +108,9 @@
                 <div class="mt-1 text-sm">Permintaan Harga → Penawaran → <strong>Purchase Order</strong> → Termin & Invoice</div>
             </div>
             <div class="flex gap-2">
-                <a href="{{ route('usulan.show', $po->usulan) }}" class="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-violet-700">Permintaan Harga</a>
+                <a href="{{ route('penawaran-harga.show', $po->usulan) }}" class="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-violet-700">Permintaan Harga</a>
                 @if($po->penawaran)
-                    <a href="{{ route('usulan.quotation.show', $po->usulan) }}" class="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-violet-700">Penawaran Harga</a>
+                    <a href="{{ route('penawaran-harga.quotation.show', $po->usulan) }}" class="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-violet-700">Penawaran Harga</a>
                 @endif
             </div>
         </div>

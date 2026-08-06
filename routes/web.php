@@ -14,6 +14,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\KomponenController;
+use App\Http\Controllers\PenawaranHargaController;
 use App\Http\Controllers\UsulanPenawaranController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -115,29 +116,41 @@ Route::middleware(['auth'])->group(function () {
     /*
     |---------------- USULAN PENAWARAN ------------|
     */
+    // Usulan internal: pengajuan di dalam perusahaan sendiri.
     Route::prefix('usulan')->name('usulan.')->group(function () {
         Route::get('/', [UsulanPenawaranController::class, 'index'])->name('index')->middleware('permission:view-usulan');
         Route::get('/create', [UsulanPenawaranController::class, 'create'])->name('create')->middleware('permission:create-usulan');
         Route::post('/', [UsulanPenawaranController::class, 'store'])->name('store')->middleware('permission:create-usulan');
-        // Harus di atas rute /{usulan} supaya tidak tertangkap sebagai id permintaan.
-        Route::get('/penawaran-harga', [UsulanPenawaranController::class, 'quotationIndex'])->name('quotation.index')->middleware('permission:view-usulan');
-        Route::get('/{usulan}/pdf', [UsulanPenawaranController::class, 'downloadPdf'])->name('pdf')->middleware('permission:view-usulan');
-        Route::get('/{usulan}/penawaran-pdf', [UsulanPenawaranController::class, 'downloadQuotationPdf'])->name('quotation.pdf')->middleware('permission:view-usulan');
-        Route::get('/{usulan}/penawaran', [UsulanPenawaranController::class, 'showQuotation'])->name('quotation.show')->middleware('permission:view-usulan');
-        Route::put('/{usulan}/penawaran', [UsulanPenawaranController::class, 'updateQuotation'])->name('quotation.update')->middleware('permission:respond-usulan');
-        Route::post('/{usulan}/signature', [UsulanPenawaranController::class, 'updateSignature'])->name('signature.update')->middleware('permission:edit-usulan');
-        Route::delete('/{usulan}/signature', [UsulanPenawaranController::class, 'deleteSignature'])->name('signature.delete')->middleware('permission:edit-usulan');
         Route::get('/{usulan}', [UsulanPenawaranController::class, 'show'])->name('show')->middleware('permission:view-usulan');
         Route::get('/{usulan}/edit', [UsulanPenawaranController::class, 'edit'])->name('edit')->middleware('permission:edit-usulan');
         Route::put('/{usulan}', [UsulanPenawaranController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
         Route::post('/{usulan}/visibility', [UsulanPenawaranController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
         Route::post('/{usulan}/tanggapi', [UsulanPenawaranController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
-        Route::post('/{usulan}/buat-penawaran', [UsulanPenawaranController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:respond-usulan');
-        Route::post('/{usulan}/kirim-penawaran', [UsulanPenawaranController::class, 'sendQuotation'])->name('kirim-penawaran')->middleware('permission:respond-usulan');
-        Route::post('/{usulan}/tanggapi-penawaran', [UsulanPenawaranController::class, 'respondQuotation'])->name('tanggapi-penawaran')->middleware('permission:view-usulan');
         Route::delete('/{usulan}', [UsulanPenawaranController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
         Route::delete('/attachment/{attachment}', [UsulanPenawaranController::class, 'deleteAttachment'])->name('attachment.delete')->middleware('permission:edit-usulan');
-        Route::get('/{usulan}/attachments/{attachment}/download', [UsulanPenawaranController::class, 'downloadAttachment'])->name('attachments.download')->middleware('permission:view-usulan');
+    });
+
+    // Penawaran Harga: permintaan harga ke perusahaan lain sampai penawarannya terbit.
+    Route::prefix('penawaran-harga')->name('penawaran-harga.')->group(function () {
+        Route::get('/', [PenawaranHargaController::class, 'index'])->name('index')->middleware('permission:view-usulan');
+        Route::get('/create', [PenawaranHargaController::class, 'create'])->name('create')->middleware('permission:create-usulan');
+        Route::post('/', [PenawaranHargaController::class, 'store'])->name('store')->middleware('permission:create-usulan');
+        Route::get('/{usulan}/pdf', [PenawaranHargaController::class, 'downloadPdf'])->name('pdf')->middleware('permission:view-usulan');
+        Route::get('/{usulan}/penawaran-pdf', [PenawaranHargaController::class, 'downloadQuotationPdf'])->name('quotation.pdf')->middleware('permission:view-usulan');
+        Route::get('/{usulan}/penawaran', [PenawaranHargaController::class, 'showQuotation'])->name('quotation.show')->middleware('permission:view-usulan');
+        Route::put('/{usulan}/penawaran', [PenawaranHargaController::class, 'updateQuotation'])->name('quotation.update')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/signature', [PenawaranHargaController::class, 'updateSignature'])->name('signature.update')->middleware('permission:edit-usulan');
+        Route::delete('/{usulan}/signature', [PenawaranHargaController::class, 'deleteSignature'])->name('signature.delete')->middleware('permission:edit-usulan');
+        Route::get('/{usulan}', [PenawaranHargaController::class, 'show'])->name('show')->middleware('permission:view-usulan');
+        Route::get('/{usulan}/edit', [PenawaranHargaController::class, 'edit'])->name('edit')->middleware('permission:edit-usulan');
+        Route::put('/{usulan}', [PenawaranHargaController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
+        Route::post('/{usulan}/visibility', [PenawaranHargaController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
+        Route::post('/{usulan}/tanggapi', [PenawaranHargaController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/kirim-penawaran', [PenawaranHargaController::class, 'sendQuotation'])->name('kirim-penawaran')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/tanggapi-penawaran', [PenawaranHargaController::class, 'respondQuotation'])->name('tanggapi-penawaran')->middleware('permission:view-usulan');
+        Route::delete('/{usulan}', [PenawaranHargaController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
+        Route::delete('/attachment/{attachment}', [PenawaranHargaController::class, 'deleteAttachment'])->name('attachment.delete')->middleware('permission:edit-usulan');
+        Route::get('/{usulan}/attachments/{attachment}/download', [PenawaranHargaController::class, 'downloadAttachment'])->name('attachments.download')->middleware('permission:view-usulan');
     });
 
     /*

@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\UsulanPenawaranController;
+use App\Http\Controllers\PenawaranHargaController;
 use App\Models\Company;
 use App\Models\DocNumber;
 use App\Models\Penawaran;
@@ -177,14 +177,14 @@ test('requester and recipient can export the quotation request pdf but another c
     $outsiderUser = usulanPdfUser($outsider, 'Outsider');
 
     foreach ([$creator, $recipientUser] as $allowedUser) {
-        $response = $this->actingAs($allowedUser)->get(route('usulan.pdf', $usulan));
+        $response = $this->actingAs($allowedUser)->get(route('penawaran-harga.pdf', $usulan));
 
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
         expect(usulanPdfResponseContent($response))->toStartWith('%PDF');
     }
 
     $this->actingAs($outsiderUser)
-        ->get(route('usulan.pdf', $usulan))
+        ->get(route('penawaran-harga.pdf', $usulan))
         ->assertForbidden();
 });
 
@@ -192,7 +192,7 @@ test('quotation request document contains request details without price fields',
     ['sender' => $sender, 'usulan' => $usulan] = usulanPdfFixture();
     $usulan->load(['company', 'targetCompany', 'pic', 'creator.roles', 'items']);
 
-    $html = view('usulan.pdf', [
+    $html = view('penawaran_harga.pdf', [
         'usulan' => $usulan,
         'documentDate' => Carbon::create(2026, 8, 4, 9, 0),
         'documentNumber' => sprintf('%03d/PP-AS/VIII/2026', $usulan->id),
@@ -222,9 +222,9 @@ test('quotation request document contains request details without price fields',
 });
 
 test('request item forms provide manual point controls for every item', function () {
-    $create = file_get_contents(resource_path('views/usulan/create.blade.php'));
-    $edit = file_get_contents(resource_path('views/usulan/edit.blade.php'));
-    $row = file_get_contents(resource_path('views/usulan/partials/item-row.blade.php'));
+    $create = file_get_contents(resource_path('views/penawaran_harga/create.blade.php'));
+    $edit = file_get_contents(resource_path('views/penawaran_harga/edit.blade.php'));
+    $row = file_get_contents(resource_path('views/penawaran_harga/partials/item-row.blade.php'));
 
     foreach ([$create, $edit] as $form) {
         expect($form)
@@ -245,12 +245,12 @@ test('request signature can be imported while creating and replaced while editin
     ['recipient' => $recipient, 'creator' => $creator] = usulanPdfFixture();
 
     $this->actingAs($creator)
-        ->get(route('usulan.create'))
+        ->get(route('penawaran-harga.create'))
         ->assertOk()
         ->assertSee('Import / Upload TTD (opsional)');
 
     $this->actingAs($creator)
-        ->post(route('usulan.store'), [
+        ->post(route('penawaran-harga.store'), [
             'target_company_id' => $recipient->id,
             'judul' => 'Permohonan dengan TTD dari form buat',
             'jenis_transaksi' => 'barang',
@@ -270,12 +270,12 @@ test('request signature can be imported while creating and replaced while editin
     Storage::disk('public')->assertExists($firstPath);
 
     $this->actingAs($creator)
-        ->get(route('usulan.edit', $request))
+        ->get(route('penawaran-harga.edit', $request))
         ->assertOk()
         ->assertSee('Import TTD pengganti (opsional)');
 
     $this->actingAs($creator)
-        ->put(route('usulan.update', $request), [
+        ->put(route('penawaran-harga.update', $request), [
             'target_company_id' => $recipient->id,
             'judul' => $request->judul,
             'jenis_transaksi' => 'barang',
@@ -286,7 +286,7 @@ test('request signature can be imported while creating and replaced while editin
             'signature_date' => '2026-08-06',
             'signature_file' => UploadedFile::fake()->image('ttd-edit.png'),
         ])
-        ->assertRedirect(route('usulan.show', $request));
+        ->assertRedirect(route('penawaran-harga.show', $request));
 
     $secondPath = $request->refresh()->signature_path;
     expect($secondPath)->toStartWith('usulan/ttd/')
@@ -312,7 +312,7 @@ test('request pdf centers visible signature strokes instead of the transparent i
     imagedestroy($image);
     Storage::disk('public')->put('usulan/ttd/right-heavy.png', $content);
 
-    $controller = app(UsulanPenawaranController::class);
+    $controller = app(PenawaranHargaController::class);
     $method = new ReflectionMethod($controller, 'pdfSignaturePlacement');
     $placement = $method->invoke(
         $controller,
@@ -334,7 +334,7 @@ test('request pdf centers visible signature strokes instead of the transparent i
 
 test('signature scales by its visible strokes so canvas padding does not change its size', function () {
     Storage::fake('public');
-    $controller = app(UsulanPenawaranController::class);
+    $controller = app(PenawaranHargaController::class);
     $method = new ReflectionMethod($controller, 'pdfSignaturePlacement');
 
     // Coretan berukuran sama (200x120 px) di tengah kanvas dengan ruang kosong yang
@@ -390,7 +390,7 @@ test('signature without transparency is scaled by its canvas instead of its stro
 
     Storage::disk('public')->put('usulan/ttd/opaque.png', $png);
 
-    $controller = app(UsulanPenawaranController::class);
+    $controller = app(PenawaranHargaController::class);
     $method = new ReflectionMethod($controller, 'pdfSignaturePlacement');
     $placement = $method->invoke($controller, Storage::disk('public')->path('usulan/ttd/opaque.png'));
 
@@ -405,14 +405,14 @@ test('request and quotation signatures can be imported independently', function 
     ['creator' => $buyer, 'seller' => $seller, 'usulan' => $usulan, 'penawaran' => $penawaran] = usulanQuotationFixture();
 
     $this->actingAs($buyer)
-        ->post(route('usulan.signature.update', $usulan), [
+        ->post(route('penawaran-harga.signature.update', $usulan), [
             'signature_name' => 'Megatri Ika Listina Dewi',
             'signature_position' => 'Corporate Account Manager',
             'signature_city' => 'Yogyakarta',
             'signature_date' => '2026-08-04',
             'signature_file' => UploadedFile::fake()->image('ttd-permohonan.png'),
         ])
-        ->assertRedirect(route('usulan.show', $usulan));
+        ->assertRedirect(route('penawaran-harga.show', $usulan));
 
     $this->actingAs($seller)
         ->post(route('penawaran.signatures.add', $penawaran), [
@@ -439,14 +439,14 @@ test('linked quotation price pdf is available to buyer and seller but not anothe
     $outsider = usulanPdfUser($outsiderCompany, 'Quotation Outsider');
 
     foreach ([$buyer, $seller] as $allowedUser) {
-        $response = $this->actingAs($allowedUser)->get(route('usulan.quotation.pdf', $usulan));
+        $response = $this->actingAs($allowedUser)->get(route('penawaran-harga.quotation.pdf', $usulan));
 
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
         expect(usulanPdfResponseContent($response))->toStartWith('%PDF');
     }
 
     $this->actingAs($outsider)
-        ->get(route('usulan.quotation.pdf', $usulan))
+        ->get(route('penawaran-harga.quotation.pdf', $usulan))
         ->assertForbidden();
 });
 
@@ -459,7 +459,7 @@ test('quotation price document references its request and calculates discount an
     ]);
     $penawaran = $usulan->penawaran;
 
-    $html = view('usulan.quotation_pdf', [
+    $html = view('penawaran_harga.quotation_pdf', [
         'usulan' => $usulan,
         'penawaran' => $penawaran,
         'requestDate' => Carbon::create(2026, 8, 4, 9, 0),
@@ -494,8 +494,8 @@ test('quotation price document references its request and calculates discount an
 });
 
 test('quotation signature block follows the same positioning contract as request pdf', function () {
-    $requestTemplate = file_get_contents(resource_path('views/usulan/pdf.blade.php'));
-    $quotationTemplate = file_get_contents(resource_path('views/usulan/quotation_pdf.blade.php'));
+    $requestTemplate = file_get_contents(resource_path('views/penawaran_harga/pdf.blade.php'));
+    $quotationTemplate = file_get_contents(resource_path('views/penawaran_harga/quotation_pdf.blade.php'));
 
     // Kontrak geometri disamakan dengan dokumen Penawaran Harga biasa:
     // kotak 220x100, cap selebar 220px di tengah dengan opacity 0,5.
@@ -524,49 +524,6 @@ test('quotation signature block follows the same positioning contract as request
     }
 });
 
-test('quotation list shows only quotations issued by the seller company', function () {
-    $f = usulanQuotationFixture();
-
-    // Penjual (perusahaan penerima permintaan) melihat penawaran yang ia terbitkan.
-    $this->actingAs($f['seller'])
-        ->get(route('usulan.quotation.index'))
-        ->assertOk()
-        ->assertSee('Daftar Penawaran Harga')
-        ->assertSee('001/SPH06/ATC/VIII/2026')
-        ->assertSee($f['sender']->name);
-
-    // Pembeli tidak melihatnya di daftar ini -- dia yang meminta, bukan yang menerbitkan.
-    $this->actingAs($f['creator'])
-        ->get(route('usulan.quotation.index'))
-        ->assertOk()
-        ->assertDontSee('001/SPH06/ATC/VIII/2026');
-});
-
-test('quotation list can be filtered by status and searched', function () {
-    $f = usulanQuotationFixture();
-
-    // Fixture menandai penawaran sudah terkirim.
-    $this->actingAs($f['seller'])
-        ->get(route('usulan.quotation.index', ['status' => 'sent']))
-        ->assertOk()
-        ->assertSee('001/SPH06/ATC/VIII/2026');
-
-    $this->actingAs($f['seller'])
-        ->get(route('usulan.quotation.index', ['status' => 'rejected']))
-        ->assertOk()
-        ->assertDontSee('001/SPH06/ATC/VIII/2026');
-
-    $this->actingAs($f['seller'])
-        ->get(route('usulan.quotation.index', ['q' => 'SPH06']))
-        ->assertOk()
-        ->assertSee('001/SPH06/ATC/VIII/2026');
-
-    $this->actingAs($f['seller'])
-        ->get(route('usulan.quotation.index', ['q' => 'tidak-ada-nomor-ini']))
-        ->assertOk()
-        ->assertDontSee('001/SPH06/ATC/VIII/2026');
-});
-
 test('sidebar keeps Usulan and adds a separate Penawaran Harga group', function () {
     $f = usulanPdfFixture();
 
@@ -580,4 +537,46 @@ test('sidebar keeps Usulan and adds a separate Penawaran Harga group', function 
         // Penamaan lama dari commit borongan tidak boleh kembali.
         ->not()->toContain('<span>Permintaan Harga</span>')
         ->not()->toContain('<span>Daftar Permintaan</span>');
+});
+
+test('usulan module only lists internal proposals and penawaran harga only inter-company ones', function () {
+    $f = usulanPdfFixture();          // punya target_company_id -> Penawaran Harga
+    $internal = UsulanPenawaran::create([
+        'company_id' => $f['sender']->id,
+        'judul' => 'Usulan Internal Pengadaan Laptop',
+        'deskripsi' => 'Kebutuhan internal tim.',
+        'nilai_estimasi' => 15000000,
+        'created_by' => $f['creator']->id,
+        'status' => 'menunggu',
+    ]);
+
+    // Daftar Usulan: hanya yang tanpa perusahaan tujuan.
+    $this->actingAs($f['creator'])
+        ->get(route('usulan.index'))
+        ->assertOk()
+        ->assertSee('Usulan Internal Pengadaan Laptop')
+        ->assertDontSee($f['usulan']->judul);
+
+    // Daftar Penawaran Harga: hanya yang punya perusahaan tujuan.
+    $this->actingAs($f['creator'])
+        ->get(route('penawaran-harga.index'))
+        ->assertOk()
+        ->assertSee($f['usulan']->judul)
+        ->assertDontSee('Usulan Internal Pengadaan Laptop');
+
+    // Form Usulan kembali ke bentuk production: tanpa perusahaan tujuan dan TTD.
+    $usulanForm = $this->actingAs($f['creator'])->get(route('usulan.create'))->assertOk()->getContent();
+    expect($usulanForm)
+        ->toContain('Buat Usulan Penawaran')
+        ->not()->toContain('Kirim ke Perusahaan')
+        ->not()->toContain('Jenis Transaksi');
+
+    // Form Penawaran Harga tetap membawa isian alur antar perusahaan.
+    $phForm = $this->actingAs($f['creator'])->get(route('penawaran-harga.create'))->assertOk()->getContent();
+    expect($phForm)
+        ->toContain('Kirim ke Perusahaan')
+        ->toContain('Jenis Transaksi');
+
+    // Penerbitan penawaran tidak lagi tersedia dari modul Usulan.
+    expect(\Illuminate\Support\Facades\Route::has('usulan.buat-penawaran'))->toBeFalse();
 });

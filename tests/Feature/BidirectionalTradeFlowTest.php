@@ -38,13 +38,13 @@ function tradeFlowUser(Company $company, string $label): User
 function executeTradeFlow($test, User $buyer, User $seller, string $reference): PurchaseOrder
 {
     $test->actingAs($buyer)
-        ->get(route('usulan.create'))
+        ->get(route('penawaran-harga.create'))
         ->assertOk()
         ->assertSee('Detail / Spesifikasi per Poin')
         ->assertSee('+ Tambah Poin');
 
     $test->actingAs($buyer)
-        ->post(route('usulan.store'), [
+        ->post(route('penawaran-harga.store'), [
             'target_company_id' => $seller->company_id,
             'judul' => 'Permintaan '.$reference,
             'jenis_transaksi' => 'jasa',
@@ -74,38 +74,38 @@ function executeTradeFlow($test, User $buyer, User $seller, string $reference): 
             "Konfigurasi server {$reference}\nInstalasi dan pengujian di lokasi"
         );
     $test->actingAs($buyer)
-        ->get(route('usulan.edit', $request))
+        ->get(route('penawaran-harga.edit', $request))
         ->assertOk()
         ->assertSee('Konfigurasi server '.$reference)
         ->assertSee('Instalasi dan pengujian di lokasi')
         ->assertSee('+ Tambah Poin');
     $test->actingAs($buyer)
-        ->get(route('usulan.index', ['direction' => 'outgoing']))
+        ->get(route('penawaran-harga.index', ['direction' => 'outgoing']))
         ->assertOk()
         ->assertSee('Permintaan '.$reference)
         ->assertSee('Keluar · Anda pembeli');
     $test->actingAs($seller)
-        ->get(route('usulan.index', ['direction' => 'incoming']))
+        ->get(route('penawaran-harga.index', ['direction' => 'incoming']))
         ->assertOk()
         ->assertSee('Permintaan '.$reference)
         ->assertSee('Masuk · Anda penjual');
     $test->actingAs($seller)
-        ->get(route('usulan.show', $request))
+        ->get(route('penawaran-harga.show', $request))
         ->assertOk()
         ->assertSee('Anda bertindak sebagai penjual')
         ->assertSee('Langkah berikutnya: Tanggapi dan buat penawaran');
     $attachment = $request->attachments()->firstOrFail();
     $test->actingAs($seller)
-        ->get(route('usulan.attachments.download', [$request, $attachment]))
+        ->get(route('penawaran-harga.attachments.download', [$request, $attachment]))
         ->assertDownload('spesifikasi-'.$reference.'.pdf');
 
     $test->actingAs($seller)
-        ->post(route('usulan.tanggapi', $request), [
+        ->post(route('penawaran-harga.tanggapi', $request), [
             'tanggapan' => 'Permintaan diterima dan penawaran disiapkan.',
             'status' => 'disetujui',
             'penawaran_action' => 'from_usulan',
         ])
-        ->assertRedirect(route('usulan.quotation.show', $request));
+        ->assertRedirect(route('penawaran-harga.quotation.show', $request));
 
     $request->refresh()->load('penawaran.items.details');
     expect((int) $request->penawaran->company_id)->toBe((int) $seller->company_id)
@@ -113,7 +113,7 @@ function executeTradeFlow($test, User $buyer, User $seller, string $reference): 
             "Konfigurasi server {$reference}\nInstalasi dan pengujian di lokasi"
         );
     $test->actingAs($seller)
-        ->get(route('usulan.quotation.show', $request))
+        ->get(route('penawaran-harga.quotation.show', $request))
         ->assertOk()
         ->assertSee('Penawaran Harga dari Permohonan')
         ->assertSee('Dokumen khusus alur Permohonan Harga')
@@ -122,13 +122,13 @@ function executeTradeFlow($test, User $buyer, User $seller, string $reference): 
 
     $test->actingAs($seller)
         ->get(route('penawaran.show', $request->penawaran))
-        ->assertRedirect(route('usulan.quotation.show', $request));
+        ->assertRedirect(route('penawaran-harga.quotation.show', $request));
     $test->actingAs($seller)
         ->get(route('penawaran.pdf', $request->penawaran->pdfRouteKey()))
-        ->assertRedirect(route('usulan.quotation.pdf', $request));
+        ->assertRedirect(route('penawaran-harga.quotation.pdf', $request));
 
     $test->actingAs($buyer)
-        ->get(route('usulan.quotation.show', $request))
+        ->get(route('penawaran-harga.quotation.show', $request))
         ->assertForbidden();
     Penawaran::create([
         'company_id' => $seller->company_id,
@@ -145,7 +145,7 @@ function executeTradeFlow($test, User $buyer, User $seller, string $reference): 
         ->assertSee('Penawaran Mandiri '.$reference);
     $quotationItem = $request->penawaran->items->first();
     $test->actingAs($seller)
-        ->put(route('usulan.quotation.update', $request), [
+        ->put(route('penawaran-harga.quotation.update', $request), [
             'tanggal_penawaran' => '2026-08-05',
             'nama_pekerjaan' => 'Implementasi '.$reference,
             'valid_until' => '2026-09-05',
@@ -165,30 +165,30 @@ function executeTradeFlow($test, User $buyer, User $seller, string $reference): 
             'signature_city' => 'Yogyakarta',
             'signature_date' => '2026-08-05',
         ])
-        ->assertRedirect(route('usulan.quotation.show', $request));
+        ->assertRedirect(route('penawaran-harga.quotation.show', $request));
 
     $request->refresh()->load('penawaran.items.details');
     expect($request->penawaran->calcGrandTotal())->toBe(100000000);
 
     $test->actingAs($seller)
-        ->post(route('usulan.kirim-penawaran', $request))
+        ->post(route('penawaran-harga.kirim-penawaran', $request))
         ->assertRedirect();
     expect($request->refresh()->penawaran_status)->toBe('sent');
 
     $test->actingAs($buyer)
-        ->get(route('usulan.show', $request))
+        ->get(route('penawaran-harga.show', $request))
         ->assertOk()
         ->assertSee('Anda bertindak sebagai pembeli')
         ->assertSee('Langkah berikutnya: Periksa dan putuskan penawaran');
     $test->actingAs($buyer)
-        ->get(route('usulan.quotation.show', $request))
+        ->get(route('penawaran-harga.quotation.show', $request))
         ->assertOk()
         ->assertSee('Penawaran Harga dari Permohonan')
         ->assertSee('Mode lihat')
         ->assertDontSee('Simpan Penawaran Harga');
 
     $test->actingAs($buyer)
-        ->post(route('usulan.tanggapi-penawaran', $request), [
+        ->post(route('penawaran-harga.tanggapi-penawaran', $request), [
             'action' => 'accepted',
         ])
         ->assertRedirect();
@@ -314,9 +314,9 @@ test('request price form handles null flashed item input', function () {
             'jenis_transaksi' => 'barang',
             'deskripsi' => 'Kebutuhan uji Blade',
         ]])
-        ->get(route('usulan.create'))
+        ->get(route('penawaran-harga.create'))
         ->assertOk()
-        ->assertSee('Buat Permintaan Harga')
+        ->assertSee('Buat Usulan Penawaran')
         ->assertSee('value="barang" selected>Barang</option>', false)
         ->assertSee('value="jasa"', false)
         ->assertSee('>Jasa</option>', false)

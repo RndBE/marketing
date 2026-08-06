@@ -329,7 +329,7 @@ class PenawaranController extends Controller
         // tersendiri. Jangan pernah membukanya dengan tampilan Penawaran umum.
         $requestQuotation = $penawaran->usulan()->first();
         if ($requestQuotation) {
-            return redirect()->route('usulan.quotation.show', $requestQuotation);
+            return redirect()->route('penawaran-harga.quotation.show', $requestQuotation);
         }
 
         $penawaran->load([
@@ -1353,7 +1353,7 @@ class PenawaranController extends Controller
         // riwayat browser. Paksa dokumen permohonan memakai template khususnya.
         $requestQuotation = $penawaran->usulan()->first();
         if ($requestQuotation) {
-            return redirect()->route('usulan.quotation.pdf', $requestQuotation);
+            return redirect()->route('penawaran-harga.quotation.pdf', $requestQuotation);
         }
 
         $pricelistMode = $request->query('mode') === 'pricelist';
