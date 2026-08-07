@@ -134,8 +134,24 @@ class UsulanPenawaranController extends Controller
         });
     }
 
+    /**
+     * Modul ini hanya untuk usulan internal. Data yang punya perusahaan tujuan milik
+     * modul Penawaran Harga -- dialihkan, bukan ditolak, supaya tautan dan penanda
+     * lama yang menunjuk /usulan/{id} tetap sampai ke halaman yang benar.
+     */
+    private function redirectIfBelongsToPenawaranHarga(UsulanPenawaran $usulan)
+    {
+        return $usulan->target_company_id !== null
+            ? redirect()->route('penawaran-harga.show', $usulan)
+            : null;
+    }
+
     public function show(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToPenawaranHarga($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $companyId = $this->currentCompanyId();
         $usulan->load([
@@ -164,6 +180,10 @@ class UsulanPenawaranController extends Controller
 
     public function edit(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToPenawaranHarga($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if (!in_array($usulan->status, ['draft', 'menunggu'])) {
@@ -202,6 +222,10 @@ class UsulanPenawaranController extends Controller
 
     public function update(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToPenawaranHarga($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if (!in_array($usulan->status, ['draft', 'menunggu'])) {
@@ -262,6 +286,10 @@ class UsulanPenawaranController extends Controller
 
     public function tanggapi(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToPenawaranHarga($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
 
         $payload = $request->validate([
@@ -325,6 +353,10 @@ class UsulanPenawaranController extends Controller
 
     public function destroy(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToPenawaranHarga($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if (!in_array($usulan->status, ['draft', 'ditolak'])) {
@@ -343,6 +375,10 @@ class UsulanPenawaranController extends Controller
 
     public function updateVisibility(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToPenawaranHarga($usulan)) {
+            return $redirect;
+        }
+
         abort_unless($this->isSuperadmin($request->user()), 403);
 
         $usulan->sharedCompanies()->sync([]);

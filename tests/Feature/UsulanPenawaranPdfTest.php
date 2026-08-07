@@ -580,3 +580,31 @@ test('usulan module only lists internal proposals and penawaran harga only inter
     // Penerbitan penawaran tidak lagi tersedia dari modul Usulan.
     expect(\Illuminate\Support\Facades\Route::has('usulan.buat-penawaran'))->toBeFalse();
 });
+
+test('old usulan links for inter-company records redirect to penawaran harga', function () {
+    $f = usulanPdfFixture();   // punya target_company_id
+
+    // Tautan lama /usulan/{id} tetap sampai ke halaman yang benar.
+    $this->actingAs($f['creator'])
+        ->get(route('usulan.show', $f['usulan']))
+        ->assertRedirect(route('penawaran-harga.show', $f['usulan']));
+
+    $this->actingAs($f['creator'])
+        ->get(route('usulan.edit', $f['usulan']))
+        ->assertRedirect(route('penawaran-harga.show', $f['usulan']));
+});
+
+test('penawaran harga links for internal proposals redirect back to usulan', function () {
+    $f = usulanPdfFixture();
+    $internal = UsulanPenawaran::create([
+        'company_id' => $f['sender']->id,
+        'judul' => 'Usulan Internal Kursi Kantor',
+        'nilai_estimasi' => 5000000,
+        'created_by' => $f['creator']->id,
+        'status' => 'menunggu',
+    ]);
+
+    $this->actingAs($f['creator'])
+        ->get(route('penawaran-harga.show', $internal))
+        ->assertRedirect(route('usulan.show', $internal));
+});

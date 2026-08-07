@@ -172,8 +172,23 @@ class PenawaranHargaController extends Controller
         });
     }
 
+    /**
+     * Kebalikan dari modul Usulan: data tanpa perusahaan tujuan adalah usulan internal
+     * dan ditangani modul Usulan.
+     */
+    private function redirectIfBelongsToUsulan(UsulanPenawaran $usulan)
+    {
+        return $usulan->target_company_id === null
+            ? redirect()->route('usulan.show', $usulan)
+            : null;
+    }
+
     public function show(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $companyId = $this->currentCompanyId();
         $usulan->load([
@@ -225,6 +240,10 @@ class PenawaranHargaController extends Controller
 
     public function downloadPdf(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
 
         $usulan->load([
@@ -266,6 +285,10 @@ class PenawaranHargaController extends Controller
 
     public function updateSignature(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         $payload = $request->validate([
@@ -294,6 +317,10 @@ class PenawaranHargaController extends Controller
 
     public function deleteSignature(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if ($usulan->signature_path) {
@@ -307,6 +334,10 @@ class PenawaranHargaController extends Controller
 
     public function downloadQuotationPdf(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         abort_unless($usulan->penawaran_id, 404, 'Penawaran belum dibuat.');
 
@@ -380,6 +411,10 @@ class PenawaranHargaController extends Controller
 
     public function showQuotation(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         abort_unless($usulan->penawaran_id, 404, 'Penawaran Harga belum dibuat.');
 
@@ -428,6 +463,10 @@ class PenawaranHargaController extends Controller
 
     public function updateQuotation(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $this->ensureSupplierAccess($usulan, $request->user());
         abort_unless($usulan->penawaran_id, 404, 'Penawaran Harga belum dibuat.');
@@ -543,6 +582,10 @@ class PenawaranHargaController extends Controller
 
     public function edit(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if (! in_array($usulan->status, ['draft', 'menunggu'])) {
@@ -585,6 +628,10 @@ class PenawaranHargaController extends Controller
 
     public function update(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if (! in_array($usulan->status, ['draft', 'menunggu'])) {
@@ -682,6 +729,10 @@ class PenawaranHargaController extends Controller
 
     public function tanggapi(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $this->ensureSupplierAccess($usulan, $request->user());
 
@@ -731,6 +782,10 @@ class PenawaranHargaController extends Controller
 
     public function buatPenawaran(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $this->ensureSupplierAccess($usulan, $request->user());
 
@@ -756,6 +811,10 @@ class PenawaranHargaController extends Controller
 
     public function sendQuotation(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $this->ensureSupplierAccess($usulan, $request->user());
 
@@ -779,6 +838,10 @@ class PenawaranHargaController extends Controller
 
     public function respondQuotation(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         $this->ensureRequesterAccess($usulan, $request->user());
 
@@ -1264,6 +1327,10 @@ class PenawaranHargaController extends Controller
 
     public function downloadAttachment(UsulanPenawaran $usulan, UsulanAttachment $attachment)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanViewAccess($usulan);
         abort_unless((int) $attachment->usulan_id === (int) $usulan->id, 404);
 
@@ -1477,6 +1544,10 @@ class PenawaranHargaController extends Controller
 
     public function destroy(UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         $this->ensureUsulanEditAccess($usulan);
 
         if (! in_array($usulan->status, ['draft', 'ditolak'])) {
@@ -1500,6 +1571,10 @@ class PenawaranHargaController extends Controller
 
     public function updateVisibility(Request $request, UsulanPenawaran $usulan)
     {
+        if ($redirect = $this->redirectIfBelongsToUsulan($usulan)) {
+            return $redirect;
+        }
+
         abort_unless($this->isSuperadmin($request->user()), 403);
 
         $usulan->sharedCompanies()->sync([]);
