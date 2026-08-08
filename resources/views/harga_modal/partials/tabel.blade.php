@@ -99,6 +99,15 @@
                         // sebelum JavaScript jalan. Alpine menimpanya saat init dengan
                         // margin tersimpan milik pengguna.
                         $jualAwal = \App\Services\Inventory\MarginHargaJual::hargaJual($modalBaris, $marginBawaan);
+
+                        // Ikut dihitung di server. Kalau keterangan ini baru muncul
+                        // setelah Alpine jalan, tinggi barisnya bertambah sesudah halaman
+                        // tampil -- itu yang terlihat sebagai kedipan saat refresh.
+                        $efektifAwal = \App\Services\Inventory\MarginHargaJual::margin($modalBaris, $jualAwal);
+                        $tampilEfektifAwal = $efektifAwal !== null && abs($efektifAwal - $marginBawaan) >= 0.05;
+                        $efektifAwalTeks = $tampilEfektifAwal
+                            ? rtrim(rtrim(number_format($efektifAwal, 1, ',', '.'), '0'), ',')
+                            : '';
                     @endphp
 
                     {{-- Margin punya kolom sendiri supaya baris yang menyimpang dari
@@ -150,9 +159,10 @@
 
                                 {{-- Muncul kalau pembulatan ke atas menggeser marginnya cukup
                                      jauh dari target -- pada barang murah itu bisa terasa. --}}
-                                <span x-show="selisihPembulatan({{ $loop->index }}) !== null" style="display: none;"
+                                <span x-show="selisihPembulatan({{ $loop->index }}) !== null"
+                                      {!! $tampilEfektifAwal ? '' : 'style="display: none;"' !!}
                                       class="text-[11px] text-slate-400">
-                                    margin efektif <span x-text="persenTampil(selisihPembulatan({{ $loop->index }}))"></span>%
+                                    margin efektif <span x-text="persenTampil(selisihPembulatan({{ $loop->index }}))">{{ $efektifAwalTeks }}</span>%
                                 </span>
                             </div>
                         @endif

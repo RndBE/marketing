@@ -1780,7 +1780,12 @@ Alpine.data('marginHargaJual', () => ({
     bulatkanKeAtas(nilai) {
         // Ke atas, bukan ke terdekat: membulatkan ke bawah menurunkan margin ke
         // bawah target tanpa ada yang menyadarinya.
-        return Math.ceil(nilai / MARGIN_KELIPATAN) * MARGIN_KELIPATAN;
+        //
+        // Sisa pembagian pecahan biner dibersihkan dulu -- 700000 / 0,7 menghasilkan
+        // 1000000,0000000001, dan tanpa ini hasilnya naik satu kelipatan penuh.
+        const bersih = Math.round(nilai * 1e4) / 1e4;
+
+        return Math.ceil(bersih / MARGIN_KELIPATAN) * MARGIN_KELIPATAN;
     },
 
     jualDariMargin(modal, margin) {

@@ -60,6 +60,10 @@ final class MarginHargaJual
 
     public static function bulatkanKeAtas(float $nilai): float
     {
-        return ceil($nilai / self::KELIPATAN) * self::KELIPATAN;
+        // Sisa pembagian pecahan biner dibersihkan dulu. 700000 / 0,7 menghasilkan
+        // 1000000,0000000001, dan tanpa ini pembulatan ke atas menaikkannya satu
+        // kelipatan penuh jadi 1.001.000 -- padahal hasil tepatnya 1.000.000.
+        // Empat angka di belakang koma jauh di bawah satuan rupiah mana pun.
+        return ceil(round($nilai, 4) / self::KELIPATAN) * self::KELIPATAN;
     }
 }

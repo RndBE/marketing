@@ -2108,6 +2108,34 @@ test('harga jual sudah terisi benar dari server sebelum JavaScript jalan', funct
         ->and($isi)->not->toContain('16.289.223');
 });
 
+test('keterangan margin efektif sudah dirender server, tidak menunggu JavaScript', function () {
+    // Kalau baru muncul setelah Alpine jalan, tinggi barisnya bertambah sesudah
+    // halaman tampil -- itu yang terlihat sebagai kedipan saat refresh.
+    palsukanInventory(badanTab('produk_jadi', [barisUnit(['harga_modal_satuan' => 389343])]));
+
+    $pengguna = penggunaHargaModal('dewi.priyambodo@yahoo.com');
+
+    $isi = $this->actingAs($pengguna)->get(route('harga-modal.index'))->assertOk()->getContent();
+
+    // 389.343 / 0,7 = 556.204 -> dibulatkan ke atas jadi 557.000 -> efektif 30,1%.
+    expect($isi)->toContain('value="557.000"')
+        ->and($isi)->toContain('margin efektif')
+        ->and($isi)->toContain('>30,1</span>%');
+});
+
+test('baris yang pembulatannya tidak menggeser margin tidak memunculkan keterangannya', function () {
+    // 700.000 / 0,7 = tepat 1.000.000, jadi tidak ada selisih yang perlu disebut.
+    palsukanInventory(badanTab('produk_jadi', [barisUnit(['harga_modal_satuan' => 700000])]));
+
+    $pengguna = penggunaHargaModal('dewi.priyambodo@yahoo.com');
+
+    $isi = $this->actingAs($pengguna)->get(route('harga-modal.index'))->assertOk()->getContent();
+
+    expect($isi)->toContain('value="1.000.000"')
+        // Elemennya tetap ada untuk dipakai Alpine, tapi berangkat dalam keadaan tersembunyi.
+        ->and($isi)->toContain('style="display: none;"');
+});
+
 test('bilah margin memakai margin bawaan dan menyimpannya per pengguna', function () {
     palsukanInventory(badanTab('produk_jadi', [barisUnit()]));
 

@@ -42,6 +42,14 @@ test('pembulatan selalu ke atas, tidak pernah ke terdekat', function (float $nil
     'jauh di bawah tengah' => [17900245.46, 17901000.0],
 ]);
 
+test('hasil yang tepat di kelipatan tidak dinaikkan oleh sisa pembagian biner', function () {
+    // 700.000 / 0,7 dihitung komputer sebagai 1.000.000,0000000001. Tanpa
+    // pembersihan, pembulatan ke atas menaikkannya jadi Rp 1.001.000 tanpa sebab.
+    expect(MarginHargaJual::hargaJual(700000.0, 30))->toBe(1000000.0)
+        ->and(MarginHargaJual::hargaJual(350000.0, 30))->toBe(500000.0)
+        ->and(MarginHargaJual::hargaJual(500000.0, 50))->toBe(1000000.0);
+});
+
 test('pembulatan ke atas membuat margin tidak pernah di bawah target', function (float $modal, float $target) {
     $jual = MarginHargaJual::hargaJual($modal, $target);
 
