@@ -528,6 +528,36 @@ test('tab bahan menampilkan ketiga kolom harga sekaligus', function () {
         ->assertSee('Rp 1.140.000');
 });
 
+test('kolom foto di tab bahan punya judul, bukan kepala kosong', function () {
+    palsukanInventory(badanTab('bahan', [barisBahan()]));
+
+    $pengguna = penggunaHargaModal('dewi.priyambodo@yahoo.com');
+
+    $this->actingAs($pengguna)
+        ->get(route('harga-modal.index', ['tab' => 'bahan']))
+        ->assertOk()
+        ->assertSee('Foto Bahan');
+});
+
+test('jendela dilepas setelah animasi keluar, bukan seketika', function () {
+    // Pembungkus yang langsung disembunyikan membuat transisi keluar anak-anaknya
+    // berjalan di dalam elemen display:none -- tidak pernah terlihat.
+    palsukanInventory(badanTab('produk_jadi', [barisUnit([
+        'produksi_id' => 'PRD-778',
+        'gambar_url' => 'https://lh3.googleusercontent.com/d/abc',
+    ])]));
+
+    $pengguna = penggunaHargaModal('dewi.priyambodo@yahoo.com');
+
+    $isi = $this->actingAs($pengguna)->get(route('harga-modal.index'))->assertOk()->getContent();
+
+    // Pembungkus memakai keadaan yang tertunda, anak-anaknya yang beranimasi.
+    expect($isi)->toContain('x-show="terlihatGambar"')
+        ->and($isi)->toContain('x-show="terbukaGambar"')
+        ->and($isi)->toContain('x-show="terlihat"')
+        ->and($isi)->toContain('x-show="terbuka"');
+});
+
 test('tab bahan tidak punya kolom kode produksi dan serial', function () {
     palsukanInventory(badanTab('bahan', [barisBahan()]));
 

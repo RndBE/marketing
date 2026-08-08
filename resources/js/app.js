@@ -1579,8 +1579,17 @@ window.bukaRincianBahan = (event) => {
     }));
 };
 
+/**
+ * Sedikit lebih lama dari transisi keluar terpanjang (150ms), supaya pembungkus
+ * jendela belum dilepas saat animasinya masih berjalan.
+ */
+const JEDA_TUTUP_MS = 200;
+
 Alpine.data('rincianBahan', () => ({
+    // `terbuka` menggerakkan animasinya; `terlihat` menahan pembungkusnya tetap
+    // terpasang sampai animasi itu selesai.
     terbuka: false,
+    terlihat: false,
     memuat: false,
     galat: '',
     namaProduk: '',
@@ -1600,6 +1609,7 @@ Alpine.data('rincianBahan', () => ({
         // Sudah diformat di Blade; di sini cuma ditampilkan apa adanya.
         this.hargaUnit = detail?.harga ?? '';
         this.tautanPenuh = detail?.url ?? '';
+        this.terlihat = true;
         this.terbuka = true;
 
         this.muat(this.tautanPenuh);
@@ -1616,8 +1626,21 @@ Alpine.data('rincianBahan', () => ({
 
     tutup() {
         this.terbuka = false;
-        this.isi = '';
-        this.galat = '';
+
+        // Pembungkus terluar baru dilepas setelah animasi keluar selesai. Kalau
+        // langsung disembunyikan, transisi anak-anaknya berjalan di dalam elemen
+        // yang sudah display:none -- tidak pernah terlihat, dan jendelanya terasa
+        // hilang mendadak. Isinya juga baru dikosongkan di sini, supaya yang
+        // memudar isi jendelanya, bukan kotak putih kosong.
+        setTimeout(() => {
+            if (this.terbuka) {
+                return;
+            }
+
+            this.terlihat = false;
+            this.isi = '';
+            this.galat = '';
+        }, JEDA_TUTUP_MS);
     },
 
     async muat(url) {
@@ -1905,7 +1928,10 @@ Alpine.data('marginHargaJual', () => ({
 }));
 
 Alpine.data('pratinjauGambar', () => ({
+    // `terbukaGambar` menggerakkan animasinya; `terlihatGambar` menahan
+    // pembungkusnya tetap terpasang sampai animasi itu selesai.
     terbukaGambar: false,
+    terlihatGambar: false,
     gagalGambar: false,
     gambar: '',
     sematan: '',
@@ -1918,16 +1944,26 @@ Alpine.data('pratinjauGambar', () => ({
         this.judulGambar = detail?.judul ?? '';
         this.tautanGambar = detail?.tautan ?? '';
         this.gagalGambar = false;
+        this.terlihatGambar = true;
         this.terbukaGambar = true;
     },
 
     tutupGambar() {
         this.terbukaGambar = false;
-        // Dikosongkan supaya iframe-nya benar-benar dilepas, bukan menyisakan
-        // muatan lama yang muncul sekilas saat jendela dibuka lagi.
-        this.sematan = '';
-        this.gambar = '';
-        this.gagalGambar = false;
+
+        // Isinya baru dilepas setelah animasi keluar selesai. Kalau langsung
+        // dikosongkan, iframe atau gambarnya hilang duluan dan yang memudar tinggal
+        // kotak putih -- itu yang membuat penutupannya terasa patah.
+        setTimeout(() => {
+            if (this.terbukaGambar) {
+                return;
+            }
+
+            this.terlihatGambar = false;
+            this.sematan = '';
+            this.gambar = '';
+            this.gagalGambar = false;
+        }, JEDA_TUTUP_MS);
     },
 }));
 

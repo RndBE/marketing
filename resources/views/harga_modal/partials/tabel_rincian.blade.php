@@ -29,7 +29,7 @@
     <table class="min-w-full divide-y divide-slate-200 text-sm">
         <thead class="bg-slate-50">
             <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th scope="col" class="px-5 py-3.5"><span class="sr-only">Gambar</span></th>
+                <th scope="col" class="px-5 py-3.5">Foto Bahan</th>
                 <th scope="col" class="px-5 py-3.5">Nama Bahan</th>
                 <th scope="col" class="px-5 py-3.5">Kode</th>
                 <th scope="col" class="px-5 py-3.5">Jenis</th>

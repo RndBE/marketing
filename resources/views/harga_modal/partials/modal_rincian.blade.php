@@ -14,7 +14,9 @@
 {{-- style di bawah menahan kedipan sebelum Alpine sempat jalan. --}}
 <div x-data="rincianBahan"
      x-on:rincian-bahan.window="terimaRincian($event.detail)"
-     x-show="terbuka" style="display: none;"
+     {{-- Pembungkus dilepas belakangan (terlihat), supaya transisi keluar
+          anak-anaknya sempat berjalan sebelum semuanya disembunyikan. --}}
+     x-show="terlihat" style="display: none;"
      class="fixed inset-0 z-50 overflow-y-auto px-4 py-6"
      role="dialog" aria-modal="true" aria-labelledby="judul-rincian-bahan"
      x-on:keydown.escape.window="tutup()">

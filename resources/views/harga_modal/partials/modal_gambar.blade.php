@@ -11,7 +11,9 @@
 --}}
 <div x-data="pratinjauGambar"
      x-on:pratinjau-gambar.window="terimaGambar($event.detail)"
-     x-show="terbukaGambar" style="display: none;"
+     {{-- Pembungkus dilepas belakangan (terlihatGambar), supaya transisi keluar
+          anak-anaknya sempat berjalan sebelum semuanya disembunyikan. --}}
+     x-show="terlihatGambar" style="display: none;"
      class="fixed inset-0 z-[60] flex items-center justify-center p-4"
      role="dialog" aria-modal="true" aria-label="Pratinjau gambar"
      x-on:keydown.escape.window="tutupGambar()">
