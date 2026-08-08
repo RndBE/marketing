@@ -14,6 +14,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\KomponenController;
+use App\Http\Controllers\HargaModalController;
 use App\Http\Controllers\PenawaranHargaController;
 use App\Http\Controllers\UsulanPenawaranController;
 use App\Http\Controllers\InvoiceController;
@@ -422,6 +423,20 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{marketingReport}', [LaporanPerjalananMarketingController::class, 'destroy'])
             ->middleware('permission:delete-marketing-report')
             ->name('destroy');
+    });
+
+    /*
+    |---------------- HARGA MODAL --------------|
+    | Data dipinjam dari inventory, tidak disimpan di CRM. Lapis pertama
+    | pengamanannya izin di sini; lapis keduanya pengecekan hak per email
+    | di sisi inventory, yang balas 403 kalau haknya kurang.
+    */
+    Route::prefix('harga-modal')->name('harga-modal.')->middleware('permission:view-harga-modal')->group(function () {
+        Route::get('/', [HargaModalController::class, 'index'])->name('index');
+
+        // Bahan di dalam satu batch produksi. Tetap dilayani server supaya kunci
+        // API inventory tidak pernah ikut ke browser.
+        Route::get('/rincian', [HargaModalController::class, 'rincian'])->name('rincian');
     });
 
     /*

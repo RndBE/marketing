@@ -288,6 +288,21 @@
             </div>
         @endif
 
+        {{-- Harga Modal: data HPP milik inventory. Izin di sini baru lapis pertama;
+             inventory tetap memeriksa hak per email dan bisa membalas 403. --}}
+        @if(auth()->user()->hasPermission('view-harga-modal'))
+            <div class="mb-4">
+                <a href="{{ route('harga-modal.index') }}"
+                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition
+                    {{ request()->routeIs('harga-modal.*') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-50' }}">
+                    <span class="inline-flex w-5 justify-center">
+                        <i class="fa-regular fa-money-bill-1 fa-fw text-[18px] leading-none"></i>
+                    </span>
+                    <span>Harga Modal</span>
+                </a>
+            </div>
+        @endif
+
         @if(auth()->user()->hasPermission('view-prospect'))
             <div class="mb-4">
                 <button @click="prospect = !prospect"

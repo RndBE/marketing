@@ -35,4 +35,26 @@ return [
         ],
     ],
 
+    /*
+    | Inventory -- sumber data harga modal (HPP).
+    |
+    | CRM_API_KEY hanya boleh hidup di env server CRM dan hanya dipakai dari sisi
+    | server. Kunci ini tidak pernah dikirim ke browser: kalau ikut ter-render ke
+    | JavaScript, siapa pun yang membuka DevTools bisa membacanya dan seluruh HPP
+    | ikut terbuka.
+    |
+    | Cache sengaja mati secara bawaan. Store cache aplikasi ini adalah database
+    | (lihat CACHE_STORE), jadi menyalakan cache berarti baris HPP ikut mendarat di
+    | tabel `cache` milik CRM. Kalau memang perlu demi kecepatan, isi TTL-nya kecil
+    | (maksimum dipagari 300 detik) dan arahkan HARGA_MODAL_CACHE_STORE ke store yang
+    | tidak persisten, misalnya `array` atau `redis`.
+    */
+    'inventory' => [
+        'base_url' => env('INVENTORY_BASE_URL'),
+        'api_key' => env('CRM_API_KEY'),
+        'timeout' => (int) env('INVENTORY_TIMEOUT', 10),
+        'harga_modal_cache_ttl' => (int) env('HARGA_MODAL_CACHE_TTL', 0),
+        'harga_modal_cache_store' => env('HARGA_MODAL_CACHE_STORE'),
+    ],
+
 ];

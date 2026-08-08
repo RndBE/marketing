@@ -1543,4 +1543,387 @@ if (document.body) {
     });
 }
 
+/**
+ * Modal rincian bahan pada halaman Harga Modal.
+ *
+ * Yang dipanggil adalah route CRM sendiri, bukan inventory: kunci API tidak boleh
+ * ikut ke browser. Route itu membalas potongan HTML yang sudah dirender server,
+ * jadi format rupiah dan penanda selisih tetap satu definisi di Blade -- tidak ada
+ * logika tampilan yang digandakan di sini.
+ */
+/**
+ * Klik "Lihat Bahan": menyiarkan permintaan lewat event window.
+ *
+ * Alasannya sama dengan pratinjau gambar -- jendelanya tidak perlu membungkus
+ * tabel, jadi tidak ada komponen yang bersarang dan tidak ada keadaan yang bisa
+ * tertulis ke komponen yang salah.
+ */
+window.bukaRincianBahan = (event) => {
+    // Ctrl/Cmd/Shift-klik dibiarkan lewat, supaya tetap bisa dibuka di tab baru.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+        return;
+    }
+
+    event.preventDefault();
+
+    const tombol = event.currentTarget;
+    const { nama = '', kode = '', produksi = '', tipe = '', harga = '' } = tombol.dataset;
+
+    // Penanda loading tautan global dipasang di fase capture, sebelum handler ini
+    // sempat membatalkan klik. Karena halamannya tidak berpindah, penandanya tidak
+    // akan pernah lepas sendiri.
+    window.linkLoading?.setLinkLoading(tombol, false);
+
+    window.dispatchEvent(new CustomEvent('rincian-bahan', {
+        detail: { nama, kode, produksi, tipe, harga, url: tombol.getAttribute('href') ?? '' },
+    }));
+};
+
+Alpine.data('rincianBahan', () => ({
+    terbuka: false,
+    memuat: false,
+    galat: '',
+    namaProduk: '',
+    kodeProduk: '',
+    produksiId: '',
+    labelTipe: '',
+    hargaUnit: '',
+    tautanPenuh: '',
+    isi: '',
+
+    terimaRincian(detail) {
+        // Judul diisi dari baris yang diklik, jadi sudah terbaca sebelum data datang.
+        this.namaProduk = detail?.nama ?? '';
+        this.kodeProduk = detail?.kode ?? '';
+        this.produksiId = detail?.produksi ?? '';
+        this.labelTipe = detail?.tipe ?? '';
+        // Sudah diformat di Blade; di sini cuma ditampilkan apa adanya.
+        this.hargaUnit = detail?.harga ?? '';
+        this.tautanPenuh = detail?.url ?? '';
+        this.terbuka = true;
+
+        this.muat(this.tautanPenuh);
+    },
+
+    /**
+     * Penanda loading tautan global dipasang di fase capture, jadi ia sudah jalan
+     * sebelum handler ini sempat membatalkan klik. Karena halamannya tidak pernah
+     * berpindah, penandanya tidak akan pernah lepas sendiri.
+     */
+    lepasPenandaMemuat(tautan) {
+        window.linkLoading?.setLinkLoading(tautan, false);
+    },
+
+    tutup() {
+        this.terbuka = false;
+        this.isi = '';
+        this.galat = '';
+    },
+
+    async muat(url) {
+        if (!url) {
+            return;
+        }
+
+        this.memuat = true;
+        this.galat = '';
+        this.isi = '';
+
+        try {
+            const respons = await fetch(url + (url.includes('?') ? '&' : '?') + 'fragmen=1', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+
+            if (!respons.ok) {
+                this.galat = 'Rincian bahan gagal dimuat (status ' + respons.status + ').';
+
+                return;
+            }
+
+            this.isi = await respons.text();
+        } catch (error) {
+            this.galat = 'Rincian bahan gagal dimuat. Periksa koneksi lalu coba lagi.';
+        } finally {
+            this.memuat = false;
+        }
+    },
+
+    /** Tautan paginasi di dalam modal dimuat ke modal, bukan memindahkan halaman. */
+    lompat(event) {
+        const tautan = event.target.closest('a[href]');
+
+        if (!tautan) {
+            return;
+        }
+
+        event.preventDefault();
+
+        // Tautan paginasi dirender paginator Laravel, jadi tidak bisa diberi
+        // data-no-link-loading dari Blade -- penandanya dilepas di sini.
+        this.lepasPenandaMemuat(tautan);
+        this.muat(tautan.getAttribute('href'));
+    },
+}));
+
+/**
+ * Pratinjau gambar pada halaman Harga Modal.
+ *
+ * Yang diperbesar adalah gambar yang sudah dimuat browser (gambar_url), bukan
+ * halaman Google Drive-nya -- link_gambar menunjuk ke halaman, bukan berkas
+ * gambar, jadi tidak bisa dipasang langsung sebagai src.
+ */
+/**
+ * Klik thumbnail: menyiarkan permintaan pratinjau lewat event window.
+ *
+ * Sengaja tidak memanggil metode komponen Alpine langsung. Tabel produk berada di
+ * dalam komponen modal rincian, dan kedua komponen sama-sama punya keadaan
+ * "terbuka". Kalau penanganannya lewat pencarian scope Alpine, penulisan dari
+ * dalam tabel mendarat di komponen terdekat -- yang membuka modal rincian, bukan
+ * pratinjau gambar. Event window memutus ketergantungan pada susunan itu.
+ */
+window.bukaPratinjauGambar = (event) => {
+    // Ctrl/Cmd/Shift-klik dan klik-tengah dibiarkan lewat, supaya tautannya tetap
+    // bisa dibuka di tab baru seperti tautan biasa.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+        return;
+    }
+
+    const tombol = event.currentTarget;
+    const { gambar = '', sematan = '', judul = '', tautan = '' } = tombol.dataset;
+
+    // Tidak ada yang bisa ditampilkan sama sekali: biarkan tautannya bekerja
+    // seperti biasa alih-alih membuka jendela kosong.
+    if (!gambar && !sematan && !tautan) {
+        return;
+    }
+
+    event.preventDefault();
+
+    window.dispatchEvent(new CustomEvent('pratinjau-gambar', {
+        detail: { gambar, sematan, judul, tautan },
+    }));
+};
+
+/**
+ * Jendela pratinjau gambar.
+ *
+ * Namanya sengaja berakhiran Gambar. Komponen ini pernah bertetangga dekat dengan
+ * modal rincian yang juga memakai `terbuka`, dan tabrakan nama itu tidak
+ * memunculkan galat apa pun -- hanya jendela yang salah yang terbuka.
+ */
+/*
+ * Perhitungan margin pada halaman Harga Modal.
+ *
+ * Rumusnya menyalin App\Services\Inventory\MarginHargaJual -- acuannya di sana,
+ * lengkap dengan pengujiannya. Yang di sini hanya supaya angkanya berubah seketika
+ * tanpa memuat ulang halaman.
+ */
+const MARGIN_KELIPATAN = 1000;
+const MARGIN_KUNCI_SIMPAN = 'harga-modal:margin-target';
+const MARGIN_BAWAAN = 30;
+
+/** Membaca angka bergaya Indonesia: 1.234,5 -> 1234.5 */
+const marginKeAngka = (teks) => {
+    const bersih = String(teks ?? '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const angka = Number.parseFloat(bersih);
+
+    return Number.isFinite(angka) ? angka : null;
+};
+
+const marginKeRupiah = (teks) => {
+    const angka = Number.parseInt(String(teks ?? '').replace(/[^\d]/g, ''), 10);
+
+    return Number.isFinite(angka) ? angka : null;
+};
+
+Alpine.data('marginHargaJual', () => ({
+    marginGlobal: MARGIN_BAWAAN,
+    modalBaris: [],
+    // indeks baris -> { jenis: 'margin' | 'jual', nilai: number }
+    ubahanBaris: {},
+
+    init() {
+        const tersimpan = marginKeAngka(window.localStorage?.getItem(MARGIN_KUNCI_SIMPAN));
+
+        // Disimpan per pengguna di peramban masing-masing: margin satu orang tidak
+        // boleh mengubah tampilan orang lain.
+        if (tersimpan !== null && tersimpan >= 0 && tersimpan <= 99.9) {
+            this.marginGlobal = tersimpan;
+        }
+
+        // Baris tanpa harga modal tetap memasang data-modal kosong supaya urutan
+        // indeksnya tidak bergeser terhadap yang dipakai Blade.
+        this.modalBaris = Array.from(this.$el.querySelectorAll('[data-modal]')).map((el) => {
+            const angka = Number.parseFloat(el.dataset.modal);
+
+            return Number.isFinite(angka) && angka > 0 ? angka : null;
+        });
+    },
+
+    setMarginGlobal(teks) {
+        const angka = marginKeAngka(teks);
+
+        if (angka === null || angka < 0 || angka > 99.9) {
+            return;
+        }
+
+        this.marginGlobal = angka;
+
+        try {
+            window.localStorage?.setItem(MARGIN_KUNCI_SIMPAN, String(angka));
+        } catch (error) {
+            // Peramban dengan penyimpanan dimatikan tetap boleh memakai halamannya.
+        }
+    },
+
+    bulatkanKeAtas(nilai) {
+        // Ke atas, bukan ke terdekat: membulatkan ke bawah menurunkan margin ke
+        // bawah target tanpa ada yang menyadarinya.
+        return Math.ceil(nilai / MARGIN_KELIPATAN) * MARGIN_KELIPATAN;
+    },
+
+    jualDariMargin(modal, margin) {
+        if (modal === null || margin === null || margin < 0 || margin > 99.9) {
+            return null;
+        }
+
+        // Margin terhadap harga jual, bukan markup terhadap modal.
+        return this.bulatkanKeAtas(modal / (1 - margin / 100));
+    },
+
+    jualBaris(i) {
+        const modal = this.modalBaris[i] ?? null;
+
+        if (modal === null) {
+            return null;
+        }
+
+        const ubahan = this.ubahanBaris[i];
+
+        // Harga jual yang diketik langsung tidak dibulatkan ulang -- justru angka
+        // bulat pilihan klien itu yang ingin dipertahankan.
+        if (ubahan?.jenis === 'jual') {
+            return ubahan.nilai;
+        }
+
+        return this.jualDariMargin(modal, ubahan?.jenis === 'margin' ? ubahan.nilai : this.marginGlobal);
+    },
+
+    /** Margin yang benar-benar didapat dari harga jual yang tampil. */
+    marginEfektif(i) {
+        const modal = this.modalBaris[i] ?? null;
+        const jual = this.jualBaris(i);
+
+        if (modal === null || jual === null || jual <= 0) {
+            return null;
+        }
+
+        return (jual - modal) / jual * 100;
+    },
+
+    marginTarget(i) {
+        const ubahan = this.ubahanBaris[i];
+
+        if (ubahan?.jenis === 'margin') {
+            return ubahan.nilai;
+        }
+
+        if (ubahan?.jenis === 'jual') {
+            return this.marginEfektif(i);
+        }
+
+        return this.marginGlobal;
+    },
+
+    /**
+     * Selisih target dengan yang benar-benar didapat, akibat pembulatan ke atas.
+     * Untuk barang murah selisihnya bisa terasa, jadi ditampilkan alih-alih diam.
+     */
+    selisihPembulatan(i) {
+        const target = this.marginTarget(i);
+        const efektif = this.marginEfektif(i);
+
+        if (target === null || efektif === null) {
+            return null;
+        }
+
+        return Math.abs(efektif - target) >= 0.05 ? efektif : null;
+    },
+
+    setMarginBaris(i, teks) {
+        const angka = marginKeAngka(teks);
+
+        if (angka === null || angka < 0 || angka > 99.9) {
+            return;
+        }
+
+        this.ubahanBaris = { ...this.ubahanBaris, [i]: { jenis: 'margin', nilai: angka } };
+    },
+
+    setJualBaris(i, teks) {
+        const angka = marginKeRupiah(teks);
+        const modal = this.modalBaris[i] ?? null;
+
+        // Harga jual di bawah modal berarti margin negatif; biarkan, itu keputusan
+        // penggunanya -- yang penting angkanya masuk akal sebagai bilangan.
+        if (angka === null || angka <= 0 || modal === null) {
+            return;
+        }
+
+        this.ubahanBaris = { ...this.ubahanBaris, [i]: { jenis: 'jual', nilai: angka } };
+    },
+
+    diubah(i) {
+        return this.ubahanBaris[i] !== undefined;
+    },
+
+    kembalikan(i) {
+        const salinan = { ...this.ubahanBaris };
+        delete salinan[i];
+        this.ubahanBaris = salinan;
+    },
+
+    jualTampil(i) {
+        const jual = this.jualBaris(i);
+
+        return jual === null ? '' : new Intl.NumberFormat('id-ID').format(jual);
+    },
+
+    persenTampil(nilai) {
+        if (nilai === null) {
+            return '';
+        }
+
+        return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 }).format(nilai);
+    },
+}));
+
+Alpine.data('pratinjauGambar', () => ({
+    terbukaGambar: false,
+    gagalGambar: false,
+    gambar: '',
+    sematan: '',
+    judulGambar: '',
+    tautanGambar: '',
+
+    terimaGambar(detail) {
+        this.gambar = detail?.gambar ?? '';
+        this.sematan = detail?.sematan ?? '';
+        this.judulGambar = detail?.judul ?? '';
+        this.tautanGambar = detail?.tautan ?? '';
+        this.gagalGambar = false;
+        this.terbukaGambar = true;
+    },
+
+    tutupGambar() {
+        this.terbukaGambar = false;
+        // Dikosongkan supaya iframe-nya benar-benar dilepas, bukan menyisakan
+        // muatan lama yang muncul sekilas saat jendela dibuka lagi.
+        this.sematan = '';
+        this.gambar = '';
+        this.gagalGambar = false;
+    },
+}));
+
 Alpine.start();
