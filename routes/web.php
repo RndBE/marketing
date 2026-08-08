@@ -431,7 +431,8 @@ Route::middleware(['auth'])->group(function () {
     | pengamanannya izin di sini; lapis keduanya pengecekan hak per email
     | di sisi inventory, yang balas 403 kalau haknya kurang.
     */
-    Route::prefix('harga-modal')->name('harga-modal.')->middleware('permission:view-harga-modal')->group(function () {
+    // Penjaganya memeriksa izin sekaligus perusahaan; lihat CheckAksesHargaModal.
+    Route::prefix('harga-modal')->name('harga-modal.')->middleware('harga-modal')->group(function () {
         Route::get('/', [HargaModalController::class, 'index'])->name('index');
 
         // Bahan di dalam satu batch produksi. Tetap dilayani server supaya kunci

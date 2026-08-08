@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Company;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -24,7 +25,12 @@ beforeEach(function () {
     config()->set('services.inventory.harga_modal_cache_store', null);
 });
 
-function penggunaHargaModal(string $email, bool $denganIzin = true): User
+function perusahaanHargaModal(string $kode): Company
+{
+    return Company::firstOrCreate(['code' => $kode], ['name' => 'Perusahaan '.$kode]);
+}
+
+function penggunaHargaModal(string $email, bool $denganIzin = true, string $kodePerusahaan = 'ATC'): User
 {
     $role = Role::firstOrCreate(
         ['slug' => $denganIzin ? 'sales-hpp' : 'sales-polos'],
@@ -40,7 +46,13 @@ function penggunaHargaModal(string $email, bool $denganIzin = true): User
         }
     }
 
-    $pengguna = User::factory()->create(['email' => $email]);
+    // Halaman ini juga dibatasi per perusahaan, jadi tiap pengguna uji harus punya
+    // perusahaan. Bawaannya ATC, yang memang diizinkan.
+    $pengguna = User::factory()->create([
+        'email' => $email,
+        'company_id' => perusahaanHargaModal($kodePerusahaan)->id,
+    ]);
+
     $pengguna->roles()->attach($role->id);
 
     return $pengguna;
@@ -163,6 +175,117 @@ test('akun tanpa izin ditolak CRM sebelum inventory sempat ditanya', function ()
         ->assertForbidden();
 
     Http::assertNothingSent();
+});
+
+/*
+|--------------------------------------------------------------------------
+| Pembatasan per perusahaan
+|--------------------------------------------------------------------------
+*/
+
+test('pengguna dari perusahaan yang diizinkan bisa membuka halamannya', function () {
+    palsukanInventory(badanTab('produk_jadi', [barisUnit()]));
+
+    $dewi = penggunaHargaModal('dewi.priyambodo@yahoo.com', kodePerusahaan: 'ATC');
+
+    $this->actingAs($dewi)->get(route('harga-modal.index'))->assertOk();
+
+    expect(view('layouts.partials.sidebar')->render())->toContain(route('harga-modal.index'));
+});
+
+test('izin yang sama di perusahaan lain tetap ditolak', function () {
+    // Role dan izinnya persis sama; yang membedakan hanya perusahaannya. Izin per
+    // role tidak bisa memisahkan keduanya, karena rolenya dipakai bersama.
+    Http::fake();
+
+    $lain = penggunaHargaModal('sales.as@example.com', kodePerusahaan: 'AS');
+
+    $this->actingAs($lain)->get(route('harga-modal.index'))->assertForbidden();
+
+    Http::assertNothingSent();
+});
+
+test('menu sidebar ikut hilang untuk perusahaan yang tidak diizinkan', function () {
+    $lain = penggunaHargaModal('sales.as@example.com', kodePerusahaan: 'AS');
+
+    // Menu tidak boleh menawarkan halaman yang ujungnya ditolak.
+    $this->actingAs($lain);
+    expect(view('layouts.partials.sidebar')->render())->not->toContain(route('harga-modal.index'));
+});
+
+test('halaman rincian dijaga pembatasan perusahaan yang sama', function () {
+    // Menyembunyikan menu saja tidak mengamankan apa pun; alamatnya bisa diketik.
+    Http::fake();
+
+    $lain = penggunaHargaModal('sales.as@example.com', kodePerusahaan: 'AS');
+
+    $this->actingAs($lain)
+        ->get(route('harga-modal.rincian', ['tipe' => 'produk-jadi', 'produksi_id' => 'PRD-778']))
+        ->assertForbidden();
+
+    Http::assertNothingSent();
+});
+
+test('pengguna tanpa perusahaan ditolak', function () {
+    Http::fake();
+
+    $tanpaPerusahaan = penggunaHargaModal('lepas@example.com');
+    $tanpaPerusahaan->forceFill(['company_id' => null])->save();
+
+    $this->actingAs($tanpaPerusahaan)->get(route('harga-modal.index'))->assertForbidden();
+
+    Http::assertNothingSent();
+});
+
+test('kode perusahaan dicocokkan tanpa memedulikan huruf besar kecil', function () {
+    config()->set('services.inventory.perusahaan', ['atc']);
+    palsukanInventory(badanTab('produk_jadi', [barisUnit()]));
+
+    $dewi = penggunaHargaModal('dewi.priyambodo@yahoo.com', kodePerusahaan: 'ATC');
+
+    $this->actingAs($dewi)->get(route('harga-modal.index'))->assertOk();
+});
+
+test('daftar perusahaan yang dikosongkan mematikan pembatasannya', function () {
+    // Jalan keluar kalau suatu saat halaman ini berlaku untuk semua perusahaan.
+    config()->set('services.inventory.perusahaan', []);
+    palsukanInventory(badanTab('produk_jadi', [barisUnit()]));
+
+    $lain = penggunaHargaModal('sales.as@example.com', kodePerusahaan: 'AS');
+
+    $this->actingAs($lain)->get(route('harga-modal.index'))->assertOk();
+});
+
+test('beberapa perusahaan bisa diizinkan sekaligus', function () {
+    config()->set('services.inventory.perusahaan', ['ATC', 'AS']);
+    palsukanInventory(badanTab('produk_jadi', [barisUnit()]));
+
+    $lain = penggunaHargaModal('sales.as@example.com', kodePerusahaan: 'AS');
+
+    $this->actingAs($lain)->get(route('harga-modal.index'))->assertOk();
+});
+
+test('admin mengikuti perusahaan aktif yang sedang dipilihnya', function () {
+    palsukanInventory(badanTab('produk_jadi', [barisUnit()]));
+
+    $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']);
+    $izin = Permission::where('slug', 'view-harga-modal')->firstOrFail();
+    $adminRole->permissions()->syncWithoutDetaching([$izin->id]);
+
+    $arta = perusahaanHargaModal('AS');
+    $atc = perusahaanHargaModal('ATC');
+
+    $admin = User::factory()->create(['email' => 'admin@example.com', 'company_id' => $arta->id]);
+    $admin->roles()->attach($adminRole->id);
+
+    // Perusahaannya sendiri tidak diizinkan, jadi tanpa memilih apa pun: ditolak.
+    $this->actingAs($admin)->get(route('harga-modal.index'))->assertForbidden();
+
+    // Setelah berpindah ke ATC lewat pemilih di header: boleh.
+    $this->actingAs($admin)
+        ->withSession(['active_company_id' => $atc->id])
+        ->get(route('harga-modal.index'))
+        ->assertOk();
 });
 
 test('tamu yang belum login diarahkan ke halaman masuk', function () {

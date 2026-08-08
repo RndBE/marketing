@@ -3,8 +3,9 @@
 namespace App\Providers;
 
 use App\Models\Company;
-use Illuminate\Support\ServiceProvider;
+use App\Services\PerusahaanAktif;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.app', function ($view) {
             $user = auth()->user();
 
-            if (!$user) {
+            if (! $user) {
                 return;
             }
 
@@ -32,26 +33,10 @@ class AppServiceProvider extends ServiceProvider
                 ? Company::query()->orderBy('name')->get(['id', 'name', 'code'])
                 : collect();
 
-            $activeCompanyId = null;
-            $activeCompany = null;
-
-            if ($user->hasRole('admin')) {
-                $selectedCompanyId = (int) session('active_company_id', 0);
-                $activeCompany = $companies->firstWhere('id', $selectedCompanyId);
-
-                if (!$activeCompany && $user->company_id) {
-                    $activeCompany = $companies->firstWhere('id', (int) $user->company_id);
-                }
-
-                if (!$activeCompany) {
-                    $activeCompany = $companies->first();
-                }
-
-                $activeCompanyId = $activeCompany?->id;
-            } else {
-                $activeCompanyId = $user->company_id;
-                $activeCompany = $user->company;
-            }
+            // Aturannya tinggal di satu kelas, supaya pemeriksaan hak di luar
+            // tampilan memakai jawaban yang sama persis.
+            $activeCompany = PerusahaanAktif::untuk($user);
+            $activeCompanyId = $activeCompany?->id;
 
             $view->with([
                 'layoutAvailableCompanies' => $companies,

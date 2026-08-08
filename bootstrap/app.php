@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'superadmin' => \App\Http\Middleware\EnsureSuperadmin::class,
+            'harga-modal' => \App\Http\Middleware\CheckAksesHargaModal::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

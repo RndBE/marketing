@@ -52,6 +52,21 @@ return [
     'inventory' => [
         'base_url' => env('INVENTORY_BASE_URL'),
         'api_key' => env('CRM_API_KEY'),
+
+        /*
+        | Kode perusahaan yang boleh membuka halaman Harga Modal, dipisah koma.
+        |
+        | Izin per role tidak cukup untuk menyatakan ini: satu role yang sama
+        | dipakai orang di perusahaan berbeda, jadi mencentang izinnya akan
+        | membuka halaman itu untuk semuanya sekaligus.
+        |
+        | Dikosongkan berarti pembatasan perusahaan dimatikan dan izin saja yang
+        | berlaku. Kodenya lihat kolom `code` di tabel companies.
+        */
+        'perusahaan' => array_filter(array_map(
+            'trim',
+            explode(',', (string) env('HARGA_MODAL_PERUSAHAAN', 'ATC')),
+        )),
         'timeout' => (int) env('INVENTORY_TIMEOUT', 10),
         'harga_modal_cache_ttl' => (int) env('HARGA_MODAL_CACHE_TTL', 0),
         'harga_modal_cache_store' => env('HARGA_MODAL_CACHE_STORE'),

@@ -41,6 +41,17 @@ sadar lewat halaman **Kelola Roles**, bukan sebagai efek samping deploy.
 
 Kelola Roles → centang **Lihat Harga Modal** pada role yang berhak.
 
+Izin saja belum cukup. Halaman ini juga dibatasi per perusahaan lewat
+`HARGA_MODAL_PERUSAHAAN` (bawaan: `ATC`), berisi kode perusahaan dipisah koma —
+lihat kolom `code` di tabel `companies`. Alasannya satu role dipakai bersama oleh
+orang di perusahaan berbeda: Corporate Account Manager (`sales`) ada di CV. Arta
+Solusindo maupun PT Arta Teknologi Comunindo, jadi mencentang izinnya saja akan
+membuka halaman ini untuk keduanya sekaligus.
+
+Yang berlaku adalah **perusahaan aktif**: bagi pengguna biasa itu perusahaannya
+sendiri, bagi admin itu pilihan pada pemilih "Perusahaan Aktif" di header.
+Dikosongkan berarti pembatasan perusahaan dimatikan.
+
 ### 1.4 Uji dengan dua akun
 
 | Akun | Harapan |

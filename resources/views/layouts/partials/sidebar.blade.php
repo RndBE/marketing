@@ -288,9 +288,11 @@
             </div>
         @endif
 
-        {{-- Harga Modal: data HPP milik inventory. Izin di sini baru lapis pertama;
-             inventory tetap memeriksa hak per email dan bisa membalas 403. --}}
-        @if(auth()->user()->hasPermission('view-harga-modal'))
+        {{-- Harga Modal: data HPP milik inventory. Syaratnya izin per role sekaligus
+             perusahaan yang diizinkan -- keduanya diputuskan di satu tempat, supaya
+             menu ini tidak pernah menawarkan halaman yang ujungnya ditolak.
+             Inventory tetap memeriksa hak per email dan bisa membalas 403. --}}
+        @if(\App\Services\Inventory\AksesHargaModal::boleh(auth()->user()))
             <div class="mb-4">
                 <a href="{{ route('harga-modal.index') }}"
                     class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition
