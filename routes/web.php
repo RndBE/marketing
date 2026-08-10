@@ -25,6 +25,7 @@ use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\LeadReportController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ActiveCompanyController;
+use App\Http\Controllers\NotificationController;
 
 
 
@@ -37,6 +38,15 @@ Route::get('/dashboard', function () {
 })->middleware('auth')->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
+    /*
+    |---------------- NOTIFIKASI ----------------|
+    */
+    Route::prefix('notifikasi')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::post('/baca-semua', [NotificationController::class, 'readAll'])->name('read-all');
+        Route::get('/{notification}/buka', [NotificationController::class, 'open'])->name('open');
+    });
+
     /*
     |---------------- TEMPLATES ----------------|
     */

@@ -1,6 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        // Warna bilah tahap. Ditulis utuh, bukan dirangkai, supaya Tailwind ikut memindainya.
+        $tahapWarna = [
+            'complete' => 'bg-emerald-500',
+            'current' => 'bg-blue-500',
+            'warning' => 'bg-amber-500',
+            'danger' => 'bg-rose-500',
+            'pending' => 'bg-slate-300',
+        ];
+    @endphp
+
     <div class="w-full">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -43,7 +54,7 @@
                         <th class="px-4 py-3 text-left">Dari → Kepada</th>
                         <th class="px-4 py-3 text-right">Estimasi</th>
                         <th class="px-4 py-3 text-left">Dibuat Oleh</th>
-                        <th class="px-4 py-3 text-center">Status</th>
+                        <th class="px-4 py-3 text-center">Status &amp; Tahap</th>
                         <th class="px-4 py-3 text-left">Deadline</th>
                         <th class="px-4 py-3 text-right">Aksi</th>
                     </tr>
@@ -64,10 +75,26 @@
                             <td class="px-4 py-3 text-right">Rp {{ number_format($u->nilai_estimasi, 0, ',', '.') }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ $u->creator?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-center">
+                                @php($tahap = \App\Services\TahapPenawaranHarga::ringkas($u))
                                 <span
                                     class="px-2 py-0.5 rounded text-xs bg-{{ $u->status_color }}-100 text-{{ $u->status_color }}-700">
                                     {{ $u->status_label }}
                                 </span>
+
+                                {{-- Bilah tahap: yang sudah lewat hijau, yang sedang jalan
+                                     ikut warna keadaannya, sisanya abu. --}}
+                                <div class="mt-2 flex justify-center gap-1"
+                                    title="Tahap {{ $tahap['nomor'] }} dari {{ $tahap['total'] }}: {{ $tahap['label'] }}">
+                                    @for ($i = 1; $i <= $tahap['total']; $i++)
+                                        <span class="h-1.5 w-5 rounded-full
+                                            @if ($i < $tahap['nomor']) bg-emerald-500
+                                            @elseif ($i > $tahap['nomor']) bg-slate-200
+                                            @else {{ $tahapWarna[$tahap['tone']] }} @endif"></span>
+                                    @endfor
+                                </div>
+                                <div class="mt-1 text-[11px] leading-tight text-slate-500">
+                                    Tahap {{ $tahap['nomor'] }}/{{ $tahap['total'] }} · {{ $tahap['label'] }}
+                                </div>
                             </td>
                             <td class="px-4 py-3 text-slate-600">
                                 {{ $u->tanggal_dibutuhkan?->format('d/m/Y') ?? '-' }}

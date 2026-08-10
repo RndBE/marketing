@@ -25,41 +25,9 @@
             'danger' => 'border-red-300 bg-red-50 text-red-800',
             'pending' => 'border-slate-200 bg-white text-slate-600',
         ];
-        $requestStepLabel = match($usulan->status) {
-            'draft' => 'Draft, belum dikirim',
-            'menunggu' => 'Menunggu tanggapan penjual',
-            'ditanggapi', 'disetujui' => 'Sudah ditanggapi penjual',
-            'ditolak' => 'Ditolak penjual',
-            default => $usulan->status_label,
-        };
-        $requestStepTone = match($usulan->status) {
-            'draft', 'menunggu' => 'current',
-            'ditolak' => 'danger',
-            default => 'complete',
-        };
-        $quotationStepTone = match($usulan->penawaran_status) {
-            'accepted' => 'complete',
-            'sent' => 'current',
-            'draft', 'revision_requested' => 'warning',
-            'rejected' => 'danger',
-            default => 'pending',
-        };
-        $poStatusLabel = match($usulan->purchaseOrder?->status) {
-            'submitted' => 'Menunggu verifikasi penjual',
-            'approved' => 'Disetujui penjual',
-            'rejected' => 'Ditolak penjual',
-            'cancelled' => 'Dibatalkan',
-            null => 'Belum diunggah',
-            default => ucfirst($usulan->purchaseOrder->status),
-        };
-        $poStepTone = match($usulan->purchaseOrder?->status) {
-            'approved' => 'complete',
-            'submitted' => 'current',
-            'rejected', 'cancelled' => 'danger',
-            default => 'pending',
-        };
-        $termStepLabel = $usulan->purchaseOrder?->status === 'approved' ? 'Termin aktif' : 'Menunggu PO disetujui';
-        $termStepTone = $usulan->purchaseOrder?->status === 'approved' ? 'current' : 'pending';
+        // Empat kartu tahap di bawah dibangun dari sumber yang sama dengan bilah
+        // ringkas di halaman daftar, supaya keduanya tidak pernah bercerita beda.
+        $tahap = \App\Services\TahapPenawaranHarga::untuk($usulan);
 
         $roleTitle = $isRequester ? 'Anda bertindak sebagai pembeli' : 'Anda bertindak sebagai penjual';
         $roleDescription = $isRequester
@@ -146,22 +114,12 @@
         </div>
 
         <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4" aria-label="Progres transaksi">
-            <div class="rounded-xl border p-3 {{ $stepClasses[$requestStepTone] }}">
-                <div class="text-xs font-semibold">1. Permintaan Harga</div>
-                <div class="mt-1 text-sm font-medium">{{ $requestStepLabel }}</div>
-            </div>
-            <div class="rounded-xl border p-3 {{ $stepClasses[$quotationStepTone] }}">
-                <div class="text-xs font-semibold">2. Penawaran</div>
-                <div class="mt-1 text-sm font-medium">{{ $quotationLabels[$usulan->penawaran_status] ?? $usulan->penawaran_status }}</div>
-            </div>
-            <div class="rounded-xl border p-3 {{ $stepClasses[$poStepTone] }}">
-                <div class="text-xs font-semibold">3. Purchase Order</div>
-                <div class="mt-1 text-sm font-medium">{{ $poStatusLabel }}</div>
-            </div>
-            <div class="rounded-xl border p-3 {{ $stepClasses[$termStepTone] }}">
-                <div class="text-xs font-semibold">4. Termin & Invoice</div>
-                <div class="mt-1 text-sm font-medium">{{ $termStepLabel }}</div>
-            </div>
+            @foreach ($tahap as $langkah)
+                <div class="rounded-xl border p-3 {{ $stepClasses[$langkah['tone']] }}">
+                    <div class="text-xs font-semibold">{{ $langkah['judul'] }}</div>
+                    <div class="mt-1 text-sm font-medium">{{ $langkah['label'] }}</div>
+                </div>
+            @endforeach
         </div>
 
         <div class="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-white p-5">

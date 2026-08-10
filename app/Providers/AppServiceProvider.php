@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\Company;
+use App\Services\DaftarNotifikasi;
 use App\Services\PerusahaanAktif;
+use App\Services\TugasPenawaranHarga;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -42,6 +44,12 @@ class AppServiceProvider extends ServiceProvider
                 'layoutAvailableCompanies' => $companies,
                 'layoutActiveCompanyId' => $activeCompanyId,
                 'layoutActiveCompany' => $activeCompany,
+                // Lonceng terisi sejak render pertama, polling hanya menyusul perubahannya.
+                'layoutNotifications' => DaftarNotifikasi::untuk($user),
+                'layoutUnreadNotifications' => DaftarNotifikasi::belumDibaca($user),
+                // Penanda merah sidebar: ikut perusahaan aktif, bukan perusahaan asal user,
+                // supaya superadmin yang berpindah perusahaan melihat tugas yang benar.
+                'layoutTugasPenawaranHarga' => TugasPenawaranHarga::jumlah($activeCompanyId),
             ]);
         });
     }

@@ -262,6 +262,13 @@
                             <i class="fa-regular fa-file-lines fa-fw text-[18px] leading-none"></i>
                         </span>
                         <span>Penawaran Harga</span>
+                        {{-- Menyala hanya kalau bolanya di tangan kita, jadi bisa padam
+                             begitu berkasnya ditindaklanjuti. --}}
+                        @if (($layoutTugasPenawaranHarga ?? 0) > 0)
+                            <span data-tugas-penawaran-harga="{{ $layoutTugasPenawaranHarga }}"
+                                class="h-2 w-2 shrink-0 rounded-full bg-rose-500"
+                                title="{{ $layoutTugasPenawaranHarga }} berkas menunggu tindakan Anda"></span>
+                        @endif
                     </span>
                     <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': penawaranHarga }" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
@@ -275,6 +282,12 @@
                         class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
                                {{ request()->routeIs('penawaran-harga.index') ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100' }}">
                         <span>Daftar Penawaran Harga</span>
+                        @if (($layoutTugasPenawaranHarga ?? 0) > 0)
+                            <span
+                                class="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+                                {{ $layoutTugasPenawaranHarga > 99 ? '99+' : $layoutTugasPenawaranHarga }}
+                            </span>
+                        @endif
                     </a>
 
                     @if(auth()->user()->hasPermission('create-usulan'))

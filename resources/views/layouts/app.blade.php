@@ -63,7 +63,11 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4" x-data="{ open: false }">
+                {{-- relative: panel notifikasi menempel ke tepi kanan header, bukan ke tombol
+                     loncengnya, supaya tidak keluar layar saat loncengnya di sisi kiri. --}}
+                <div class="relative flex items-center gap-4" x-data="{ open: false }">
+                    @include('layouts.partials.notification_bell')
+
                     @if (auth()->user()->hasRole('admin') && $layoutAvailableCompanies->isNotEmpty())
                         <form method="POST" action="{{ route('active-company.update') }}" class="hidden md:block">
                             @csrf

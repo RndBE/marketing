@@ -125,6 +125,85 @@ window.showToast = (message, type = 'success', options = {}) => {
     }));
 };
 
+Alpine.data('notificationBell', (config = {}) => {
+    // Di luar objek reaktif: penanda internal, tidak perlu memicu render ulang.
+    const seen = new Set();
+    let timer = null;
+
+    const POLL_INTERVAL = 45000;
+
+    return {
+        panelOpen: false,
+        items: Array.isArray(config.items) ? config.items : [],
+        unreadCount: Number(config.unreadCount) || 0,
+
+        init() {
+            // Notifikasi yang sudah ada saat halaman dibuka bukan kabar baru;
+            // toast hanya untuk yang datang setelah halaman terbuka.
+            this.items.forEach((item) => seen.add(item.id));
+            this.start();
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    this.stop();
+
+                    return;
+                }
+
+                this.refresh();
+                this.start();
+            });
+        },
+
+        start() {
+            this.stop();
+            timer = window.setInterval(() => this.refresh(), POLL_INTERVAL);
+        },
+
+        stop() {
+            window.clearInterval(timer);
+            timer = null;
+        },
+
+        async refresh() {
+            try {
+                const { data } = await window.axios.get(config.pollUrl);
+
+                // Sesi habis membuat responsnya jadi halaman login, bukan JSON.
+                // Daftar yang sudah tampil jangan sampai terhapus karenanya.
+                if (!Array.isArray(data?.items)) {
+                    return;
+                }
+
+                const baru = data.items.filter((item) => !item.dibaca && !seen.has(item.id));
+
+                this.items = data.items;
+                this.unreadCount = Number(data.unread_count) || 0;
+                this.items.forEach((item) => seen.add(item.id));
+
+                baru.forEach((item) => window.showToast(item.pesan, 'info', { title: item.judul }));
+            } catch (error) {
+                // Jaringan putus sebentar bukan alasan menghentikan polling.
+            }
+        },
+
+        async markAllRead() {
+            try {
+                const { data } = await window.axios.post(config.readAllUrl);
+
+                if (!Array.isArray(data?.items)) {
+                    return;
+                }
+
+                this.items = data.items;
+                this.unreadCount = Number(data.unread_count) || 0;
+            } catch (error) {
+                window.showToast('Gagal menandai notifikasi.', 'error');
+            }
+        },
+    };
+});
+
 const validationErrorFocus = (() => {
     const fieldSelector = 'input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
     const highlightClasses = [

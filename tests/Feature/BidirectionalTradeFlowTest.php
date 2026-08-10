@@ -137,10 +137,12 @@ function executeTradeFlow($test, User $buyer, User $seller, string $reference): 
         'date_created' => now()->timestamp,
         'date_updated' => now()->timestamp,
     ]);
+    // Judulnya tidak lagi dipakai sebagai penanda: lonceng notifikasi ikut memuat
+    // judul permintaan di setiap halaman. Yang diuji barisnya, lewat tautan detail.
     $test->actingAs($seller)
         ->get(route('penawaran.index'))
         ->assertOk()
-        ->assertDontSee('Permintaan '.$reference)
+        ->assertDontSee(route('penawaran.show', $request->penawaran))
         ->assertDontSee('Dari Permohonan Harga')
         ->assertSee('Penawaran Mandiri '.$reference);
     $quotationItem = $request->penawaran->items->first();

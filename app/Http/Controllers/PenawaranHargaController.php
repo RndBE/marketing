@@ -17,6 +17,7 @@ use App\Models\Product;
 use App\Models\UsulanAttachment;
 use App\Models\UsulanItem;
 use App\Models\UsulanPenawaran;
+use App\Services\NotifikasiPenawaranHarga;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Storage;
 
 class PenawaranHargaController extends Controller
 {
+    public function __construct(private NotifikasiPenawaranHarga $notifikasi) {}
+
     public function index(Request $request)
     {
         $status = $request->query('status', '');
@@ -167,6 +170,12 @@ class PenawaranHargaController extends Controller
             }
 
             $this->syncItemsFromRequest($usulan, $request);
+
+            // Draft belum dikirim ke mana-mana, jadi perusahaan tujuan belum perlu tahu.
+            if ($usulan->status === 'menunggu') {
+                $usulan->load(['company', 'targetCompany']);
+                $this->notifikasi->permintaanDikirim($usulan, $request->user());
+            }
 
             return redirect()->route('penawaran-harga.show', $usulan->id)->with('success', 'Usulan berhasil dibuat');
         });
@@ -699,6 +708,7 @@ class PenawaranHargaController extends Controller
                 $updateData['signature_path'] = $request->file('signature_file')->store('usulan/ttd', 'public');
             }
 
+            $statusSebelumnya = $usulan->status;
             $usulan->update($updateData);
 
             if (isset($updateData['signature_path']) && $oldSignaturePath) {
@@ -722,6 +732,12 @@ class PenawaranHargaController extends Controller
             }
 
             $this->syncItemsFromRequest($usulan, $request);
+
+            // Draft yang baru sekarang dikirim: perlakukan sama seperti permintaan baru.
+            if ($statusSebelumnya === 'draft' && $usulan->status === 'menunggu') {
+                $usulan->load(['company', 'targetCompany']);
+                $this->notifikasi->permintaanDikirim($usulan, $request->user());
+            }
 
             return redirect()->route('penawaran-harga.show', $usulan->id)->with('success', 'Usulan berhasil diupdate');
         });
@@ -752,13 +768,16 @@ class PenawaranHargaController extends Controller
             return back()->with('error', 'Item usulan masih kosong. Tambahkan item terlebih dahulu.');
         }
 
-        return DB::transaction(function () use ($usulan, $payload, $action) {
+        return DB::transaction(function () use ($usulan, $payload, $action, $request) {
             $usulan->update([
                 'tanggapan' => $payload['tanggapan'],
                 'status' => $payload['status'],
                 'ditanggapi_oleh' => auth()->id(),
                 'tanggal_ditanggapi' => now(),
             ]);
+
+            $usulan->load(['company', 'targetCompany']);
+            $this->notifikasi->permintaanDitanggapi($usulan, $request->user());
 
             if ($action === 'none') {
                 return redirect()->route('penawaran-harga.show', $usulan->id)->with('success', 'Tanggapan berhasil disimpan');
@@ -833,6 +852,9 @@ class PenawaranHargaController extends Controller
             'ditanggapi_oleh' => $request->user()->id,
         ]);
 
+        $usulan->load(['company', 'targetCompany']);
+        $this->notifikasi->penawaranDikirim($usulan, $request->user());
+
         return back()->with('success', 'Penawaran berhasil dikirim ke '.($usulan->company?->name ?? 'perusahaan peminta').'.');
     }
 
@@ -864,6 +886,9 @@ class PenawaranHargaController extends Controller
             'penawaran_tanggapan' => $payload['penawaran_tanggapan'] ?? null,
             'status' => $payload['action'] === 'rejected' ? 'ditolak' : 'ditanggapi',
         ]);
+
+        $usulan->load(['company', 'targetCompany']);
+        $this->notifikasi->penawaranDitanggapi($usulan, $payload['action'], $request->user());
 
         $message = match ($payload['action']) {
             'accepted' => 'Penawaran disetujui. Silakan unggah Purchase Order.',
