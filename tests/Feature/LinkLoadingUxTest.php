@@ -75,6 +75,19 @@ test('generated document links expose a dedicated download loading state', funct
         ->toContain('data-loading-label="Menyiapkan unduhan..."');
 });
 
+test('download links stop spinning once the opened tab takes over', function () {
+    $javascript = file_get_contents(resource_path('js/app.js'));
+
+    expect($javascript)
+        ->toContain('resetDownloads')
+        ->toContain('a[data-download-loading][data-link-loading="true"]')
+        // Halaman ini tidak ikut berpindah, jadi berpindahnya fokus adalah satu-satunya
+        // tanda selesai yang datang lebih cepat daripada tenggat waktunya.
+        ->toContain("document.addEventListener('visibilitychange'")
+        ->toContain('window.linkLoading.resetDownloads()')
+        ->toContain("window.addEventListener('blur'");
+});
+
 test('common list pages keep ordinary detail and edit anchors available for global link loading', function () {
     foreach ([
         'invoices/index.blade.php',

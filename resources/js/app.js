@@ -608,12 +608,25 @@ const linkLoading = (() => {
         });
     };
 
+    /**
+     * Khusus tautan unduh/cetak: halaman ini tidak ikut berpindah, jadi tidak
+     * pernah ada sinyal "sudah selesai" selain tenggat waktunya.
+     */
+    const resetDownloads = () => {
+        document.querySelectorAll('a[data-download-loading][data-link-loading="true"]').forEach((link) => {
+            if (link instanceof HTMLAnchorElement) {
+                setLinkLoading(link, false);
+            }
+        });
+    };
+
     return {
         isCompactLoadingLink,
         isCurrentPageLink,
         isLoadableLink,
         isModifiedClick,
         resetAll,
+        resetDownloads,
         setLinkLoading,
     };
 })();
@@ -626,6 +639,20 @@ window.addEventListener('pageshow', () => {
 
 window.addEventListener('pagehide', () => {
     window.linkLoading.resetAll();
+});
+
+// PDF dibuka di tab baru: tab itu langsung merebut fokus dan halaman ini tetap
+// diam di tempat, sehingga tombolnya akan berputar sampai tenggat waktunya habis
+// walau dokumennya sudah tampil. Berpindahnya fokus itulah tanda paling awal
+// bahwa urusan tombol ini sudah selesai.
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        window.linkLoading.resetDownloads();
+    }
+});
+
+window.addEventListener('blur', () => {
+    window.linkLoading.resetDownloads();
 });
 
 Alpine.data('searchableSelect', (config = {}) => ({
