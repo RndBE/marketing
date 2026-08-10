@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\UsulanPenawaran;
 use App\Notifications\PenawaranHargaNotification;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -119,40 +118,12 @@ class NotifikasiPenawaranHarga
 
     private function kirim(?int $companyId, string $permission, ?User $aktor, PenawaranHargaNotification $notification): void
     {
-        $penerima = $this->penerima($companyId, $permission, $aktor);
+        $penerima = PenerimaNotifikasi::diPerusahaan($companyId, $permission, $aktor);
 
         if ($penerima->isEmpty()) {
             return;
         }
 
         Notification::send($penerima, $notification);
-    }
-
-    /**
-     * Yang dikabari hanya orang di perusahaan tujuan yang memang menangani modul
-     * ini. Kalau ternyata tidak ada satu pun yang punya permission-nya, notifikasi
-     * jangan sampai hilang -- jatuhkan ke seluruh user perusahaan itu.
-     *
-     * @return Collection<int, User>
-     */
-    private function penerima(?int $companyId, string $permission, ?User $aktor): Collection
-    {
-        if (! $companyId) {
-            return collect();
-        }
-
-        $users = User::query()
-            ->where('company_id', $companyId)
-            ->with('roles')
-            ->get();
-
-        $berhak = $users->filter(
-            fn (User $user) => $user->isSuperadmin() || $user->hasPermission($permission)
-        );
-
-        return ($berhak->isNotEmpty() ? $berhak : $users)
-            // Pelaku aksinya sudah tahu apa yang baru saja dia lakukan.
-            ->reject(fn (User $user) => $aktor && (int) $user->id === (int) $aktor->id)
-            ->values();
     }
 }

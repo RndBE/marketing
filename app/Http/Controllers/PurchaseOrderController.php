@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderTerm;
+use App\Models\User;
 use App\Models\UsulanPenawaran;
+use App\Services\NotifikasiPurchaseOrder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderController extends Controller
 {
+    public function __construct(private NotifikasiPurchaseOrder $notifikasi) {}
+
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -148,6 +152,11 @@ class PurchaseOrderController extends Controller
             $po->save();
         }
 
+        // PO pelanggan luar tidak punya perusahaan penjual di dalam sistem, jadi
+        // tidak ada siapa pun yang bisa dikabari -- servicenya berhenti sendiri.
+        $po->load(['company', 'supplierCompany']);
+        $this->notifikasi->poDikirim($po, $request->user());
+
         return redirect()->route('purchase-orders.show', $po)
             ->with('success', $usulan ? 'Purchase Order berhasil dikirim ke perusahaan penjual.' : 'Purchase Order berhasil dibuat.');
     }
@@ -216,6 +225,9 @@ class PurchaseOrderController extends Controller
             }
         });
 
+        $purchaseOrder->load(['company', 'supplierCompany']);
+        $this->notifikasi->poDiverifikasi($purchaseOrder, $payload['decision'], $request->user());
+
         return redirect()->route('purchase-orders.show', $purchaseOrder)->with('success', $payload['decision'] === 'approved'
             ? 'PO disetujui dan jadwal termin berhasil dibuat.'
             : 'PO ditolak dan dikembalikan kepada pembeli.');
@@ -280,8 +292,10 @@ class PurchaseOrderController extends Controller
             'invoice_file' => 'invoice_path',
             'faktur_file' => 'faktur_path',
         ]);
+        $potret = $this->potretTermin($term);
         $term->update($payload);
         $term->syncStatus();
+        $this->notifikasiPerubahanTermin($purchaseOrder, $term, $potret, $request->user());
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)->with('success', 'Invoice/faktur termin ke-'.$term->pembayaran_ke.' berhasil diperbarui.');
     }
@@ -328,8 +342,10 @@ class PurchaseOrderController extends Controller
             'bukti_bayar_file' => 'bukti_bayar_path',
             'bukti_potong_pph_file' => 'bukti_potong_pph_path',
         ]);
+        $potret = $this->potretTermin($term);
         $term->update($payload);
         $term->syncStatus();
+        $this->notifikasiPerubahanTermin($purchaseOrder, $term, $potret, $request->user());
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)
             ->with('success', 'Pembayaran termin ke-'.$term->pembayaran_ke.' berhasil dicatat.');
@@ -369,8 +385,10 @@ class PurchaseOrderController extends Controller
             'invoice_file' => 'invoice_path', 'faktur_file' => 'faktur_path',
             'bukti_bayar_file' => 'bukti_bayar_path', 'bukti_potong_pph_file' => 'bukti_potong_pph_path',
         ]);
+        $potret = $this->potretTermin($term);
         $term->update($payload);
         $term->syncStatus();
+        $this->notifikasiPerubahanTermin($purchaseOrder, $term, $potret, $request->user());
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)->with('success', 'Termin ke-'.$term->pembayaran_ke.' berhasil diperbarui.');
     }
@@ -424,6 +442,46 @@ class PurchaseOrderController extends Controller
         });
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)->with('success', 'Termin pembayaran berhasil dihapus.');
+    }
+
+    /**
+     * Keadaan termin sebelum disunting, untuk dibandingkan sesudahnya.
+     *
+     * @return array{invoice_terbit: bool, lunas: bool}
+     */
+    private function potretTermin(PurchaseOrderTerm $term): array
+    {
+        return [
+            'invoice_terbit' => $this->terminSudahDiinvoice($term),
+            'lunas' => $term->status === 'paid',
+        ];
+    }
+
+    /**
+     * Satu termin bisa disunting berkali-kali -- ganti tanggal, ralat nomor, unggah
+     * ulang berkas. Yang dikabari hanya perpindahan keadaannya, jadi pembeli tidak
+     * kebanjiran notifikasi untuk termin yang sama.
+     */
+    private function notifikasiPerubahanTermin(
+        PurchaseOrder $purchaseOrder,
+        PurchaseOrderTerm $term,
+        array $sebelum,
+        ?User $aktor
+    ): void {
+        $purchaseOrder->loadMissing(['company', 'supplierCompany']);
+
+        if (! $sebelum['invoice_terbit'] && $this->terminSudahDiinvoice($term)) {
+            $this->notifikasi->invoiceDiterbitkan($purchaseOrder, $term, $aktor);
+        }
+
+        if (! $sebelum['lunas'] && $term->status === 'paid') {
+            $this->notifikasi->pembayaranDicatat($purchaseOrder, $term, $aktor);
+        }
+    }
+
+    private function terminSudahDiinvoice(PurchaseOrderTerm $term): bool
+    {
+        return filled($term->nomor_invoice) || filled($term->invoice_path);
     }
 
     private function createDefaultTerms(PurchaseOrder $purchaseOrder, int $count, Carbon $firstDueDate): void
