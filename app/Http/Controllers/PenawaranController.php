@@ -1356,7 +1356,12 @@ class PenawaranController extends Controller
             return redirect()->route('penawaran-harga.quotation.pdf', $requestQuotation);
         }
 
-        $pricelistMode = $request->query('mode') === 'pricelist';
+        // mode=pricelist        : harga tampil per detail item, tanpa ringkasan total.
+        // mode=pricelist_total  : layout pricelist yang sama, tapi ringkasan total tetap
+        //                         dicetak di bagian paling bawah tabel item.
+        $mode = (string) $request->query('mode', '');
+        $pricelistMode = in_array($mode, ['pricelist', 'pricelist_total'], true);
+        $showTotalSummary = $mode !== 'pricelist';
 
         $penawaran->load([
             'docNumber',
@@ -1389,6 +1394,7 @@ class PenawaranController extends Controller
             'total' => $total,
             'kop' => $kop,
             'pricelistMode' => $pricelistMode,
+            'showTotalSummary' => $showTotalSummary,
         ])
             ->setPaper('a4', 'portrait')
             ->setOption('isRemoteEnabled', true)

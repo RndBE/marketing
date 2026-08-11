@@ -614,7 +614,9 @@
                 ]),
             );
         @endphp
-        @unless ($pricelistMode ?? false)
+        {{-- Mode pricelist murni menyembunyikan ringkasan; mode pricelist_total memakai
+             layout pricelist tapi tetap mencetak ringkasan ini di paling bawah. --}}
+        @if ($showTotalSummary ?? !($pricelistMode ?? false))
         <table style="width:100%; border-collapse:collapse; border:0; margin-top:6px;">
             <tr>
                 <td style="border:0; padding:0; width:45%;"></td>
@@ -726,7 +728,7 @@
                 </td>
             </tr>
         </table>
-        @endunless
+        @endif
 
         @if ($hasTerms || $signatureRows->count())
             <table style="width:100%; border-collapse:collapse; border:0; margin-top:14px;">

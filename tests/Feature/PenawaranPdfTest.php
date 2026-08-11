@@ -1026,3 +1026,105 @@ test('penawaran pdf includes a compressed (PDF 1.5+) brochure attachment', funct
         'Compressed brochure attachment did not appear in the merged PDF'
     );
 });
+
+test('penawaran pdf pricelist_total mode shows detail prices and the total summary', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-PLTOTAL'],
+        ['name' => 'PDF Pricelist Total Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $docNumber = DocNumber::create([
+        'company_id' => $company->id,
+        'prefix' => 'SPH02',
+        'seq' => 203,
+        'month' => 8,
+        'year' => 2026,
+        'doc_no' => '203/SPH02/AS/VIII/2026',
+    ]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'doc_number_id' => $docNumber->id,
+        'judul' => 'Penawaran Pricelist Dengan Total',
+        'instansi_tujuan' => 'Instansi Test',
+        'nama_pekerjaan' => 'Pekerjaan Test',
+        'lokasi_pekerjaan' => 'Yogyakarta',
+        'tanggal_penawaran' => '2026-08-11',
+        'tax_enabled' => true,
+        'tax_rate' => 11,
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    $item = PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Automatic Weather Station',
+        'qty' => 1,
+        'satuan' => 'paket',
+        'subtotal' => 500000,
+    ]);
+    PenawaranItemDetail::create([
+        'penawaran_item_id' => $item->id,
+        'urutan' => 1,
+        'nama' => 'Sensor Curah Hujan',
+        'qty' => 1,
+        'harga' => 500000,
+        'subtotal' => 500000,
+    ]);
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $viewData = [
+        'penawaran' => $penawaran,
+        'docNo' => $docNumber->doc_no,
+        'total' => 500000,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+    ];
+
+    $pricelistHtml = view('documents.penawaran_full', $viewData + [
+        'pricelistMode' => true,
+        'showTotalSummary' => false,
+    ])->render();
+
+    $pricelistTotalHtml = view('documents.penawaran_full', $viewData + [
+        'pricelistMode' => true,
+        'showTotalSummary' => true,
+    ])->render();
+
+    // Mode pricelist murni: harga per detail tampil, ringkasan total tidak.
+    expect($pricelistHtml)->toContain('500.000')
+        ->and($pricelistHtml)->not()->toContain('Total Harga')
+        ->and($pricelistHtml)->not()->toContain('Pajak');
+
+    // Mode pricelist_total: layout pricelist yang sama plus ringkasan di bawah.
+    expect($pricelistTotalHtml)->toContain('500.000')
+        ->and($pricelistTotalHtml)->toContain('Total Harga')
+        ->and($pricelistTotalHtml)->toContain('Pajak')
+        ->and($pricelistTotalHtml)->toContain('55.000')
+        ->and($pricelistTotalHtml)->toContain('555.000');
+
+    $response = $this->actingAs($user)
+        ->get(route('penawaran.pdf', ['penawaran' => $penawaran->pdfRouteKey(), 'mode' => 'pricelist_total']));
+
+    $response->assertOk();
+
+    expect(penawaranPdfTestResponseContent($response))->toStartWith('%PDF');
+});
