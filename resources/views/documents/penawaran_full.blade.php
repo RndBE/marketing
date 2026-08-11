@@ -119,6 +119,17 @@
             white-space: nowrap;
         }
 
+        /* Tabel dalam pemisah "Rp" dan angkanya. Selektor turunan tabel item
+           (th, td dan .item-detail-last td) ikut kena sel tabel dalam ini, dan pada
+           border-collapse dompdf garisnya tetap tergambar walau tiap sel sudah diberi
+           border:none inline — jadi jadinya garis mirip underline di bawah angka.
+           Dipaksa nol lewat kelas sendiri supaya kotak ringkasan total tidak ikut hilang. */
+        .price-inline,
+        .price-inline tr,
+        .price-inline td {
+            border: 0 !important;
+        }
+
         .item-page-break-row td {
             border: 0;
             border-top: 1px solid black;
@@ -452,7 +463,7 @@
 
                         <td class="right" style="white-space:nowrap">
                             @if ($showItemAmount)
-                                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none">Rp</td>
                                         <td align="right" style="border:none">
@@ -473,7 +484,7 @@
                                          Baris pertama memakai tabel dalam seperti kolom Harga Satuan dan
                                          Total; dompdf menempatkan <div> sedikit lebih rendah dari <table>,
                                          jadi strukturnya harus sama agar tingginya sejajar. --}}
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="center" style="border:none">
                                                 {{ $itemDiscountLabel($item) }}</td>
@@ -485,7 +496,7 @@
                                 @elseif ($itemHasDiscount)
                                     {{-- Diskon nominal dipisah "Rp" dan angkanya persis seperti kolom
                                          Harga Satuan dan Total supaya sejajar antar kolom. --}}
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none">Rp</td>
                                             <td align="right" style="border:none">
@@ -493,7 +504,7 @@
                                         </tr>
                                     </table>
                                 @else
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="center" class="muted" style="border:none">-</td>
                                         </tr>
@@ -504,7 +515,7 @@
 
                         <td class="right" style="white-space:nowrap">
                             @if ($showItemAmount)
-                                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none">Rp</td>
                                         <td align="right" style="border:none">
@@ -551,7 +562,7 @@
                             </td>
                             <td class="right item-detail-price">
                                 @if ($showDetailAmount)
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none">Rp</td>
                                             <td align="right" style="border:none">
@@ -569,7 +580,7 @@
                             @endif
                             <td class="right item-detail-price">
                                 @if ($showDetailAmount)
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none">Rp</td>
                                             <td align="right" style="border:none">
@@ -627,7 +638,7 @@
                                     {{ $labelBaris1 }}
                                 </strong></td>
                             <td class="right" style="white-space:nowrap">
-                                <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none"><strong>Rp</strong></td>
                                         <td align="right" style="border:none">
@@ -644,7 +655,7 @@
                                     <strong>{{ $labelDiskonItem }}</strong>
                                 </td>
                                 <td class="right" style="white-space:nowrap">
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none"><strong>Rp</strong></td>
                                             <td align="right" style="border:none">
@@ -662,7 +673,7 @@
                                     <strong>{{ $labelDiskonGlobal }} ({{ $discountLabel }})</strong>
                                 </td>
                                 <td class="right" style="white-space:nowrap">
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none"><strong>Rp</strong></td>
                                             <td align="right" style="border:none">
@@ -678,7 +689,7 @@
                             <tr>
                                 <td style="text-align:right"><strong>{{ $labelSetelahDiskon }}</strong></td>
                                 <td class="right" style="white-space:nowrap">
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none"><strong>Rp</strong></td>
                                             <td align="right" style="border:none">
@@ -698,7 +709,7 @@
                                         %)</strong>
                                 </td>
                                 <td class="right" style="white-space:nowrap">
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none"><strong>Rp</strong></td>
                                             <td align="right" style="border:none">
@@ -713,7 +724,7 @@
                             <tr>
                                 <td style="text-align:right"><strong>Total Harga</strong></td>
                                 <td class="right" style="white-space:nowrap">
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                         <tr style="border:none">
                                             <td align="left" style="border:none"><strong>Rp</strong></td>
                                             <td align="right" style="border:none">
