@@ -41,6 +41,28 @@ class NotifikasiPurchaseOrder
         );
     }
 
+    /** PO yang ditolak diperbaiki pembeli: penjual perlu memverifikasi ulang. */
+    public function poDiperbarui(PurchaseOrder $po, ?User $aktor = null): void
+    {
+        $this->kirim(
+            $po->supplier_company_id,
+            $aktor,
+            new PurchaseOrderNotification(
+                'po_diperbarui',
+                $po,
+                'Purchase Order diperbarui',
+                sprintf(
+                    '%s memperbaiki %s untuk "%s" senilai %s dan mengirimkannya kembali untuk diverifikasi.',
+                    $po->company?->name ?? 'Perusahaan pembeli',
+                    $po->nomor_po ?: 'Purchase Order',
+                    $po->judul,
+                    static::rupiah($po->total)
+                ),
+                $po->company?->name
+            )
+        );
+    }
+
     /** PO diverifikasi penjual: yang perlu tahu perusahaan pembeli. */
     public function poDiverifikasi(PurchaseOrder $po, string $keputusan, ?User $aktor = null): void
     {

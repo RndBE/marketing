@@ -104,7 +104,9 @@ class PurchaseOrderController extends Controller
             'total' => ['required', 'numeric', 'min:1'],
             'catatan' => ['nullable', 'string'],
             // PO pelanggan luar berangkat dari dokumen yang diterima, jadi filenya wajib.
-            'po_file' => [$usulan || $isExternalCustomer ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            // Selain itu berkas boleh menyusul -- termasuk PO dari penawaran harga, yang
+            // datanya sudah lengkap dari permintaan harga dan penawarannya.
+            'po_file' => [$isExternalCustomer ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
 
         unset($payload['po_file']);
@@ -177,6 +179,91 @@ class PurchaseOrderController extends Controller
 
         return view('purchase_orders.show', compact('purchaseOrder', 'isBuyer', 'isSeller', 'isLegacy', 'quotationTotal', 'poDifference'))
             ->with('po', $purchaseOrder);
+    }
+
+    public function edit(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        $this->ensureEditAccess($purchaseOrder, $request->user());
+        $this->ensurePurchaseOrderIsEditable($purchaseOrder);
+        $purchaseOrder->load(['company', 'supplierCompany', 'usulan', 'penawaran.items.details', 'terms']);
+
+        return view('purchase_orders.edit', [
+            'po' => $purchaseOrder,
+            'quotationTotal' => $purchaseOrder->penawaran?->calcGrandTotal(),
+            'totalTerjadwal' => (float) $purchaseOrder->terms->sum('nilai_tagihan'),
+        ]);
+    }
+
+    public function update(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        $this->ensureEditAccess($purchaseOrder, $request->user());
+        $this->ensurePurchaseOrderIsEditable($purchaseOrder);
+
+        $companyId = (int) $this->currentCompanyId($request->user());
+        $rules = [
+            'nomor_po' => ['nullable', 'string', 'max:50', 'unique:purchase_orders,nomor_po,'.$purchaseOrder->id.',id,company_id,'.$companyId],
+            'judul' => ['required', 'string', 'max:255'],
+            'tgl_po' => ['required', 'date'],
+            'total' => ['required', 'numeric', 'min:1'],
+            'catatan' => ['nullable', 'string'],
+            // Dokumen lama tetap dipakai selama tidak diganti, jadi berkasnya opsional
+            // walau PO pelanggan luar mewajibkannya saat dibuat.
+            'po_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ];
+
+        if ($purchaseOrder->isExternalCustomerOrder()) {
+            $rules['pembeli_nama'] = ['required', 'string', 'max:255'];
+            $rules['pembeli_alamat'] = ['nullable', 'string'];
+        }
+
+        if ($this->jenisTransaksiDapatDisunting($purchaseOrder)) {
+            $rules['jenis_transaksi'] = ['required', 'in:barang,jasa,campuran'];
+        }
+
+        if ($this->poTanpaLawanTransaksi($purchaseOrder)) {
+            $rules['supplier_nama'] = ['required', 'string', 'max:255'];
+            $rules['supplier_alamat'] = ['nullable', 'string'];
+            $rules['status'] = ['required', 'in:draft,submitted,approved,cancelled'];
+        }
+
+        $payload = $request->validate($rules);
+        unset($payload['po_file']);
+        $this->ensureTotalFitsTerms($purchaseOrder, (float) $payload['total']);
+
+        // PO yang ditolak berangkat lagi dari nol: catatan penolakan lama tidak lagi
+        // menggambarkan isi PO yang baru, jadi ikut dikosongkan bersama jejak verifikasinya.
+        $dikirimUlang = $purchaseOrder->status === 'rejected' && $purchaseOrder->supplier_company_id !== null;
+        if ($dikirimUlang) {
+            $payload['status'] = 'submitted';
+            $payload['verification_notes'] = null;
+            $payload['verified_by'] = null;
+            $payload['verified_at'] = null;
+        }
+
+        $berkasLama = $purchaseOrder->po_file_path;
+        if ($request->hasFile('po_file')) {
+            $payload['po_file_path'] = $request->file('po_file')->store('purchase-orders/'.$purchaseOrder->id, 'local');
+        }
+
+        $purchaseOrder->update($payload);
+
+        if (blank($purchaseOrder->nomor_po)) {
+            $purchaseOrder->nomor_po = $this->generateNumber($purchaseOrder);
+            $purchaseOrder->save();
+        }
+
+        if (isset($payload['po_file_path']) && $berkasLama) {
+            Storage::disk('local')->delete($berkasLama);
+        }
+
+        if ($dikirimUlang) {
+            $purchaseOrder->load(['company', 'supplierCompany']);
+            $this->notifikasi->poDiperbarui($purchaseOrder, $request->user());
+        }
+
+        return redirect()->route('purchase-orders.show', $purchaseOrder)->with('success', $dikirimUlang
+            ? 'Purchase Order diperbarui dan dikirim ulang untuk diverifikasi penjual.'
+            : 'Purchase Order berhasil diperbarui.');
     }
 
     public function verify(Request $request, PurchaseOrder $purchaseOrder)
@@ -589,6 +676,87 @@ class PurchaseOrderController extends Controller
             return;
         }
         $this->ensureBuyerAccess($purchaseOrder, $user);
+    }
+
+    /**
+     * Penyunting PO adalah pihak yang membuatnya: perusahaan pembeli untuk PO antar
+     * perusahaan, dan perusahaan pemilik data untuk PO yang diterima dari pelanggan luar.
+     */
+    private function ensureEditAccess(PurchaseOrder $purchaseOrder, $user = null): void
+    {
+        if ($purchaseOrder->isExternalCustomerOrder()) {
+            $this->ensureSellerAccess($purchaseOrder, $user);
+
+            return;
+        }
+
+        $this->ensureBuyerAccess($purchaseOrder, $user);
+    }
+
+    /**
+     * PO boleh disunting selama penjual belum menyetujuinya. Setelah disetujui, termin
+     * dan tagihan berdiri di atas isi PO -- mengubahnya membuat rekap penagihan
+     * bertentangan dengan dokumen sumbernya.
+     *
+     * PO pelanggan luar tidak pernah melewati verifikasi siapa pun -- statusnya langsung
+     * approved sejak dibuat -- jadi batasannya bukan status, melainkan ada tidaknya
+     * tagihan yang sudah berjalan.
+     */
+    private function ensurePurchaseOrderIsEditable(PurchaseOrder $purchaseOrder): void
+    {
+        if ($purchaseOrder->isExternalCustomerOrder()) {
+            abort_if(
+                $this->terminSudahBerjalan($purchaseOrder),
+                422,
+                'PO yang terminnya sudah ditagihkan atau dibayar tidak dapat diubah.'
+            );
+
+            return;
+        }
+
+        abort_unless(
+            in_array($purchaseOrder->status, ['draft', 'submitted', 'rejected'], true),
+            422,
+            'PO yang sudah disetujui atau dibatalkan tidak dapat diubah.'
+        );
+    }
+
+    private function terminSudahBerjalan(PurchaseOrder $purchaseOrder): bool
+    {
+        return $purchaseOrder->terms()->get()->contains(fn (PurchaseOrderTerm $term) => $this->terminSudahDiinvoice($term)
+            || (float) $term->nilai_dibayar > 0
+            || (float) $term->nilai_pph > 0);
+    }
+
+    /**
+     * Jenis transaksi PO turunan mengikuti permintaan harga yang disetujui. Membiarkannya
+     * diubah membuat PO bertentangan dengan penawaran yang jadi dasarnya.
+     */
+    private function jenisTransaksiDapatDisunting(PurchaseOrder $purchaseOrder): bool
+    {
+        return $purchaseOrder->usulan_id === null;
+    }
+
+    /**
+     * PO lama yang pemasoknya hanya tercatat sebagai nama: tidak ada perusahaan penjual di
+     * dalam sistem yang memverifikasi, jadi nama pemasok dan statusnya diatur pembuatnya
+     * sendiri -- sama seperti di form pembuatan.
+     */
+    private function poTanpaLawanTransaksi(PurchaseOrder $purchaseOrder): bool
+    {
+        return $purchaseOrder->usulan_id === null
+            && $purchaseOrder->supplier_company_id === null
+            && ! $purchaseOrder->isExternalCustomerOrder();
+    }
+
+    private function ensureTotalFitsTerms(PurchaseOrder $purchaseOrder, float $total): void
+    {
+        $terjadwal = (float) $purchaseOrder->terms()->sum('nilai_tagihan');
+        if ($terjadwal > $total) {
+            throw ValidationException::withMessages([
+                'total' => 'Nilai PO tidak boleh lebih kecil dari total termin yang sudah dijadwalkan (Rp '.number_format($terjadwal, 0, ',', '.').').',
+            ]);
+        }
     }
 
     private function ensureTermsAreActive(PurchaseOrder $purchaseOrder): void

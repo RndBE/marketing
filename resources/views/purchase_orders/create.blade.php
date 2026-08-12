@@ -158,10 +158,16 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold mb-1">Dokumen PO {{ $usulan ? '*' : '' }}</label>
-                    <input type="file" name="po_file" accept=".pdf,.jpg,.jpeg,.png" data-po-required="pelanggan_luar" {{ $usulan ? 'required' : '' }}
+                    @php $pelangganLuarDipilih = ! $usulan && ($sumber ?? 'internal') === 'pelanggan_luar'; @endphp
+                    <label class="block text-sm font-semibold mb-1">
+                        Dokumen PO
+                        {{-- PO pelanggan luar berangkat dari dokumen yang diterima, jadi hanya di jalur itu berkasnya wajib. --}}
+                        <span data-po-fields="internal" class="{{ $pelangganLuarDipilih ? 'hidden' : '' }} text-xs font-normal text-slate-500">(opsional)</span>
+                        <span data-po-fields="pelanggan_luar" class="{{ $pelangganLuarDipilih ? '' : 'hidden' }} text-xs font-normal text-red-600">(wajib)</span>
+                    </label>
+                    <input type="file" name="po_file" accept=".pdf,.jpg,.jpeg,.png" data-po-required="pelanggan_luar"
                         class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold">
-                    <div class="mt-1 text-xs text-slate-500">PDF/JPG/PNG, maksimal 10 MB.</div>
+                    <div class="mt-1 text-xs text-slate-500">PDF/JPG/PNG, maksimal 10 MB. Bila belum ada, dokumennya dapat diunggah menyusul lewat tombol Ubah PO.</div>
                     @error('po_file') <div class="text-red-500 text-xs mt-1">{{ $message }}</div> @enderror
                 </div>
 

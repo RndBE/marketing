@@ -27,6 +27,17 @@
             && $term->calculateStatus() !== 'paid'
         );
         $allTermsPaid = $po->terms->isNotEmpty() && $po->terms->every(fn ($term) => $term->calculateStatus() === 'paid');
+        // PO disunting oleh pihak yang membuatnya, selama penjual belum menyetujuinya.
+        // PO pelanggan luar tidak melewati verifikasi siapa pun, jadi batasnya ada
+        // tidaknya termin yang sudah ditagihkan atau dibayar.
+        $terminSudahBerjalan = $po->terms->contains(fn ($term) => filled($term->nomor_invoice)
+            || filled($term->invoice_path)
+            || (float) $term->nilai_dibayar > 0
+            || (float) $term->nilai_pph > 0);
+        $canEdit = auth()->user()->hasPermission('create-purchase-order')
+            && ($po->isExternalCustomerOrder()
+                ? $isSeller && ! $terminSudahBerjalan
+                : $isBuyer && in_array($po->status, ['draft', 'submitted', 'rejected'], true));
         $roleTitle = $isBuyer ? 'Anda bertindak sebagai pembeli' : ($isSeller ? 'Anda bertindak sebagai penjual' : 'PO lama');
         $roleDescription = $isBuyer
             ? 'Anda mengunggah PO dan memantau tagihan serta pembayarannya.'
@@ -41,6 +52,11 @@
             $nextDescription = 'Periksa dokumen dan nilai PO. Saat disetujui, sistem langsung membuat termin.';
             $nextActionUrl = '#verifikasi-po';
             $nextActionLabel = 'Verifikasi Sekarang';
+        } elseif ($isBuyer && $po->status === 'rejected') {
+            $nextTitle = 'Perbaiki PO yang ditolak';
+            $nextDescription = 'Ubah datanya atau unggah ulang dokumennya, lalu kirim kembali untuk diverifikasi penjual.';
+            $nextActionUrl = route('purchase-orders.edit', $po);
+            $nextActionLabel = 'Perbaiki PO';
         } elseif ($isBuyer && $po->status === 'submitted') {
             $nextTitle = 'Menunggu penjual memverifikasi PO';
             $nextDescription = 'PO sudah terkirim. Termin akan muncul setelah PO disetujui penjual.';
@@ -91,7 +107,12 @@
                 → {{ $po->isExternalCustomerOrder() ? ($po->company?->name ?? '-') : ($po->supplierCompany?->name ?? $po->supplier_nama) }}
             </div>
         </div>
-        <a href="{{ route('purchase-orders.index') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Kembali</a>
+        <div class="flex gap-2">
+            @if($canEdit)
+                <a href="{{ route('purchase-orders.edit', $po) }}" class="rounded-xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Ubah PO</a>
+            @endif
+            <a href="{{ route('purchase-orders.index') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Kembali</a>
+        </div>
     </div>
 
     @if($errors->any())
