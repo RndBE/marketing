@@ -50,6 +50,20 @@ class PenawaranItemDetail extends Model
         return (int) round($this->resolvedQty() * (int) ($this->harga ?? 0) * $this->resolvedMarkup());
     }
 
+    /**
+     * Harga satuan setelah markup, dipakai di dokumen supaya kolom Harga Satuan
+     * konsisten dengan Subtotal (harga satuan x qty = subtotal).
+     */
+    public function calcUnitPrice(): int
+    {
+        $qty = $this->resolvedQty();
+        if ($qty > 0) {
+            return (int) round($this->calcSubtotal() / $qty);
+        }
+
+        return (int) round((int) ($this->harga ?? 0) * $this->resolvedMarkup());
+    }
+
     public function item()
     {
         return $this->belongsTo(PenawaranItem::class, 'penawaran_item_id');

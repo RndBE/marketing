@@ -1128,3 +1128,97 @@ test('penawaran pdf pricelist_total mode shows detail prices and the total summa
 
     expect(penawaranPdfTestResponseContent($response))->toStartWith('%PDF');
 });
+
+test('only pricelist_total mode prints the marked up detail unit price', function () {
+    config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
+
+    $company = Company::firstOrCreate(
+        ['code' => 'PDF-MARKUP'],
+        ['name' => 'PDF Markup Company']
+    );
+    $user = User::factory()->create(['company_id' => $company->id]);
+    $docNumber = DocNumber::create([
+        'company_id' => $company->id,
+        'prefix' => 'SPH02',
+        'seq' => 204,
+        'month' => 8,
+        'year' => 2026,
+        'doc_no' => '204/SPH02/AS/VIII/2026',
+    ]);
+    $penawaran = Penawaran::create([
+        'company_id' => $company->id,
+        'id_user' => $user->id,
+        'doc_number_id' => $docNumber->id,
+        'judul' => 'Penawaran Markup Detail',
+        'instansi_tujuan' => 'Instansi Test',
+        'nama_pekerjaan' => 'Pekerjaan Test',
+        'lokasi_pekerjaan' => 'Yogyakarta',
+        'tanggal_penawaran' => '2026-08-11',
+        'tax_enabled' => false,
+        'date_created' => now()->timestamp,
+        'date_updated' => now()->timestamp,
+    ]);
+    $item = PenawaranItem::create([
+        'penawaran_id' => $penawaran->id,
+        'urutan' => 1,
+        'judul' => 'Automatic Weather Station',
+        'qty' => 1,
+        'satuan' => 'paket',
+        'subtotal' => 1680000,
+        'markup' => 1,
+    ]);
+    PenawaranItemDetail::create([
+        'penawaran_item_id' => $item->id,
+        'urutan' => 1,
+        'nama' => 'Sensor Curah Hujan',
+        'qty' => 2,
+        'satuan' => 'unit',
+        'harga' => 700000,
+        'subtotal' => 1680000,
+        'markup' => 1.2,
+    ]);
+
+    $penawaran->load([
+        'docNumber',
+        'cover',
+        'company',
+        'validity',
+        'terms',
+        'user.roles',
+        'signatures',
+        'items.details',
+    ]);
+
+    $viewData = [
+        'penawaran' => $penawaran,
+        'docNo' => $docNumber->doc_no,
+        'total' => 1680000,
+        'kop' => [
+            'logo' => public_path('images/logo_arsol.png'),
+            'stamp' => public_path('images/cap_arsol.png'),
+            'nama' => $company->name,
+            'alamat' => 'Alamat Test',
+            'telp' => '000',
+            'email' => 'test@example.com',
+        ],
+    ];
+
+    $pricelistHtml = view('documents.penawaran_full', $viewData + [
+        'pricelistMode' => true,
+        'showTotalSummary' => false,
+    ])->render();
+
+    $pricelistTotalHtml = view('documents.penawaran_full', $viewData + [
+        'pricelistMode' => true,
+        'showTotalSummary' => true,
+    ])->render();
+
+    // Mode pricelist murni belum memakai markup: harga modal tetap tercetak apa adanya.
+    expect($pricelistHtml)->toContain('700.000')
+        ->and($pricelistHtml)->not()->toContain('840.000');
+
+    // Mode pricelist_total: 2 unit x 700.000 markup 1,2 dicetak 840.000 per unit.
+    expect($pricelistTotalHtml)->toContain('840.000')
+        ->and($pricelistTotalHtml)->not()->toContain('700.000')
+        ->and($pricelistTotalHtml)->toContain('1.680.000');
+});

@@ -146,6 +146,10 @@
     @php
         $cover = $penawaran->cover;
         $valid = $penawaran->validity;
+        // Harga detail bermarkup baru dipakai di mode pricelist_total (layout pricelist
+        // yang memuat ringkasan total). Mode pricelist murni masih mencetak harga modal
+        // apa adanya sampai perubahan ini diputuskan untuk dipakai di sana juga.
+        $detailPriceUsesMarkup = ($pricelistMode ?? false) && ($showTotalSummary ?? true);
         $grand = $penawaran->calcItemsSubtotal();
         $discountAmount = $penawaran->calcDiscountAmount();
         $discountType = $penawaran->discount_type ?? 'percent';
@@ -405,6 +409,7 @@
                     @php
                         $detailCount = $item->details ? $item->details->count() : 0;
                         $volume = $item->resolvedQty();
+                        $itemMarkup = $item->resolvedMarkup();
                         $totalItem = $item->calcSubtotal();
                         $hargaSatuanBundle = $item->calcUnitSubtotal();
                         $itemDetailsHaveAmount =
@@ -533,8 +538,15 @@
                         @php
                             $currentDetailUnits = $detailRowUnits($d);
                             $detailQty = (float) ($d->qty ?? 0);
-                            $detailPrice = (int) ($d->harga ?? 0);
-                            $detailSubtotal = (int) $d->calcSubtotal();
+                            // Di mode pricelist_total harga yang tampil sudah termasuk markup
+                            // detail dan markup item, jadi harga satuan x qty tetap sama dengan
+                            // subtotal dan jumlah semua detail sama dengan harga satuan bundle.
+                            $detailPrice = $detailPriceUsesMarkup
+                                ? (int) round($d->calcUnitPrice() * $itemMarkup)
+                                : (int) ($d->harga ?? 0);
+                            $detailSubtotal = $detailPriceUsesMarkup
+                                ? (int) round($d->calcSubtotal() * $itemMarkup)
+                                : (int) $d->calcSubtotal();
                             $showDetailAmount = ($pricelistMode ?? false) && ($detailPrice > 0 || $detailSubtotal > 0);
                         @endphp
                         @if ($itemUsesManualPageBreaks && $itemBreakBeforeRow($currentDetailUnits))
