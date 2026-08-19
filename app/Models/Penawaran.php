@@ -207,4 +207,26 @@ class Penawaran extends Model
     {
         return $this->calcDppTotal() + $this->calcTaxAmount();
     }
+
+    /**
+     * Syarat penawaran dalam bentuk baris keterangan, satu poin per baris. Dipakai
+     * dokumen turunan -- mis. Purchase Order -- sebagai isian bawaan yang masih bisa
+     * disunting pengajunya.
+     *
+     * @return array<int, string>
+     */
+    public function syaratDokumen(): array
+    {
+        $notes = [];
+
+        foreach ($this->terms as $term) {
+            $notes[] = trim(($term->judul ? $term->judul . ': ' : '') . $term->isi);
+        }
+
+        if (!$this->tax_enabled) {
+            $notes[] = 'Harga belum termasuk pajak.';
+        }
+
+        return array_values(array_filter($notes));
+    }
 }

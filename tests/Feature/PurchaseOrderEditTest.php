@@ -191,21 +191,34 @@ test('po yang ditolak kembali menunggu verifikasi dan mengabari penjual setelah 
     expect($jenis)->toContain('po_diperbarui');
 });
 
-test('po yang sudah disetujui tidak dapat disunting', function () {
+test('po yang sudah disetujui hanya dapat diubah keterangannya', function () {
     $cv = Company::create(['code' => 'CV-APR', 'name' => 'CV Setuju']);
     $pt = Company::create(['code' => 'PT-APR', 'name' => 'PT Setuju']);
     $pembeli = poEditUser($cv, 'CV');
     $penjual = poEditUser($pt, 'PT');
     $po = poEditTerkirim($pembeli, $penjual, 'APR', 'approved');
 
-    $this->actingAs($pembeli)->get(route('purchase-orders.edit', $po))->assertStatus(422);
+    $this->actingAs($pembeli)
+        ->get(route('purchase-orders.edit', $po))
+        ->assertOk()
+        ->assertSee('Ubah Keterangan Purchase Order')
+        // Field lain tetap tampil sebagai kolom mati supaya isinya tetap terbaca.
+        ->assertSee('value="5000000" disabled', false);
+
     $this->actingAs($pembeli)
         ->put(route('purchase-orders.update', $po), [
             'judul' => 'PO Setuju Revisi',
             'tgl_po' => '2026-08-05',
             'total' => 9000000,
+            'catatan' => 'Harga sudah termasuk garansi 1 tahun.',
         ])
-        ->assertStatus(422);
+        ->assertRedirect(route('purchase-orders.show', $po));
+
+    $po->refresh();
+    expect($po->catatan)->toBe('Harga sudah termasuk garansi 1 tahun.');
+    expect($po->judul)->toBe('PO APR');
+    expect((float) $po->total)->toBe(5000000.0);
+    expect($po->tgl_po->format('Y-m-d'))->toBe('2026-08-01');
 });
 
 test('penjual tidak dapat menyunting po masuk milik pembeli', function () {

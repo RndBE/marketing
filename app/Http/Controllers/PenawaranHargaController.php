@@ -18,6 +18,7 @@ use App\Models\UsulanAttachment;
 use App\Models\UsulanItem;
 use App\Models\UsulanPenawaran;
 use App\Services\NotifikasiPenawaranHarga;
+use App\Services\TandaTanganDokumen;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -26,7 +27,10 @@ use Illuminate\Support\Facades\Storage;
 
 class PenawaranHargaController extends Controller
 {
-    public function __construct(private NotifikasiPenawaranHarga $notifikasi) {}
+    public function __construct(
+        private NotifikasiPenawaranHarga $notifikasi,
+        private TandaTanganDokumen $tandaTangan,
+    ) {}
 
     public function index(Request $request)
     {
@@ -1371,23 +1375,7 @@ class PenawaranHargaController extends Controller
 
     private function resolveUsulanPublicImagePath(?string $path): ?string
     {
-        if (! $path) {
-            return null;
-        }
-
-        $normalizedPath = preg_replace('#^(public|storage)/#', '', ltrim($path, '/\\'));
-
-        foreach ([
-            Storage::disk('public')->path($normalizedPath),
-            public_path('storage/'.$normalizedPath),
-            public_path($normalizedPath),
-        ] as $candidate) {
-            if (is_file($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return null;
+        return $this->tandaTangan->resolvePublicImagePath($path);
     }
 
     /**
@@ -1398,140 +1386,7 @@ class PenawaranHargaController extends Controller
      */
     private function pdfSignaturePlacement(?string $imagePath): ?array
     {
-        if (! $imagePath || ! is_file($imagePath)) {
-            return null;
-        }
-
-        $imageInfo = @getimagesize($imagePath);
-        $sourceWidth = (int) ($imageInfo[0] ?? 0);
-        $sourceHeight = (int) ($imageInfo[1] ?? 0);
-        if ($sourceWidth < 1 || $sourceHeight < 1) {
-            return null;
-        }
-
-        // Kotak TTD mengikuti dokumen Penawaran Harga biasa (220x100) supaya cap dan
-        // TTD pada PDF Permohonan serta Penawaran Harga khusus terlihat sama.
-        $containerWidth = 220.0;
-        $containerHeight = 100.0;
-        // Sasarannya coretan yang terlihat, bukan kanvasnya: gambar TTD hasil potong
-        // biasanya punya ruang kosong di sekeliling coretan, dan porsinya berbeda-beda
-        // tiap file. Menskala dari ukuran kanvas membuat coretan tampil besar-kecil
-        // tak menentu -- itulah yang bikin TTD terlihat kelewat besar pada satu file
-        // dan kelewat kecil pada file lain.
-        $inkTargetWidth = 100.0;
-        $inkTargetHeight = 100.0;
-
-        $ink = $this->signatureInkBounds($imagePath, $sourceWidth, $sourceHeight);
-
-        if ($ink === null) {
-            // Gambar tanpa transparansi (mis. hasil pindai berlatar putih) atau tanpa
-            // coretan yang terdeteksi: seluruh kanvas adalah isinya, jadi kanvas itu
-            // sendiri yang diskala -- persis perilaku penawaran biasa.
-            $scale = min($inkTargetWidth / $sourceWidth, $containerHeight / $sourceHeight);
-            $displayWidth = $sourceWidth * $scale;
-            $displayHeight = $sourceHeight * $scale;
-
-            return [
-                'left' => round(max(0, ($containerWidth - $displayWidth) / 2), 2),
-                'top' => round(max(0, $containerHeight - $displayHeight), 2),
-                'width' => round($displayWidth, 2),
-                'height' => round($displayHeight, 2),
-            ];
-        }
-
-        $scale = min($inkTargetWidth / $ink['width'], $inkTargetHeight / $ink['height']);
-        $displayWidth = $sourceWidth * $scale;
-        $displayHeight = $sourceHeight * $scale;
-
-        // Coretan diletakkan di tengah kotak secara horizontal dan rapat ke dasarnya,
-        // meniru bottom:0 pada penawaran biasa. Ruang kosong kanvas boleh menjulur
-        // keluar kotak -- bagian itu transparan, jadi tidak menutupi apa pun.
-        $left = ($containerWidth / 2) - (($ink['centerX'] - 0) * $scale);
-        $top = $containerHeight - ($ink['bottom'] * $scale);
-
-        return [
-            'left' => round($left, 2),
-            'top' => round($top, 2),
-            'width' => round($displayWidth, 2),
-            'height' => round($displayHeight, 2),
-        ];
-    }
-
-    /**
-     * Kotak dan titik berat coretan TTD dalam piksel sumber.
-     *
-     * Mengembalikan null bila gambarnya tidak punya piksel transparan sama sekali
-     * (seluruh kanvas dianggap isi) atau bila tidak ada coretan yang terdeteksi.
-     *
-     * @return array{width: float, height: float, centerX: float, bottom: float}|null
-     */
-    private function signatureInkBounds(string $imagePath, int $sourceWidth, int $sourceHeight): ?array
-    {
-        if (! function_exists('imagecreatefromstring')) {
-            return null;
-        }
-
-        $contents = @file_get_contents($imagePath);
-        $image = $contents !== false ? @imagecreatefromstring($contents) : false;
-        if ($image === false) {
-            return null;
-        }
-
-        $stepX = max(1, (int) ceil($sourceWidth / 360));
-        $stepY = max(1, (int) ceil($sourceHeight / 360));
-        $hasTransparency = false;
-        $weightTotal = 0.0;
-        $weightedX = 0.0;
-        $minX = $maxX = $minY = $maxY = null;
-
-        for ($y = 0; $y < $sourceHeight; $y += $stepY) {
-            for ($x = 0; $x < $sourceWidth; $x += $stepX) {
-                $color = imagecolorsforindex($image, imagecolorat($image, $x, $y));
-                $alpha = (int) ($color['alpha'] ?? 0);
-                if ($alpha > 8) {
-                    $hasTransparency = true;
-                }
-
-                $opacity = (127 - $alpha) / 127;
-                $luminance = (
-                    (0.2126 * (int) $color['red'])
-                    + (0.7152 * (int) $color['green'])
-                    + (0.0722 * (int) $color['blue'])
-                ) / 255;
-                $inkWeight = $opacity * max(0, (1 - $luminance) - 0.04);
-
-                if ($inkWeight <= 0) {
-                    continue;
-                }
-
-                $weightTotal += $inkWeight;
-                $weightedX += $x * $inkWeight;
-                $minX = $minX === null ? $x : min($minX, $x);
-                $maxX = $maxX === null ? $x : max($maxX, $x);
-                $minY = $minY === null ? $y : min($minY, $y);
-                $maxY = $maxY === null ? $y : max($maxY, $y);
-            }
-        }
-
-        imagedestroy($image);
-
-        if (! $hasTransparency || $minX === null || $weightTotal <= 0) {
-            return null;
-        }
-
-        // Pemindaian melompat beberapa piksel, jadi tepi coretan bisa terlewat sebanyak
-        // satu langkah; dilebarkan agar coretannya tidak terpotong.
-        $minX = max(0, $minX - $stepX);
-        $maxX = min($sourceWidth - 1, $maxX + $stepX);
-        $minY = max(0, $minY - $stepY);
-        $maxY = min($sourceHeight - 1, $maxY + $stepY);
-
-        return [
-            'width' => (float) max(1, $maxX - $minX + 1),
-            'height' => (float) max(1, $maxY - $minY + 1),
-            'centerX' => $weightedX / $weightTotal,
-            'bottom' => (float) ($maxY + 1),
-        ];
+        return $this->tandaTangan->placement($imagePath);
     }
 
     private function usulanDocumentNumber(UsulanPenawaran $usulan, Carbon $documentDate): string

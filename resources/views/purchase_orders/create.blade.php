@@ -150,10 +150,15 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold mb-1">Catatan</label>
-                    <textarea name="catatan" rows="3"
-                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                        placeholder="Catatan tambahan (opsional)">{{ old('catatan') }}</textarea>
+                    @php
+                        // Syarat penawaran dipakai sebagai isian awal supaya pengaju tinggal
+                        // menyesuaikan, bukan mengetik ulang seluruh keterangannya.
+                        $keteranganBawaan = implode("\n", $usulan?->penawaran?->syaratDokumen() ?? []);
+                    @endphp
+                    <label class="block text-sm font-semibold mb-1">Catatan / Keterangan</label>
+                    <textarea name="catatan" rows="6"
+                        class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10">{{ old('catatan', $keteranganBawaan) }}</textarea>
+                    <div class="mt-1 text-xs text-slate-500">Satu baris = satu poin pada bagian <strong>Keterangan</strong> di PDF PO. Boleh diubah, ditambah, atau dihapus.</div>
                     @error('catatan') <div class="text-red-500 text-xs mt-1">{{ $message }}</div> @enderror
                 </div>
 

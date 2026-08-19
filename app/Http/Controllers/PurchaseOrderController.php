@@ -7,6 +7,8 @@ use App\Models\PurchaseOrderTerm;
 use App\Models\User;
 use App\Models\UsulanPenawaran;
 use App\Services\NotifikasiPurchaseOrder;
+use App\Services\TandaTanganDokumen;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderController extends Controller
 {
-    public function __construct(private NotifikasiPurchaseOrder $notifikasi) {}
+    public function __construct(
+        private NotifikasiPurchaseOrder $notifikasi,
+        private TandaTanganDokumen $tandaTangan,
+    ) {}
 
     public function index(Request $request)
     {
@@ -62,7 +67,7 @@ class PurchaseOrderController extends Controller
 
         if ($request->filled('usulan_id')) {
             $usulan = UsulanPenawaran::query()
-                ->with(['company', 'targetCompany', 'penawaran.items.details', 'purchaseOrder'])
+                ->with(['company', 'targetCompany', 'penawaran.items.details', 'penawaran.terms', 'purchaseOrder'])
                 ->findOrFail($request->integer('usulan_id'));
             $this->ensureRequesterAccess($usulan, $request->user());
             abort_unless($usulan->penawaran_status === 'accepted', 422, 'Penawaran belum disetujui.');
@@ -167,7 +172,7 @@ class PurchaseOrderController extends Controller
     {
         $this->ensurePurchaseOrderAccess($purchaseOrder, $request->user());
         $purchaseOrder->load([
-            'user', 'company', 'supplierCompany', 'usulan', 'penawaran.docNumber', 'penawaran.items.details', 'verifier',
+            'user', 'company', 'supplierCompany', 'usulan', 'penawaran.docNumber', 'penawaran.items.details', 'penawaran.terms', 'verifier',
             'terms.paymentVerifier',
         ]);
         $companyId = $this->currentCompanyId($request->user());
@@ -184,20 +189,33 @@ class PurchaseOrderController extends Controller
     public function edit(Request $request, PurchaseOrder $purchaseOrder)
     {
         $this->ensureEditAccess($purchaseOrder, $request->user());
-        $this->ensurePurchaseOrderIsEditable($purchaseOrder);
-        $purchaseOrder->load(['company', 'supplierCompany', 'usulan', 'penawaran.items.details', 'terms']);
+        $this->ensureKeteranganIsEditable($purchaseOrder);
+        $purchaseOrder->load(['company', 'supplierCompany', 'usulan', 'penawaran.items.details', 'penawaran.terms', 'terms']);
 
         return view('purchase_orders.edit', [
             'po' => $purchaseOrder,
             'quotationTotal' => $purchaseOrder->penawaran?->calcGrandTotal(),
             'totalTerjadwal' => (float) $purchaseOrder->terms->sum('nilai_tagihan'),
+            // PO yang sudah disetujui tetap boleh dibuka, tapi hanya keterangannya yang
+            // bisa disunting: nilai dan jadwal terminnya sudah berjalan.
+            'hanyaKeterangan' => ! $this->poDapatDisuntingPenuh($purchaseOrder),
         ]);
     }
 
     public function update(Request $request, PurchaseOrder $purchaseOrder)
     {
         $this->ensureEditAccess($purchaseOrder, $request->user());
-        $this->ensurePurchaseOrderIsEditable($purchaseOrder);
+        $this->ensureKeteranganIsEditable($purchaseOrder);
+
+        // Keterangan hanya mengubah isi cetakan PDF, bukan nilai atau termin, jadi PO
+        // yang sudah berjalan tetap boleh memperbaikinya -- kolom lainnya diabaikan.
+        if (! $this->poDapatDisuntingPenuh($purchaseOrder)) {
+            $payload = $request->validate(['catatan' => ['nullable', 'string', 'max:5000']]);
+            $purchaseOrder->update(['catatan' => $payload['catatan'] ?? null]);
+
+            return redirect()->route('purchase-orders.show', $purchaseOrder)
+                ->with('success', 'Keterangan dokumen PO berhasil diperbarui.');
+        }
 
         $companyId = (int) $this->currentCompanyId($request->user());
         $rules = [
@@ -702,22 +720,28 @@ class PurchaseOrderController extends Controller
      * approved sejak dibuat -- jadi batasannya bukan status, melainkan ada tidaknya
      * tagihan yang sudah berjalan.
      */
-    private function ensurePurchaseOrderIsEditable(PurchaseOrder $purchaseOrder): void
+    /**
+     * Seluruh isi PO -- nomor, nilai, dokumen -- masih boleh diubah.
+     */
+    private function poDapatDisuntingPenuh(PurchaseOrder $purchaseOrder): bool
     {
         if ($purchaseOrder->isExternalCustomerOrder()) {
-            abort_if(
-                $this->terminSudahBerjalan($purchaseOrder),
-                422,
-                'PO yang terminnya sudah ditagihkan atau dibayar tidak dapat diubah.'
-            );
-
-            return;
+            return ! $this->terminSudahBerjalan($purchaseOrder);
         }
 
-        abort_unless(
-            in_array($purchaseOrder->status, ['draft', 'submitted', 'rejected'], true),
+        return in_array($purchaseOrder->status, ['draft', 'submitted', 'rejected'], true);
+    }
+
+    /**
+     * Batas terluar penyuntingan: PO yang dibatalkan tidak lagi disentuh, sedangkan PO
+     * berjalan masih boleh diperbaiki keterangan dokumennya.
+     */
+    private function ensureKeteranganIsEditable(PurchaseOrder $purchaseOrder): void
+    {
+        abort_if(
+            $purchaseOrder->status === 'cancelled',
             422,
-            'PO yang sudah disetujui atau dibatalkan tidak dapat diubah.'
+            'PO yang dibatalkan tidak dapat diubah.'
         );
     }
 
@@ -782,6 +806,211 @@ class PurchaseOrderController extends Controller
         if ($scheduled + $value > (float) $purchaseOrder->total) {
             throw ValidationException::withMessages(['nilai_tagihan' => 'Total seluruh termin tidak boleh melebihi nilai PO.']);
         }
+    }
+
+    /**
+     * Cetak PO menjadi dokumen "Pesanan Pembelian" berkop perusahaan pembeli.
+     */
+    public function downloadPdf(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        $this->ensurePurchaseOrderAccess($purchaseOrder, $request->user());
+        // PO pelanggan luar diterbitkan pihak di luar sistem: dokumen resminya adalah
+        // berkas yang diunggah, bukan cetakan versi kita.
+        abort_if(
+            $purchaseOrder->isExternalCustomerOrder(),
+            404,
+            'PO pelanggan luar memakai dokumen yang diunggah, bukan cetakan sistem.'
+        );
+
+        $purchaseOrder->load([
+            'company',
+            'supplierCompany',
+            'user.roles',
+            'penawaran.items.details',
+            'penawaran.terms',
+            'penawaran.validity',
+        ]);
+
+        $issuer = $purchaseOrder->company;
+        $supplier = $purchaseOrder->supplierCompany;
+        $kop = [
+            'logo' => $this->companyDocumentLogo($issuer),
+            'stamp' => $issuer?->stampFullPath(),
+            'name' => $issuer?->name ?: 'Perusahaan Pembeli',
+            'address' => $issuer?->address ?: '-',
+            'phone' => $issuer?->phone ?: '-',
+            'email' => $issuer?->email ?: '-',
+        ];
+        $recipient = [
+            'name' => $supplier?->name ?: ($purchaseOrder->supplier_nama ?: '-'),
+            'phone' => $supplier?->phone ?: '-',
+            'address' => $supplier?->address ?: ($purchaseOrder->supplier_alamat ?: '-'),
+        ];
+
+        $rows = $this->buildPdfRows($purchaseOrder);
+        $totals = $this->buildPdfTotals($purchaseOrder, $rows);
+        $notes = $this->buildPdfNotes($purchaseOrder);
+        $documentNumber = $purchaseOrder->nomor_po ?: $this->generateNumber($purchaseOrder);
+        $documentDate = $purchaseOrder->tgl_po?->copy() ?? ($purchaseOrder->created_at?->copy() ?? now());
+        $signaturePath = $this->tandaTangan->resolvePublicImagePath($purchaseOrder->user?->ttd);
+        $signaturePlacement = $this->tandaTangan->placement($signaturePath);
+        $signer = [
+            'name' => $purchaseOrder->user?->name ?: '-',
+            'role' => $purchaseOrder->user?->roles?->pluck('name')->implode(', ') ?: 'Staff',
+        ];
+
+        $pdf = Pdf::loadView('purchase_orders.pdf', compact(
+            'purchaseOrder',
+            'kop',
+            'recipient',
+            'rows',
+            'totals',
+            'notes',
+            'documentNumber',
+            'documentDate',
+            'signaturePath',
+            'signaturePlacement',
+            'signer'
+        ))->setPaper('a4', 'portrait');
+
+        $filename = 'Pesanan-Pembelian-'.preg_replace('/[^A-Za-z0-9._-]+/', '-', $documentNumber).'.pdf';
+
+        $response = $pdf->stream($filename);
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+        return $response;
+    }
+
+    /**
+     * Baris item dokumen. Bila PO berasal dari penawaran, rinciannya mengikuti item
+     * penawaran; bila tidak ada, PO tampil sebagai satu baris paket senilai total PO.
+     *
+     * @return array<int, array{judul: string, rincian: array<int, string>, jumlah: float, satuan: string, harga_satuan: float, total: float}>
+     */
+    private function buildPdfRows(PurchaseOrder $purchaseOrder): array
+    {
+        $penawaran = $purchaseOrder->penawaran;
+
+        if (! $penawaran || $penawaran->items->isEmpty()) {
+            return [[
+                'judul' => $purchaseOrder->judul ?: 'Pekerjaan',
+                'rincian' => [],
+                'jumlah' => 1.0,
+                'satuan' => 'Paket',
+                'harga_satuan' => (float) $purchaseOrder->total,
+                'total' => (float) $purchaseOrder->total,
+            ]];
+        }
+
+        return $penawaran->items->map(function ($item) {
+            // Rincian yang cuma mengulang judul itemnya tidak perlu dicetak lagi.
+            $details = $item->details
+                ->reject(fn ($detail) => $item->details->count() === 1
+                    && trim((string) $detail->nama) === trim((string) $item->judul)
+                    && blank($detail->spesifikasi))
+                ->map(fn ($detail) => trim($detail->nama.($detail->spesifikasi ? ' - '.$detail->spesifikasi : '')))
+                ->all();
+            $catatan = preg_split('/\R/', (string) $item->catatan, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+            return [
+                'judul' => (string) $item->judul,
+                'rincian' => array_values(array_filter(array_map('trim', array_merge($catatan, $details)))),
+                'jumlah' => (float) $item->resolvedQty(),
+                'satuan' => $item->satuan ?: 'Paket',
+                'harga_satuan' => (float) $item->calcUnitSubtotal(),
+                'total' => (float) $item->calcSubtotal(),
+            ];
+        })->all();
+    }
+
+    /**
+     * Rekap harga. Nilai akhirnya selalu total PO -- itulah angka yang mengikat kedua
+     * pihak -- sehingga selisih terhadap penawaran dicetak sebagai baris penyesuaian.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{lines: array<int, array{label: string, value: float}>, final_label: string, final_value: float}
+     */
+    private function buildPdfTotals(PurchaseOrder $purchaseOrder, array $rows): array
+    {
+        $penawaran = $purchaseOrder->penawaran;
+        $subtotal = array_sum(array_column($rows, 'total'));
+        $discount = $penawaran && $penawaran->discount_enabled ? (float) $penawaran->calcDiscountAmount() : 0.0;
+        $tax = $penawaran && $penawaran->tax_enabled ? (float) $penawaran->calcTaxAmount() : 0.0;
+        $finalValue = (float) $purchaseOrder->total;
+
+        $lines = [['label' => 'Total', 'value' => $subtotal]];
+
+        if ($discount > 0) {
+            $discountLabel = ($penawaran->discount_type ?? 'percent') === 'percent'
+                ? 'Diskon '.$this->formatPdfNumber((float) $penawaran->discount_value).'%'
+                : 'Diskon';
+            $lines[] = ['label' => $discountLabel, 'value' => $discount];
+        }
+
+        if ($tax > 0) {
+            $lines[] = ['label' => 'PPN '.$this->formatPdfNumber((float) $penawaran->tax_rate).'%', 'value' => $tax];
+        }
+
+        $adjustment = $finalValue - ($subtotal - $discount + $tax);
+        if (abs($adjustment) >= 1) {
+            $lines[] = ['label' => 'Penyesuaian', 'value' => $adjustment];
+        }
+
+        return [
+            'lines' => $lines,
+            'final_label' => $discount > 0 && $tax <= 0 ? 'Harga Setelah Diskon' : 'Total Pesanan',
+            'final_value' => $finalValue,
+        ];
+    }
+
+    /**
+     * Isi bagian "Keterangan" dokumen.
+     *
+     * Catatan PO yang ditulis pengaju dipakai apa adanya -- satu baris satu poin --
+     * supaya isinya bisa diatur sendiri lewat form. Syarat penawaran baru dipakai
+     * sebagai isian bawaan bila catatannya dikosongkan.
+     *
+     * @return array<int, string>
+     */
+    private function buildPdfNotes(PurchaseOrder $purchaseOrder): array
+    {
+        $notes = preg_split('/\R/', (string) $purchaseOrder->catatan, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if (! $notes) {
+            $notes = $purchaseOrder->penawaran?->syaratDokumen() ?? [];
+        }
+
+        // Baris yang sama cukup dicetak sekali.
+        $unique = [];
+        foreach (array_filter(array_map('trim', $notes)) as $note) {
+            $unique[mb_strtolower($note)] ??= $note;
+        }
+
+        return array_values($unique);
+    }
+
+    private function formatPdfNumber(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
+    }
+
+    /**
+     * Logo kop dokumen: unggahan perusahaan, atau berkas bawaan bila belum diunggah.
+     */
+    private function companyDocumentLogo($company): ?string
+    {
+        $uploadedLogo = $company?->logoFullPath();
+        if ($uploadedLogo) {
+            return $uploadedLogo;
+        }
+
+        $fallback = match (strtoupper((string) $company?->code)) {
+            'AS', 'ARSOL' => public_path('images/logo_arsol.png'),
+            'ATC', 'BE' => public_path('images/logo_be.png'),
+            default => null,
+        };
+
+        return $fallback && is_file($fallback) ? $fallback : null;
     }
 
     private function downloadPrivateDocument(string $path, string $filename)

@@ -380,6 +380,9 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{purchaseOrder}', [PurchaseOrderController::class, 'update'])
             ->middleware('permission:create-purchase-order')
             ->name('update');
+        Route::get('/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])
+            ->middleware('permission:view-purchase-order')
+            ->name('pdf');
         Route::get('/{purchaseOrder}/document', [PurchaseOrderController::class, 'downloadDocument'])
             ->middleware('permission:view-purchase-order')
             ->name('document.download');

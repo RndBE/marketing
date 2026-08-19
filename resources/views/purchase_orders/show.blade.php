@@ -38,6 +38,12 @@
             && ($po->isExternalCustomerOrder()
                 ? $isSeller && ! $terminSudahBerjalan
                 : $isBuyer && in_array($po->status, ['draft', 'submitted', 'rejected'], true));
+        // Keterangan hanya mengubah isi cetakan, bukan nilai atau termin, jadi pemilik PO
+        // tetap boleh memperbaikinya walau PO sudah disetujui.
+        $canEditKeterangan = ! $canEdit
+            && auth()->user()->hasPermission('create-purchase-order')
+            && ($po->isExternalCustomerOrder() ? $isSeller : ($isBuyer || $isLegacy))
+            && $po->status !== 'cancelled';
         $roleTitle = $isBuyer ? 'Anda bertindak sebagai pembeli' : ($isSeller ? 'Anda bertindak sebagai penjual' : 'PO lama');
         $roleDescription = $isBuyer
             ? 'Anda mengunggah PO dan memantau tagihan serta pembayarannya.'
@@ -108,7 +114,11 @@
             </div>
         </div>
         <div class="flex gap-2">
-            @if($canEdit)
+            @unless($po->isExternalCustomerOrder())
+                <a href="{{ route('purchase-orders.pdf', $po) }}" target="_blank" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Unduh PDF</a>
+            @endunless
+            @if($canEdit || $canEditKeterangan)
+                {{-- PO berjalan tetap punya tombol ini, tapi form-nya menyisakan keterangan saja. --}}
                 <a href="{{ route('purchase-orders.edit', $po) }}" class="rounded-xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Ubah PO</a>
             @endif
             <a href="{{ route('purchase-orders.index') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Kembali</a>
@@ -182,6 +192,32 @@
                     </div>
                 @endif
             </div>
+
+            @unless($po->isExternalCustomerOrder())
+                @php
+                    $keteranganTersimpan = $po->catatan ?: implode("\n", $po->penawaran?->syaratDokumen() ?? []);
+                @endphp
+                <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="font-semibold">Keterangan dokumen PDF</h2>
+                            <p class="mt-1 text-sm text-slate-600">Satu baris = satu poin pada bagian <strong>Keterangan</strong> di PDF Pesanan Pembelian.</p>
+                        </div>
+                        @if($canEdit || $canEditKeterangan)
+                            <a href="{{ route('purchase-orders.edit', $po) }}" class="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Ubah Keterangan</a>
+                        @endif
+                    </div>
+                    @if($keteranganTersimpan)
+                        <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                            @foreach(preg_split('/\R/', $keteranganTersimpan, -1, PREG_SPLIT_NO_EMPTY) as $baris)
+                                <li>{{ trim($baris) }}</li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="mt-3 text-sm text-slate-400">Belum ada keterangan.</p>
+                    @endif
+                </div>
+            @endunless
 
             @if($isSeller && in_array($po->status, ['submitted', 'rejected'], true))
                 <form id="verifikasi-po" method="POST" action="{{ route('purchase-orders.verify', $po) }}" class="scroll-mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-5">
