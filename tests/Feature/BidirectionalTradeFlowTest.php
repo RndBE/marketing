@@ -3,6 +3,8 @@
 use App\Models\Company;
 use App\Models\Penawaran;
 use App\Models\Permission;
+use App\Models\Pic;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\User;
@@ -326,6 +328,40 @@ test('request price form handles null flashed item input', function () {
         ->assertSee('>Barang + Jasa</option>', false)
         ->assertSee('Kebutuhan uji Blade')
         ->assertDontSee("{{ old('deskripsi') }}", false);
+});
+
+test('request price form uses searchable dropdowns for pic and bundle', function () {
+    $buyerCompany = Company::create(['code' => 'BUYER-SEARCH', 'name' => 'Buyer Searchable']);
+    Company::create(['code' => 'SELLER-SEARCH', 'name' => 'Seller Searchable']);
+    $buyer = tradeFlowUser($buyerCompany, 'SEARCH');
+
+    Pic::create([
+        'company_id' => $buyerCompany->id,
+        'nama' => 'Budi Santoso',
+        'instansi' => 'Dinas Pendidikan',
+    ]);
+
+    Product::create([
+        'company_id' => $buyerCompany->id,
+        'kode' => 'BND-01',
+        'nama' => 'Bundle Server Rakitan',
+        'satuan' => 'unit',
+        'is_active' => true,
+    ]);
+
+    $content = $this->actingAs($buyer)->get(route('penawaran-harga.create'))->assertOk()->getContent();
+
+    expect($content)
+        ->toContain('searchableDropdown(')
+        ->toContain('name="pic_id"')
+        ->toContain('searchPlaceholder')
+        ->toContain('Cari PIC')
+        ->toContain('Cari product')
+        ->toContain('Dinas Pendidikan - Budi Santoso')
+        ->toContain('id="bundle-product"')
+        ->toContain('BND-01 - Bundle Server Rakitan')
+        ->not->toContain('<select name="pic_id"')
+        ->not->toContain('<select id="bundle-product"');
 });
 
 test('the same paperless trade flow works from CV to PT and from PT to CV', function () {

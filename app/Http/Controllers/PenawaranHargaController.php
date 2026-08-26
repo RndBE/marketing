@@ -88,7 +88,10 @@ class PenawaranHargaController extends Controller
             ];
         })->values()->all();
 
-        return view('penawaran_harga.create', compact('pics', 'products', 'bundleProducts', 'companies'));
+        $picSearchOptions = $this->picSearchOptions($pics);
+        $productSearchOptions = $this->productSearchOptions($products);
+
+        return view('penawaran_harga.create', compact('pics', 'products', 'bundleProducts', 'companies', 'picSearchOptions', 'productSearchOptions'));
     }
 
     public function store(Request $request)
@@ -189,6 +192,39 @@ class PenawaranHargaController extends Controller
      * Kebalikan dari modul Usulan: data tanpa perusahaan tujuan adalah usulan internal
      * dan ditangani modul Usulan.
      */
+    /**
+     * Opsi PIC untuk dropdown pencarian (searchable select).
+     */
+    private function picSearchOptions($pics): array
+    {
+        return collect($pics)->map(function ($pic) {
+            $nama = trim(($pic->honorific ? $pic->honorific . ' ' : '') . $pic->nama);
+            $label = $pic->instansi ?: $nama;
+
+            if ($pic->instansi && $nama !== '') {
+                $label = $pic->instansi . ' - ' . $nama;
+            }
+
+            return [
+                'id' => (string) $pic->id,
+                'label' => $label !== '' ? $label : ('PIC #' . $pic->id),
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * Opsi product/bundle untuk dropdown pencarian (searchable select).
+     */
+    private function productSearchOptions($products): array
+    {
+        return collect($products)->map(function ($product) {
+            return [
+                'id' => (string) $product->id,
+                'label' => ($product->kode ? $product->kode . ' - ' : '') . $product->nama,
+            ];
+        })->values()->all();
+    }
+
     private function redirectIfBelongsToUsulan(UsulanPenawaran $usulan)
     {
         return $usulan->target_company_id === null
@@ -636,7 +672,10 @@ class PenawaranHargaController extends Controller
             ];
         })->values()->all();
 
-        return view('penawaran_harga.edit', compact('usulan', 'pics', 'products', 'bundleProducts', 'companies'));
+        $picSearchOptions = $this->picSearchOptions($pics);
+        $productSearchOptions = $this->productSearchOptions($products);
+
+        return view('penawaran_harga.edit', compact('usulan', 'pics', 'products', 'bundleProducts', 'companies', 'picSearchOptions', 'productSearchOptions'));
     }
 
     public function update(Request $request, UsulanPenawaran $usulan)

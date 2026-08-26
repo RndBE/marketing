@@ -789,6 +789,126 @@ Alpine.data('searchableSelect', (config = {}) => ({
     },
 }));
 
+Alpine.data('searchableDropdown', (config = {}) => ({
+    options: (config.options ?? []).map((option) => ({
+        id: String(option.id ?? ''),
+        label: option.label ?? '',
+    })),
+    selectedId: String(config.selectedId ?? ''),
+    placeholder: config.placeholder ?? 'Pilih opsi',
+    searchPlaceholder: config.searchPlaceholder ?? 'Cari...',
+    emptyText: config.emptyText ?? 'Tidak ada hasil.',
+    clearLabel: config.clearLabel ?? '',
+    query: '',
+    open: false,
+    highlightedIndex: 0,
+
+    init() {
+        this.$watch('selectedId', () => {
+            this.$dispatch('searchable-select-change', {
+                value: this.selectedId,
+                option: this.selectedOption,
+            });
+        });
+    },
+
+    get selectedOption() {
+        return this.options.find((option) => option.id === this.selectedId) ?? null;
+    },
+
+    get triggerLabel() {
+        return this.selectedOption ? this.selectedOption.label : this.placeholder;
+    },
+
+    get filteredOptions() {
+        const keyword = this.query.trim().toLowerCase();
+
+        if (keyword === '') {
+            return this.options;
+        }
+
+        return this.options.filter((option) =>
+            option.label.toLowerCase().includes(keyword)
+        );
+    },
+
+    toggle() {
+        if (this.open) {
+            this.closePanel();
+            return;
+        }
+
+        this.openPanel();
+    },
+
+    openPanel() {
+        this.open = true;
+        this.query = '';
+        this.highlightedIndex = Math.max(
+            this.filteredOptions.findIndex((option) => option.id === this.selectedId),
+            0
+        );
+
+        this.$nextTick(() => this.$refs.search?.focus());
+    },
+
+    closePanel() {
+        this.open = false;
+        this.query = '';
+        this.highlightedIndex = 0;
+    },
+
+    onSearch() {
+        this.highlightedIndex = 0;
+    },
+
+    choose(option) {
+        this.selectedId = option.id;
+        this.closePanel();
+        this.$nextTick(() => this.$refs.trigger?.focus());
+    },
+
+    clear() {
+        this.selectedId = '';
+        this.closePanel();
+        this.$nextTick(() => this.$refs.trigger?.focus());
+    },
+
+    moveHighlight(step) {
+        if (!this.open) {
+            this.openPanel();
+            return;
+        }
+
+        if (this.filteredOptions.length === 0) {
+            this.highlightedIndex = 0;
+            return;
+        }
+
+        const nextIndex = this.highlightedIndex + step;
+
+        if (nextIndex < 0) {
+            this.highlightedIndex = this.filteredOptions.length - 1;
+            return;
+        }
+
+        if (nextIndex >= this.filteredOptions.length) {
+            this.highlightedIndex = 0;
+            return;
+        }
+
+        this.highlightedIndex = nextIndex;
+    },
+
+    chooseHighlighted() {
+        if (this.filteredOptions.length === 0) {
+            return;
+        }
+
+        this.choose(this.filteredOptions[this.highlightedIndex] ?? this.filteredOptions[0]);
+    },
+}));
+
 Alpine.data('currencyInput', (initialValue = '') => ({
     numericValue: '',
     displayValue: '',

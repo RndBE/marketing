@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@php
+    $selectedPicId = (string) old('pic_id', $usulan->pic_id ?? '');
+@endphp
+
 @section('content')
     <div class="w-full max-w-4xl">
         <div class="mb-5">
@@ -45,14 +49,9 @@
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label class="block text-xs font-semibold mb-1">PIC/Klien</label>
-                        <select name="pic_id" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                            <option value="">-- Pilih PIC --</option>
-                            @foreach ($pics as $pic)
-                                <option value="{{ $pic->id }}" {{ $usulan->pic_id == $pic->id ? 'selected' : '' }}>
-                                    {{ $pic->instansi }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select name="pic_id" :options="$picSearchOptions"
+                            :selected-id="$selectedPicId" placeholder="Pilih PIC" search-placeholder="Cari PIC/klien..."
+                            empty-text="PIC tidak ditemukan." clear-label="Kosongkan pilihan" />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold mb-1">Nilai Estimasi</label>
@@ -90,15 +89,9 @@
                         <div class="text-xs font-semibold text-slate-600 mb-2">Tambah dari Bundle</div>
                         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
                             <div class="md:col-span-3">
-                                <select id="bundle-product"
-                                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                    <option value="">Pilih product</option>
-                                    @foreach ($products as $p)
-                                        <option value="{{ $p->id }}">
-                                            {{ $p->kode ? $p->kode . ' - ' : '' }}{{ $p->nama }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select input-id="bundle-product" :options="$productSearchOptions"
+                                    placeholder="Pilih product" search-placeholder="Cari product/bundle..."
+                                    empty-text="Product tidak ditemukan." clear-label="Kosongkan pilihan" />
                             </div>
                             <div>
                                 <input id="bundle-qty" type="number" value="1" step="0.01" min="0.01"
