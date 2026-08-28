@@ -137,6 +137,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{usulan}', [UsulanPenawaranController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
         Route::post('/{usulan}/visibility', [UsulanPenawaranController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
         Route::post('/{usulan}/tanggapi', [UsulanPenawaranController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/buat-penawaran', [PenawaranHargaController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:respond-usulan');
         Route::delete('/{usulan}', [UsulanPenawaranController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
         Route::delete('/attachment/{attachment}', [UsulanPenawaranController::class, 'deleteAttachment'])->name('attachment.delete')->middleware('permission:edit-usulan');
     });
@@ -157,6 +158,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{usulan}', [PenawaranHargaController::class, 'update'])->name('update')->middleware('permission:edit-usulan');
         Route::post('/{usulan}/visibility', [PenawaranHargaController::class, 'updateVisibility'])->name('visibility.update')->middleware('superadmin');
         Route::post('/{usulan}/tanggapi', [PenawaranHargaController::class, 'tanggapi'])->name('tanggapi')->middleware('permission:respond-usulan');
+        Route::post('/{usulan}/buat-penawaran', [PenawaranHargaController::class, 'buatPenawaran'])->name('buat-penawaran')->middleware('permission:respond-usulan');
         Route::post('/{usulan}/kirim-penawaran', [PenawaranHargaController::class, 'sendQuotation'])->name('kirim-penawaran')->middleware('permission:respond-usulan');
         Route::post('/{usulan}/tanggapi-penawaran', [PenawaranHargaController::class, 'respondQuotation'])->name('tanggapi-penawaran')->middleware('permission:view-usulan');
         Route::delete('/{usulan}', [PenawaranHargaController::class, 'destroy'])->name('destroy')->middleware('permission:delete-usulan');
