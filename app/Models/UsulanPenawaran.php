@@ -93,6 +93,21 @@ class UsulanPenawaran extends Model
             || (int) $this->target_company_id === (int) $companyId;
     }
 
+    /**
+     * Usulan bertarget perusahaan lain adalah Permohonan Harga: halaman dan
+     * PDF-nya dikelola modul Penawaran Harga. Tanpa target perusahaan ia
+     * usulan internal, dan penawarannya tetap dibuka lewat modul Penawaran.
+     */
+    public function belongsToPenawaranHarga(): bool
+    {
+        return $this->target_company_id !== null;
+    }
+
+    public function scopePenawaranHarga(Builder $query): Builder
+    {
+        return $query->whereNotNull($this->getTable().'.target_company_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

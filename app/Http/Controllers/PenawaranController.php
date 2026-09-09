@@ -66,8 +66,9 @@ class PenawaranController extends Controller
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
             ->leftJoin('approvals as list_approval', 'list_approval.id', '=', 'penawaran.approval_id')
             // Penawaran paperless dari Permohonan Harga dikelola di alur Usulan,
-            // bukan di Daftar Penawaran mandiri.
-            ->whereDoesntHave('usulan')
+            // bukan di Daftar Penawaran mandiri. Penawaran dari usulan internal
+            // tidak punya halaman di sana, jadi tetap tampil di daftar ini.
+            ->whereDoesntHave('usulan', fn ($query) => $query->penawaranHarga())
             ->tap(fn ($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));
@@ -327,8 +328,10 @@ class PenawaranController extends Controller
 
         // Penawaran yang lahir dari Permohonan Harga memiliki halaman dan PDF
         // tersendiri. Jangan pernah membukanya dengan tampilan Penawaran umum.
+        // Usulan internal (tanpa target perusahaan) tidak punya halaman di modul
+        // Penawaran Harga, jadi mengalihkannya ke sana hanya bikin redirect loop.
         $requestQuotation = $penawaran->usulan()->first();
-        if ($requestQuotation) {
+        if ($requestQuotation && $requestQuotation->belongsToPenawaranHarga()) {
             return redirect()->route('penawaran-harga.quotation.show', $requestQuotation);
         }
 
@@ -1351,8 +1354,9 @@ class PenawaranController extends Controller
 
         // URL export Penawaran lama mungkin masih tersimpan di bookmark atau
         // riwayat browser. Paksa dokumen permohonan memakai template khususnya.
+        // Usulan internal tetap dicetak dengan template Penawaran umum.
         $requestQuotation = $penawaran->usulan()->first();
-        if ($requestQuotation) {
+        if ($requestQuotation && $requestQuotation->belongsToPenawaranHarga()) {
             return redirect()->route('penawaran-harga.quotation.pdf', $requestQuotation);
         }
 
@@ -2064,7 +2068,7 @@ class PenawaranController extends Controller
         $rows = Penawaran::query()
             ->with(['docNumber', 'approval', 'pic', 'items.details', 'user'])
             ->leftJoin('doc_numbers as dn', 'dn.id', '=', 'penawaran.doc_number_id')
-            ->whereDoesntHave('usulan')
+            ->whereDoesntHave('usulan', fn ($query) => $query->penawaranHarga())
             ->tap(fn ($query) => $this->applyPenawaranListAccess($query, $user, $canViewAll, $companyId, $companyFilterId))
             ->when($q !== '', function ($query) use ($q) {
                 $tokens = array_filter(array_map('trim', explode(' ', $q)));

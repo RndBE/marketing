@@ -141,7 +141,7 @@ class UsulanPenawaranController extends Controller
      */
     private function redirectIfBelongsToPenawaranHarga(UsulanPenawaran $usulan)
     {
-        return $usulan->target_company_id !== null
+        return $usulan->belongsToPenawaranHarga()
             ? redirect()->route('penawaran-harga.show', $usulan)
             : null;
     }

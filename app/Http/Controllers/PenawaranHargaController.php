@@ -227,9 +227,9 @@ class PenawaranHargaController extends Controller
 
     private function redirectIfBelongsToUsulan(UsulanPenawaran $usulan)
     {
-        return $usulan->target_company_id === null
-            ? redirect()->route('usulan.show', $usulan)
-            : null;
+        return $usulan->belongsToPenawaranHarga()
+            ? null
+            : redirect()->route('usulan.show', $usulan);
     }
 
     public function show(UsulanPenawaran $usulan)
