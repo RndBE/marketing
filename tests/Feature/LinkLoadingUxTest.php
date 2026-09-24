@@ -59,7 +59,8 @@ test('generated document links expose a dedicated download loading state', funct
         ->toContain('data-download-loading')
         ->toContain('data-loading-label="Menyiapkan PDF..."')
         ->toContain('data-download-timeout="30000"')
-        ->toContain('data-penawaran-pdf-link');
+        ->toContain('data-penawaran-pdf-link')
+        ->toContain('target="_blank"');
 
     expect($invoiceShow)
         ->toContain("route('invoices.pdf', \$invoice->id)")

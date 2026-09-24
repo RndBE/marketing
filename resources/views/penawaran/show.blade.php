@@ -130,6 +130,8 @@
                         data-loading-label="Menyiapkan PDF..."
                         data-download-timeout="30000"
                         data-penawaran-pdf-link
+                        target="_blank"
+                        rel="noopener"
                         class="block px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                         Mode Full
                         <span class="block text-xs font-normal text-slate-500">Dengan ringkasan total</span>
@@ -139,6 +141,8 @@
                         data-loading-label="Menyiapkan PDF..."
                         data-download-timeout="30000"
                         data-penawaran-pdf-link
+                        target="_blank"
+                        rel="noopener"
                         class="block border-t border-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                         Mode Pricelist
                         <span class="block text-xs font-normal text-slate-500">Tanpa ringkasan total</span>
@@ -148,6 +152,8 @@
                         data-loading-label="Menyiapkan PDF..."
                         data-download-timeout="30000"
                         data-penawaran-pdf-link
+                        target="_blank"
+                        rel="noopener"
                         class="block border-t border-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                         Mode Pricelist + Total
                         <span class="block text-xs font-normal text-slate-500">Dengan ringkasan total</span>
