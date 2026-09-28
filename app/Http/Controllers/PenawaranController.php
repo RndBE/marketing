@@ -18,6 +18,7 @@ use App\Models\PenghapusanPenawaran;
 use App\Models\Pic;
 use App\Models\Product;
 use App\Services\PenyusunPenawaran;
+use App\Services\TandaTanganDokumen;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1069,11 +1070,9 @@ class PenawaranController extends Controller
             'tanggal' => $payload['tanggal'] ?? null,
         ];
 
+        $ttdLama = null;
         if ($request->hasFile('ttd')) {
-            // Delete old TTD if exists
-            if ($signature && $signature->ttd_path) {
-                Storage::disk('public')->delete($signature->ttd_path);
-            }
+            $ttdLama = $signature?->ttd_path;
             $path = $request->file('ttd')->store('penawaran/ttd', 'public');
             $data['ttd_path'] = $path;
         }
@@ -1088,6 +1087,7 @@ class PenawaranController extends Controller
             PenawaranSignature::create($data);
         }
 
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return redirect()->route('penawaran.show', $penawaran->id)
@@ -1102,11 +1102,8 @@ class PenawaranController extends Controller
             abort(404);
         }
 
-        if ($signature->ttd_path) {
-            Storage::disk('public')->delete($signature->ttd_path);
-        }
-
         $signature->delete();
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($signature->ttd_path);
         $penawaran->update(['date_updated' => now()->timestamp]);
 
         return redirect()->route('penawaran.show', $penawaran->id);
@@ -1121,8 +1118,9 @@ class PenawaranController extends Controller
         }
 
         if ($signature->ttd_path) {
-            Storage::disk('public')->delete($signature->ttd_path);
+            $ttdLama = $signature->ttd_path;
             $signature->forceFill(['ttd_path' => null])->save();
+            TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
             $penawaran->update(['date_updated' => now()->timestamp]);
         }
 

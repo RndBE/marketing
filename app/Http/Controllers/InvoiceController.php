@@ -12,6 +12,7 @@ use App\Models\InvoiceTermTemplate;
 use App\Models\Penawaran;
 use App\Models\Pic;
 use App\Models\Product;
+use App\Services\TandaTanganDokumen;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -815,10 +816,9 @@ class InvoiceController extends Controller
         ]);
 
         $path = null;
+        $ttdLama = null;
         if ($request->hasFile('ttd')) {
-            if ($invoice->signature && $invoice->signature->ttd_path) {
-                Storage::disk('public')->delete($invoice->signature->ttd_path);
-            }
+            $ttdLama = $invoice->signature?->ttd_path;
             $path = $request->file('ttd')->store('invoices/signatures', 'public');
         } elseif ($invoice->signature) {
             $path = $invoice->signature->ttd_path;
@@ -834,6 +834,7 @@ class InvoiceController extends Controller
                 'ttd_path' => $path,
             ]
         );
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
 
         return back()->with('success', 'Tanda tangan disimpan.');
     }
@@ -843,10 +844,9 @@ class InvoiceController extends Controller
         $this->ensureInvoiceEditAccess($invoice);
 
         if ($invoice->signature) {
-            if ($invoice->signature->ttd_path) {
-                Storage::disk('public')->delete($invoice->signature->ttd_path);
-            }
+            $ttdLama = $invoice->signature->ttd_path;
             $invoice->signature()->delete();
+            TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
         }
 
         return back()->with('success', 'Tanda tangan dihapus.');
@@ -887,13 +887,11 @@ class InvoiceController extends Controller
         }
 
         $newPath = null;
+        $ttdLama = null;
         if ($template->ttd_path) {
             $newPath = 'invoices/signatures/' . uniqid() . '_' . basename($template->ttd_path);
             Storage::disk('public')->copy($template->ttd_path, $newPath);
-
-            if ($invoice->signature && $invoice->signature->ttd_path) {
-                Storage::disk('public')->delete($invoice->signature->ttd_path);
-            }
+            $ttdLama = $invoice->signature?->ttd_path;
         }
 
         $invoice->signature()->updateOrCreate(
@@ -906,6 +904,7 @@ class InvoiceController extends Controller
                 'tanggal' => now(),
             ]
         );
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
 
         return back()->with('success', 'Signature loaded from template.');
     }

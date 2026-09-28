@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\InvoiceSignatureTemplate;
 use App\Models\InvoiceTermTemplate;
+use App\Services\TandaTanganDokumen;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -49,10 +50,8 @@ class TemplateController extends Controller
     {
         $this->ensureCompanyAccess($template);
 
-        if ($template->ttd_path) {
-            Storage::disk('public')->delete($template->ttd_path);
-        }
         $template->delete();
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($template->ttd_path);
         return back()->with('success', 'Template dihapus.');
     }
 

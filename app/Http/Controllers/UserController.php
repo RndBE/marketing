@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\User;
 use App\Models\Role;
+use App\Services\TandaTanganDokumen;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -132,12 +133,14 @@ class UserController extends Controller
             $user->password = Hash::make($validated['password']);
         }
 
+        $ttdLama = null;
         if ($request->hasFile('ttd')) {
-            $this->deleteTtdFile($user);
+            $ttdLama = $user->ttd;
             $user->ttd = $request->file('ttd')->store('signatures', 'public');
         }
 
         $user->save();
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
         $user->roles()->sync($roleIds);
 
         return redirect()->route('users.index')->with('success', 'User berhasil diupdate.');
@@ -148,8 +151,9 @@ class UserController extends Controller
         $this->ensureCompanyAccess($user);
 
         if ($user->ttd) {
-            $this->deleteTtdFile($user);
+            $ttdLama = $user->ttd;
             $user->forceFill(['ttd' => null])->save();
+            TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
         }
 
         return back()->with('success', 'TTD user berhasil dihapus.');
@@ -209,13 +213,6 @@ class UserController extends Controller
 
         if ($hasAdminRole) {
             abort(403);
-        }
-    }
-
-    private function deleteTtdFile(User $user): void
-    {
-        if ($user->ttd && Storage::disk('public')->exists($user->ttd)) {
-            Storage::disk('public')->delete($user->ttd);
         }
     }
 }

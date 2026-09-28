@@ -348,17 +348,16 @@ class PenawaranHargaController extends Controller
             'signature_file' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ]);
 
+        $ttdLama = null;
         if ($request->hasFile('signature_file')) {
-            if ($usulan->signature_path) {
-                Storage::disk('public')->delete($usulan->signature_path);
-            }
-
+            $ttdLama = $usulan->signature_path;
             $payload['signature_path'] = $request->file('signature_file')
                 ->store('usulan/ttd', 'public');
         }
 
         unset($payload['signature_file']);
         $usulan->update($payload);
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
 
         return redirect()->route('penawaran-harga.show', $usulan)
             ->with('success', 'Tanda tangan Permohonan Penawaran berhasil disimpan.');
@@ -373,8 +372,9 @@ class PenawaranHargaController extends Controller
         $this->ensureUsulanEditAccess($usulan);
 
         if ($usulan->signature_path) {
-            Storage::disk('public')->delete($usulan->signature_path);
+            $ttdLama = $usulan->signature_path;
             $usulan->forceFill(['signature_path' => null])->save();
+            TandaTanganDokumen::hapusBerkasJikaTakDipakai($ttdLama);
         }
 
         return redirect()->route('penawaran-harga.show', $usulan)
@@ -608,12 +608,10 @@ class PenawaranHargaController extends Controller
                 'tanggal' => $payload['signature_date'] ?? null,
             ];
 
+            $oldSignaturePath = null;
             if ($request->hasFile('signature_file')) {
                 $oldSignaturePath = $signature?->ttd_path;
                 $signatureData['ttd_path'] = $request->file('signature_file')->store('penawaran/ttd', 'public');
-                if ($oldSignaturePath) {
-                    Storage::disk('public')->delete($oldSignaturePath);
-                }
             }
 
             if ($signature) {
@@ -623,6 +621,7 @@ class PenawaranHargaController extends Controller
                 $signatureData['urutan'] = 1;
                 PenawaranSignature::create($signatureData);
             }
+            TandaTanganDokumen::hapusBerkasJikaTakDipakai($oldSignaturePath);
 
             return redirect()->route('penawaran-harga.quotation.show', $usulan)
                 ->with('success', 'Penawaran Harga berhasil disimpan.');
@@ -754,8 +753,8 @@ class PenawaranHargaController extends Controller
             $statusSebelumnya = $usulan->status;
             $usulan->update($updateData);
 
-            if (isset($updateData['signature_path']) && $oldSignaturePath) {
-                Storage::disk('public')->delete($oldSignaturePath);
+            if (isset($updateData['signature_path'])) {
+                TandaTanganDokumen::hapusBerkasJikaTakDipakai($oldSignaturePath);
             }
 
             $usulan->sharedCompanies()->sync([(int) $payload['target_company_id']]);
@@ -1479,11 +1478,8 @@ class PenawaranHargaController extends Controller
             Storage::disk('public')->delete($att->path);
         }
 
-        if ($usulan->signature_path) {
-            Storage::disk('public')->delete($usulan->signature_path);
-        }
-
         $usulan->delete();
+        TandaTanganDokumen::hapusBerkasJikaTakDipakai($usulan->signature_path);
 
         return redirect()->route('penawaran-harga.index')->with('success', 'Usulan dihapus');
     }

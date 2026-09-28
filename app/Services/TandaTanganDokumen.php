@@ -2,6 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\InvoiceSignature;
+use App\Models\InvoiceSignatureTemplate;
+use App\Models\PenawaranSignature;
+use App\Models\User;
+use App\Models\UsulanPenawaran;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -12,6 +17,31 @@ use Illuminate\Support\Facades\Storage;
  */
 class TandaTanganDokumen
 {
+    /**
+     * Hapus berkas TTD hanya kalau sudah tidak dirujuk record mana pun.
+     *
+     * Satu berkas dipakai bersama: path TTD profil disalin ke setiap penawaran baru,
+     * dan duplikasi menyalin path yang sama. Menghapus berkas dari satu record pernah
+     * menghilangkan TTD 166 penawaran sekaligus (25 September 2026). Panggil sesudah
+     * rujukan record itu sendiri dilepas atau record-nya dihapus.
+     */
+    public static function hapusBerkasJikaTakDipakai(?string $path): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        $masihDipakai = User::where('ttd', $path)->exists()
+            || PenawaranSignature::where('ttd_path', $path)->exists()
+            || InvoiceSignature::where('ttd_path', $path)->exists()
+            || InvoiceSignatureTemplate::where('ttd_path', $path)->exists()
+            || UsulanPenawaran::where('signature_path', $path)->exists();
+
+        if (! $masihDipakai) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
     /** Kotak tanda tangan pada PDF: 220x100 px. */
     private const CONTAINER_WIDTH = 220.0;
 
