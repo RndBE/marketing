@@ -6,7 +6,6 @@ use App\Models\AlurPenawaran;
 use App\Models\Approval;
 use App\Models\ApprovalStep;
 use App\Models\Company;
-use App\Models\DocNumber;
 use App\Models\Penawaran;
 use App\Models\PenawaranAttachment;
 use App\Models\PenawaranCover;
@@ -14,13 +13,12 @@ use App\Models\PenawaranItem;
 use App\Models\PenawaranItemDetail;
 use App\Models\PenawaranSignature;
 use App\Models\PenawaranTerm;
-use App\Models\PenawaranTermTemplate;
 use App\Models\PenawaranValidity;
 use App\Models\PenghapusanPenawaran;
 use App\Models\Pic;
 use App\Models\Product;
+use App\Services\PenyusunPenawaran;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -188,137 +186,10 @@ class PenawaranController extends Controller
             'id_pic' => ['nullable', 'exists:pics,id'],
         ]);
 
-        return DB::transaction(function () use ($payload) {
-            $user = auth()->user();
-            $companyId = (int) $this->currentCompanyId($user);
-            $company = $this->currentCompany($user);
+        $user = auth()->user();
+        $penawaran = app(PenyusunPenawaran::class)->buat($user, (int) $this->currentCompanyId($user), $payload);
 
-            if (! empty($payload['id_pic'])) {
-                Pic::findOrFail($payload['id_pic']);
-            }
-
-            $docNumber = $this->createDocNumber($companyId, $user->id);
-
-            $penawaran = Penawaran::create([
-                'company_id' => $companyId,
-                'id_pic' => $payload['id_pic'] ?? null,
-                'id_user' => $user->id,
-                'doc_number_id' => $docNumber->id,
-                'approval_id' => null,
-                'date_created' => now()->timestamp,
-                'date_updated' => now()->timestamp,
-                'judul' => $payload['judul'] ?? null,
-                'catatan' => $payload['catatan'] ?? null,
-            ]);
-
-            PenawaranCover::create([
-                'penawaran_id' => $penawaran->id,
-                'judul_cover' => 'Dokumen Penawaran',
-                'subjudul' => $penawaran->judul,
-                'perusahaan_nama' => $company?->name ?? 'CV. ARTA SOLUSINDO',
-                'perusahaan_alamat' => $company?->address,
-                'perusahaan_email' => $company?->email,
-                'perusahaan_telp' => $company?->phone,
-                'logo_path' => $company?->logo_path,
-            ]);
-
-            PenawaranValidity::create([
-                'penawaran_id' => $penawaran->id,
-                'mulai' => now()->toDateString(),
-                'sampai' => now()->addDays(30)->toDateString(),
-                'berlaku_hari' => 30,
-                'keterangan' => 'Penawaran berlaku 30 hari.',
-            ]);
-
-            $alur = AlurPenawaran::where('berlaku_untuk', 'penawaran')
-                ->where('company_id', $companyId)
-                ->where('status', 'aktif')
-                ->with(['langkah' => fn ($q) => $q->orderBy('no_langkah')])
-                ->first();
-
-            if (! $alur || $alur->langkah->isEmpty()) {
-                throw new \Exception('Alur penawaran aktif belum dibuat');
-            }
-
-            $firstStep = $alur->langkah->first()->no_langkah;
-
-            $approval = Approval::create([
-                'status' => 'menunggu',
-                'current_step' => $firstStep,
-                'module' => 'penawaran',
-                'ref_id' => $penawaran->id,
-            ]);
-
-            foreach ($alur->langkah as $step) {
-
-                $approverId = null;
-
-                if ($step->user_id) {
-                    $approverId = $step->user_id;
-                } else {
-                    $approverId = $penawaran->id_user;
-                }
-                ApprovalStep::create([
-                    'approval_id' => $approval->id,
-                    'step_order' => $step->no_langkah,     // 1,2,3,4...
-                    'step_name' => $step->nama_langkah,
-                    'user_id' => $step->user_id,
-                    'harus_semua' => $step->harus_semua,
-                    'status' => 'menunggu',
-                    // disesuaikan saja untuk kedepannya
-                    'akses_approve' => [
-                        'user_id' => (int) $approverId,
-                        'ref_penawaran' => (int) $penawaran->id,
-                    ],
-                ]);
-            }
-
-            $penawaran->update([
-                'approval_id' => $approval->id,
-                'status' => 'menunggu_approval',
-            ]);
-
-            $templates = PenawaranTermTemplate::query()
-                ->whereNull('parent_id')
-                ->orderBy('urutan')
-                ->orderBy('id')
-                ->with(['children'])
-                ->get();
-
-            foreach ($templates as $t) {
-                $this->cloneTemplateTerm($penawaran->id, $t, null);
-            }
-
-            $roleNames = $user->roles->pluck('name')->implode(', ');
-
-            PenawaranSignature::create([
-                'penawaran_id' => $penawaran->id,
-                'urutan' => 1,
-                'nama' => $user->name,
-                'jabatan' => $roleNames ?: 'Staff',
-                'kota' => 'Sleman',
-                'tanggal' => now()->toDateString(),
-                'ttd_path' => $user->ttd,
-            ]);
-
-            return redirect()->route('penawaran.index', $penawaran->id);
-        });
-    }
-
-    private function cloneTemplateTerm(int $penawaranId, $template, ?int $parentId): void
-    {
-        $new = PenawaranTerm::create([
-            'penawaran_id' => $penawaranId,
-            'parent_id' => $parentId,
-            'urutan' => (int) ($template->urutan ?? 1),
-            'judul' => $template->judul,
-            'isi' => $template->isi,
-        ]);
-
-        $children = $template->children ?? collect();
-        foreach ($children as $c) {
-            $this->cloneTemplateTerm($penawaranId, $c, $new->id);
-        }
+        return redirect()->route('penawaran.index', $penawaran->id);
     }
 
     public function show(Penawaran $penawaran)
@@ -517,7 +388,7 @@ class PenawaranController extends Controller
             ]);
 
             // 1. New doc number (ikut urutan perusahaan tujuan)
-            $docNumber = $this->createDocNumber($targetCompanyId, $ownerId);
+            $docNumber = app(PenyusunPenawaran::class)->nomorDokumen($targetCompanyId, $ownerId);
 
             // 2. New penawaran record
             $new = Penawaran::create([
@@ -779,41 +650,12 @@ class PenawaranController extends Controller
             'judul' => ['nullable', 'string', 'max:255'],
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);
-        $product = Product::with('details')->findOrFail($request->product_id);
-        $urutan = $this->nextItemOrder($penawaran->id);
-
-        $item = PenawaranItem::create([
-            'penawaran_id' => $penawaran->id,
-            'product_id' => $product->id,
-            'tipe' => 'bundle',
-            'urutan' => $urutan,
-            'judul' => $request->judul ?: ($product->nama ?? 'Bundle'),
+        app(PenyusunPenawaran::class)->tambahItem($penawaran, [
+            'bundle_id' => $request->product_id,
+            'qty' => $request->qty,
+            'judul' => $request->judul,
             'catatan' => $request->catatan,
-            'qty' => (float) ($request->qty ?: 1),
-            'satuan' => $product->satuan ?? null,
-            'subtotal' => 0,
-            'markup' => 1,
         ]);
-
-        $urutan = 1;
-        foreach ($product->details as $pd) {
-            $qtyD = (float) ($pd->qty ?? 1);
-            $hargaD = (int) ($pd->harga ?? 0);
-            $subD = (int) round($qtyD * $hargaD);
-
-            PenawaranItemDetail::create([
-                'penawaran_item_id' => $item->id,
-                'urutan' => $urutan++,
-                'nama' => $pd->nama,
-                'spesifikasi' => $pd->spesifikasi,
-                'qty' => $qtyD,
-                'satuan' => $pd->satuan,
-                'harga' => $hargaD,
-                'subtotal' => $subD,
-            ]);
-        }
-
-        $this->recalcItemSubtotal($item);
 
         return response()->json(['message' => 'Bundle berhasil ditambahkan']);
     }
@@ -1737,52 +1579,6 @@ class PenawaranController extends Controller
             11 => 'XI',
             12 => 'XII',
         ][$month];
-    }
-
-    private function createDocNumber(?int $companyId = null, ?int $userId = null): DocNumber
-    {
-        return DB::transaction(function () use ($companyId, $userId) {
-            $now = Carbon::now();
-            $month = $now->month;
-            $year = $now->year;
-            $companyId = $companyId ?: $this->currentCompanyId();
-            $company = \App\Models\Company::find($companyId);
-            $companyCode = strtoupper((string) ($company?->code ?: 'COMP'));
-            $userId = $userId ?: auth()->id();
-
-            $romawi = [
-                1 => 'I',
-                2 => 'II',
-                3 => 'III',
-                4 => 'IV',
-                5 => 'V',
-                6 => 'VI',
-                7 => 'VII',
-                8 => 'VIII',
-                9 => 'IX',
-                10 => 'X',
-                11 => 'XI',
-                12 => 'XII',
-            ];
-            $last = DocNumber::where('company_id', $companyId)
-                ->orderByDesc('seq')
-                ->first();
-            $seq = $last ? $last->seq + 1 : 1;
-
-            $userCode = 'SPH'.str_pad((string) $userId, 2, '0', STR_PAD_LEFT);
-
-            $docNo = str_pad($seq, 3, '0', STR_PAD_LEFT)
-                ."/{$userCode}/{$companyCode}/{$romawi[$month]}/{$year}";
-
-            return DocNumber::create([
-                'company_id' => $companyId,
-                'prefix' => $userCode,
-                'seq' => $seq,
-                'month' => $month,
-                'year' => $year,
-                'doc_no' => $docNo,
-            ]);
-        });
     }
 
     private function ensurePenawaranViewAccess(Penawaran $penawaran, $user = null): void
