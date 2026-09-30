@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderTerm;
 use App\Models\User;
@@ -147,12 +148,13 @@ class PurchaseOrderController extends Controller
             $payload['status'] = 'submitted';
         }
 
-        $po = PurchaseOrder::create($payload);
+        $po = DB::transaction(function () use ($payload, $companyId) {
+            if (blank($payload['nomor_po'] ?? null)) {
+                $payload['nomor_po'] = $this->generateNumber($companyId, now());
+            }
 
-        if (empty($po->nomor_po)) {
-            $po->nomor_po = $this->generateNumber($po);
-            $po->save();
-        }
+            return PurchaseOrder::create($payload);
+        });
 
         if ($request->hasFile('po_file')) {
             $po->po_file_path = $request->file('po_file')->store('purchase-orders/'.$po->id, 'local');
@@ -263,12 +265,17 @@ class PurchaseOrderController extends Controller
             $payload['po_file_path'] = $request->file('po_file')->store('purchase-orders/'.$purchaseOrder->id, 'local');
         }
 
-        $purchaseOrder->update($payload);
+        DB::transaction(function () use ($purchaseOrder, $payload) {
+            $purchaseOrder->update($payload);
 
-        if (blank($purchaseOrder->nomor_po)) {
-            $purchaseOrder->nomor_po = $this->generateNumber($purchaseOrder);
-            $purchaseOrder->save();
-        }
+            if (blank($purchaseOrder->nomor_po)) {
+                $purchaseOrder->nomor_po = $this->generateNumber(
+                    (int) $purchaseOrder->company_id,
+                    $purchaseOrder->created_at ?? now()
+                );
+                $purchaseOrder->save();
+            }
+        });
 
         if (isset($payload['po_file_path']) && $berkasLama) {
             Storage::disk('local')->delete($berkasLama);
@@ -640,7 +647,42 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    private function generateNumber(PurchaseOrder $po): string
+    /**
+     * Nomor PO otomatis: [urut]/PO-[kode perusahaan]/[bulan romawi]/[tahun], misalnya
+     * 025/PO-AS/IX/2026. Urutannya milik perusahaan penerbit dan mulai dari 001 lagi
+     * tiap tahun. Nomor yang diketik manual dengan pola yang sama ikut dihitung, jadi
+     * nomor berikutnya selalu melanjutkan yang terbesar.
+     *
+     * Harus dipanggil di dalam transaksi: baris perusahaan dikunci supaya dua PO yang
+     * dibuat bersamaan tidak mendapat urutan yang sama.
+     */
+    private function generateNumber(int $companyId, Carbon $date): string
+    {
+        $company = Company::query()->whereKey($companyId)->lockForUpdate()->first();
+        $code = strtoupper((string) ($company?->code ?: 'COMP'));
+        $year = $date->year;
+        $romanMonths = [
+            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
+            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
+        ];
+
+        // "_" menampung salah ketik umum "P0" (nol) pada nomor yang diketik manual.
+        $last = PurchaseOrder::query()
+            ->where('company_id', $companyId)
+            ->where('nomor_po', 'like', '%/P_-'.$code.'/%/'.$year)
+            ->pluck('nomor_po')
+            ->map(fn (string $number) => preg_match('/^(\d+)\/P[O0]-'.preg_quote($code, '/').'\/[IVX]+\/'.$year.'$/i', $number, $match)
+                ? (int) $match[1]
+                : 0)
+            ->max() ?? 0;
+
+        return sprintf('%03d/PO-%s/%s/%d', $last + 1, $code, $romanMonths[$date->month], $year);
+    }
+
+    /**
+     * Nomor tampilan untuk PO lama yang belum punya nomor sama sekali; tidak disimpan.
+     */
+    private function nomorSementara(PurchaseOrder $po): string
     {
         $date = $po->tgl_po?->format('Ymd') ?? now()->format('Ymd');
 
@@ -850,7 +892,7 @@ class PurchaseOrderController extends Controller
         $rows = $this->buildPdfRows($purchaseOrder);
         $totals = $this->buildPdfTotals($purchaseOrder, $rows);
         $notes = $this->buildPdfNotes($purchaseOrder);
-        $documentNumber = $purchaseOrder->nomor_po ?: $this->generateNumber($purchaseOrder);
+        $documentNumber = $purchaseOrder->nomor_po ?: $this->nomorSementara($purchaseOrder);
         $documentDate = $purchaseOrder->tgl_po?->copy() ?? ($purchaseOrder->created_at?->copy() ?? now());
         $signaturePath = $this->tandaTangan->resolvePublicImagePath($purchaseOrder->user?->ttd);
         $signaturePlacement = $this->tandaTangan->placement($signaturePath);

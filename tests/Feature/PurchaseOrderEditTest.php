@@ -266,3 +266,49 @@ test('total po tidak boleh lebih kecil dari termin yang sudah dijadwalkan', func
 
     expect((float) $po->refresh()->total)->toBe(5000000.0);
 });
+
+test('nomor po dibuat otomatis per perusahaan dan melanjutkan nomor terbesar tahun itu', function () {
+    Storage::fake('local');
+    $as = Company::create(['code' => 'AS', 'name' => 'PT Arsol']);
+    $atc = Company::create(['code' => 'ATC', 'name' => 'PT ATC']);
+    $penjual = Company::create(['code' => 'PT-OTO', 'name' => 'PT Penjual']);
+    $userAs = poEditUser($as, 'AS');
+    $userAtc = poEditUser($atc, 'ATC');
+
+    // Nomor terakhir diketik manual, termasuk salah ketik "P0" (nol).
+    PurchaseOrder::create([
+        'company_id' => $as->id,
+        'nomor_po' => '025/P0-AS/IX/2026',
+        'judul' => 'PO lama',
+        'supplier_nama' => 'PT Penjual',
+        'tgl_po' => '2026-09-01',
+        'status' => 'draft',
+        'sumber' => 'internal',
+        'jenis_transaksi' => 'barang',
+        'total' => 1000,
+        'user_id' => $userAs->id,
+    ]);
+
+    $payload = [
+        'judul' => 'PO Otomatis',
+        'supplier_nama' => $penjual->name,
+        'tgl_po' => '2026-09-30',
+        'status' => 'draft',
+        'jenis_transaksi' => 'barang',
+        'total' => 1000000,
+    ];
+
+    $this->travelTo(now()->setDate(2026, 9, 30));
+
+    $this->actingAs($userAs)->post(route('purchase-orders.store'), $payload)->assertSessionHasNoErrors();
+    $this->actingAs($userAtc)->post(route('purchase-orders.store'), $payload)->assertSessionHasNoErrors();
+
+    expect(PurchaseOrder::where('company_id', $as->id)->latest('id')->value('nomor_po'))->toBe('026/PO-AS/IX/2026')
+        ->and(PurchaseOrder::where('company_id', $atc->id)->value('nomor_po'))->toBe('001/PO-ATC/IX/2026');
+
+    // Tahun berganti: urutan mulai lagi dari 001.
+    $this->travelTo(now()->setDate(2027, 1, 5));
+    $this->actingAs($userAs)->post(route('purchase-orders.store'), $payload)->assertSessionHasNoErrors();
+
+    expect(PurchaseOrder::where('company_id', $as->id)->latest('id')->value('nomor_po'))->toBe('001/PO-AS/I/2027');
+});

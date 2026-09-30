@@ -50,7 +50,8 @@
                     <label class="block text-sm font-semibold mb-1">Nomor PO (opsional)</label>
                     <input name="nomor_po" value="{{ old('nomor_po') }}"
                         class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                        placeholder="Contoh: PO-2026-001">
+                        placeholder="Otomatis, contoh: 025/PO-AS/IX/2026">
+                    <div class="mt-1 text-xs text-slate-500">Kosongkan agar nomor dibuat otomatis oleh sistem.</div>
                     @error('nomor_po') <div class="text-red-500 text-xs mt-1">{{ $message }}</div> @enderror
                 </div>
 
