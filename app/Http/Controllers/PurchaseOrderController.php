@@ -221,7 +221,6 @@ class PurchaseOrderController extends Controller
 
         $companyId = (int) $this->currentCompanyId($request->user());
         $rules = [
-            'nomor_po' => ['nullable', 'string', 'max:50', 'unique:purchase_orders,nomor_po,'.$purchaseOrder->id.',id,company_id,'.$companyId],
             'judul' => ['required', 'string', 'max:255'],
             'tgl_po' => ['required', 'date'],
             'total' => ['required', 'numeric', 'min:1'],
@@ -232,6 +231,9 @@ class PurchaseOrderController extends Controller
         ];
 
         if ($purchaseOrder->isExternalCustomerOrder()) {
+            // Nomor PO pelanggan luar berasal dari dokumen mereka; nomor PO lainnya
+            // dibuat sistem dan tidak bisa disunting.
+            $rules['nomor_po'] = ['nullable', 'string', 'max:50', 'unique:purchase_orders,nomor_po,'.$purchaseOrder->id.',id,company_id,'.$companyId];
             $rules['pembeli_nama'] = ['required', 'string', 'max:255'];
             $rules['pembeli_alamat'] = ['nullable', 'string'];
         }

@@ -127,7 +127,8 @@ test('pembeli dapat mengubah po yang belum disetujui', function () {
 
     $po->refresh();
     expect($po->judul)->toBe('PO Perangkat Revisi')
-        ->and($po->nomor_po)->toBe('PO-EDT-REV')
+        // Nomor dibuat sistem: kiriman nomor dari form diabaikan.
+        ->and($po->nomor_po)->toBe('PO-EDT')
         ->and((float) $po->total)->toBe(7500000.0)
         // Status PO yang masih menunggu verifikasi tidak ikut bergeser.
         ->and($po->status)->toBe('submitted');
