@@ -313,3 +313,88 @@ test('nomor po dibuat otomatis per perusahaan dan melanjutkan nomor terbesar tah
 
     expect(PurchaseOrder::where('company_id', $as->id)->latest('id')->value('nomor_po'))->toBe('001/PO-AS/I/2027');
 });
+
+test('po tanpa penjual di sistem tetap dapat diganti dokumennya walau sudah disetujui', function () {
+    Storage::fake('local');
+    $cv = Company::create(['code' => 'CV-DOC', 'name' => 'CV Dokumen']);
+    $pembeli = poEditUser($cv, 'CV');
+    $po = PurchaseOrder::create([
+        'company_id' => $cv->id,
+        'nomor_po' => 'PO-DOC',
+        'judul' => 'PO Pengadaan',
+        'supplier_nama' => 'PT Pemasok Luar',
+        'tgl_po' => '2026-10-01',
+        'status' => 'approved',
+        'sumber' => 'internal',
+        'jenis_transaksi' => 'barang',
+        'total' => 1000000,
+        'po_file_path' => 'purchase-orders/lama.pdf',
+        'user_id' => $pembeli->id,
+    ]);
+    Storage::disk('local')->put('purchase-orders/lama.pdf', 'lama');
+
+    $this->actingAs($pembeli)
+        ->get(route('purchase-orders.edit', $po))
+        ->assertOk()
+        ->assertSee('Ubah Purchase Order')
+        ->assertDontSee('Ubah Keterangan Purchase Order');
+
+    $this->actingAs($pembeli)
+        ->put(route('purchase-orders.update', $po), [
+            'judul' => 'PO Pengadaan',
+            'tgl_po' => '2026-10-01',
+            'total' => 1000000,
+            'jenis_transaksi' => 'barang',
+            'supplier_nama' => 'PT Pemasok Luar',
+            'status' => 'approved',
+            'po_file' => UploadedFile::fake()->create('po-baru.pdf', 30, 'application/pdf'),
+        ])
+        ->assertRedirect(route('purchase-orders.show', $po))
+        ->assertSessionHasNoErrors();
+
+    $po->refresh();
+    expect($po->po_file_path)->not->toBe('purchase-orders/lama.pdf');
+    Storage::disk('local')->assertExists($po->po_file_path);
+    Storage::disk('local')->assertMissing('purchase-orders/lama.pdf');
+});
+
+test('po tanpa penjual di sistem terkunci lagi setelah invoice terbit', function () {
+    Storage::fake('local');
+    $cv = Company::create(['code' => 'CV-DOC2', 'name' => 'CV Dokumen Dua']);
+    $pembeli = poEditUser($cv, 'CV');
+    $po = PurchaseOrder::create([
+        'company_id' => $cv->id,
+        'nomor_po' => 'PO-DOC2',
+        'judul' => 'PO Berjalan',
+        'supplier_nama' => 'PT Pemasok Luar',
+        'tgl_po' => '2026-10-01',
+        'status' => 'approved',
+        'sumber' => 'internal',
+        'jenis_transaksi' => 'barang',
+        'total' => 1000000,
+        'user_id' => $pembeli->id,
+    ]);
+    $po->terms()->create([
+        'pembayaran_ke' => 1,
+        'tanggal_jatuh_tempo' => '2026-11-01',
+        'nilai_tagihan' => 1000000,
+        'nomor_invoice' => 'INV-1',
+        'status' => 'draft',
+    ]);
+
+    $this->actingAs($pembeli)
+        ->get(route('purchase-orders.edit', $po))
+        ->assertOk()
+        ->assertSee('Ubah Keterangan Purchase Order');
+
+    $this->actingAs($pembeli)
+        ->put(route('purchase-orders.update', $po), [
+            'catatan' => 'Hanya ini yang berubah.',
+            'po_file' => UploadedFile::fake()->create('po-baru.pdf', 30, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $po->refresh();
+    expect($po->catatan)->toBe('Hanya ini yang berubah.')
+        ->and($po->po_file_path)->toBeNull();
+});

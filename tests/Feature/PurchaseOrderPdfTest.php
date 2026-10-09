@@ -9,6 +9,8 @@ use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UsulanPenawaran;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 function poPdfUser(Company $company, string $label): User
 {
@@ -348,4 +350,79 @@ test('po tanpa penawaran tampil sebagai satu baris paket senilai total PO', func
     expect($totals['final_value'])->toBe(7500000.0);
 
     $this->actingAs($pembeli)->get(route('purchase-orders.pdf', $po))->assertOk();
+});
+
+function poPdfHitungHalaman(string $isi): int
+{
+    $path = tempnam(sys_get_temp_dir(), 'po_test_');
+    file_put_contents($path, $isi);
+
+    try {
+        return (new \setasign\Fpdi\Fpdi)->setSourceFile($path);
+    } finally {
+        @unlink($path);
+    }
+}
+
+function poPdfSatuHalaman(): string
+{
+    $pdf = new \FPDF;
+    $pdf->AddPage();
+    $pdf->SetFont('Arial', '', 12);
+    $pdf->Cell(0, 10, 'PO resmi dari pemasok');
+
+    return $pdf->Output('S');
+}
+
+test('dokumen PO yang diunggah ikut dicetak di belakang pesanan pembelian', function () {
+    Storage::fake('local');
+    $cv = Company::create(['code' => 'CV-PDF20', 'name' => 'CV Pembeli Dua Puluh']);
+    $pt = Company::create(['code' => 'PT-PDF20', 'name' => 'PT Penjual Dua Puluh']);
+    $pembeli = poPdfUser($cv, 'CV20');
+    $penjual = poPdfUser($pt, 'PT20');
+    $po = poPdfLengkap($pembeli, $penjual);
+
+    $sebelum = $this->actingAs($pembeli)->get(route('purchase-orders.pdf', $po))->getContent();
+    expect(poPdfHitungHalaman($sebelum))->toBe(1);
+
+    Storage::disk('local')->put('purchase-orders/'.$po->id.'/po.pdf', poPdfSatuHalaman());
+    $po->update(['po_file_path' => 'purchase-orders/'.$po->id.'/po.pdf']);
+
+    $response = $this->actingAs($pembeli)->get(route('purchase-orders.pdf', $po))->assertOk();
+
+    expect($response->headers->get('content-type'))->toContain('application/pdf')
+        ->and($response->getContent())->toStartWith('%PDF')
+        ->and(poPdfHitungHalaman($response->getContent()))->toBe(2);
+});
+
+test('dokumen PO berupa gambar dicetak sebagai satu halaman lampiran', function () {
+    Storage::fake('local');
+    $cv = Company::create(['code' => 'CV-PDF21', 'name' => 'CV Pembeli Dua Satu']);
+    $pt = Company::create(['code' => 'PT-PDF21', 'name' => 'PT Penjual Dua Satu']);
+    $pembeli = poPdfUser($cv, 'CV21');
+    $penjual = poPdfUser($pt, 'PT21');
+    $po = poPdfLengkap($pembeli, $penjual);
+
+    $path = UploadedFile::fake()->image('po-scan.png', 600, 800)->store('purchase-orders/'.$po->id, 'local');
+    $po->update(['po_file_path' => $path]);
+
+    $response = $this->actingAs($pembeli)->get(route('purchase-orders.pdf', $po))->assertOk();
+
+    expect(poPdfHitungHalaman($response->getContent()))->toBe(2);
+});
+
+test('dokumen PO yang rusak tidak menggagalkan unduhan pesanan pembelian', function () {
+    Storage::fake('local');
+    $cv = Company::create(['code' => 'CV-PDF22', 'name' => 'CV Pembeli Dua Dua']);
+    $pt = Company::create(['code' => 'PT-PDF22', 'name' => 'PT Penjual Dua Dua']);
+    $pembeli = poPdfUser($cv, 'CV22');
+    $penjual = poPdfUser($pt, 'PT22');
+    $po = poPdfLengkap($pembeli, $penjual);
+
+    Storage::disk('local')->put('purchase-orders/'.$po->id.'/rusak.pdf', 'bukan pdf sungguhan');
+    $po->update(['po_file_path' => 'purchase-orders/'.$po->id.'/rusak.pdf']);
+
+    $response = $this->actingAs($pembeli)->get(route('purchase-orders.pdf', $po))->assertOk();
+
+    expect(poPdfHitungHalaman($response->getContent()))->toBe(1);
 });

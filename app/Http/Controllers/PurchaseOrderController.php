@@ -7,6 +7,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderTerm;
 use App\Models\User;
 use App\Models\UsulanPenawaran;
+use App\Services\LampiranPdf;
 use App\Services\NotifikasiPurchaseOrder;
 use App\Services\TandaTanganDokumen;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -769,7 +770,11 @@ class PurchaseOrderController extends Controller
      */
     private function poDapatDisuntingPenuh(PurchaseOrder $purchaseOrder): bool
     {
-        if ($purchaseOrder->isExternalCustomerOrder()) {
+        // PO tanpa lawan transaksi di sistem juga tidak melewati verifikasi siapa pun --
+        // statusnya diatur pembuatnya sendiri, sehingga "approved" tidak berarti ada
+        // tagihan yang berjalan. Dokumennya tetap boleh diganti sampai invoice atau
+        // pembayaran pertama dicatat.
+        if ($purchaseOrder->isExternalCustomerOrder() || $this->poTanpaLawanTransaksi($purchaseOrder)) {
             return ! $this->terminSudahBerjalan($purchaseOrder);
         }
 
@@ -855,7 +860,7 @@ class PurchaseOrderController extends Controller
     /**
      * Cetak PO menjadi dokumen "Pesanan Pembelian" berkop perusahaan pembeli.
      */
-    public function downloadPdf(Request $request, PurchaseOrder $purchaseOrder)
+    public function downloadPdf(Request $request, PurchaseOrder $purchaseOrder, LampiranPdf $lampiran)
     {
         $this->ensurePurchaseOrderAccess($purchaseOrder, $request->user());
         // PO pelanggan luar diterbitkan pihak di luar sistem: dokumen resminya adalah
@@ -919,10 +924,17 @@ class PurchaseOrderController extends Controller
 
         $filename = 'Pesanan-Pembelian-'.preg_replace('/[^A-Za-z0-9._-]+/', '-', $documentNumber).'.pdf';
 
-        $response = $pdf->stream($filename);
-        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        // Dokumen PO yang diunggah (mis. PO resmi dari pemasok) ikut dicetak di belakang
+        // pesanan pembelian, jadi satu PDF memuat keduanya.
+        $berkas = $purchaseOrder->po_file_path && Storage::disk('local')->exists($purchaseOrder->po_file_path)
+            ? [Storage::disk('local')->path($purchaseOrder->po_file_path)]
+            : [];
 
-        return $response;
+        return response($lampiran->gabung($pdf->output(), $berkas), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
     }
 
     /**
