@@ -230,13 +230,51 @@
                             <textarea name="catatan" rows="3" @disabled(!$canEditQuotation)
                                 class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50">{{ old('catatan', $penawaran->catatan) }}</textarea>
                         </div>
-                        @foreach($penawaran->terms as $term)
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold text-slate-600">{{ $term->judul ?: 'Keterangan '.$loop->iteration }}</label>
-                                <textarea name="terms[{{ $term->id }}]" rows="2" @disabled(!$canEditQuotation)
-                                    class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50">{{ old('terms.'.$term->id, $term->isi) }}</textarea>
+                        @php
+                            $termRows = old('term_rows')
+                                ? collect(old('term_rows'))->map(fn ($r) => [
+                                    'key' => (string) ($r['key'] ?? ''),
+                                    'id' => $r['id'] ?? null,
+                                    'parent_key' => ($r['parent_key'] ?? '') !== '' ? (string) $r['parent_key'] : null,
+                                    'isi' => (string) ($r['isi'] ?? ''),
+                                ])->values()
+                                : $penawaran->orderedTerms()->map(fn ($t) => [
+                                    'key' => 't'.$t->id,
+                                    'id' => $t->id,
+                                    'parent_key' => $t->depth === 1 ? 't'.$t->parent_id : null,
+                                    'isi' => (string) $t->isi,
+                                ])->values();
+                        @endphp
+                        <div x-data="quotationTerms(@js($termRows), @js((bool) $canEditQuotation))">
+                            <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
+                                <span class="text-xs font-semibold text-slate-600">Syarat dan keterangan</span>
+                                <span class="text-xs text-slate-400" x-show="editable">Kosongkan isi atau klik Hapus untuk membuang poin; sub-poin ikut terbuang. Perubahan baru tersimpan setelah formulir disimpan.</span>
                             </div>
-                        @endforeach
+                            <div class="space-y-2">
+                                <template x-for="(row, idx) in rows" :key="row.key">
+                                    <div class="flex items-start gap-2" :class="row.parent_key ? 'ml-8' : ''">
+                                        <div class="w-10 shrink-0 pt-2 text-right text-xs font-semibold text-slate-500" x-text="label(row)"></div>
+                                        <div class="min-w-0 flex-1">
+                                            <input type="hidden" :name="`term_rows[${idx}][key]`" :value="row.key" :disabled="!editable">
+                                            <input type="hidden" :name="`term_rows[${idx}][id]`" :value="row.id ?? ''" :disabled="!editable">
+                                            <input type="hidden" :name="`term_rows[${idx}][parent_key]`" :value="row.parent_key ?? ''" :disabled="!editable">
+                                            <textarea :name="`term_rows[${idx}][isi]`" x-model="row.isi" rows="2" :disabled="!editable"
+                                                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"></textarea>
+                                        </div>
+                                        <div class="flex shrink-0 flex-col gap-1 pt-1" x-show="editable">
+                                            <div class="flex gap-1">
+                                                <button type="button" @click="move(row, -1)" title="Naik" class="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">&uarr;</button>
+                                                <button type="button" @click="move(row, 1)" title="Turun" class="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">&darr;</button>
+                                                <button type="button" @click="remove(row)" title="Hapus" class="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Hapus</button>
+                                            </div>
+                                            <button type="button" x-show="!row.parent_key" @click="addChild(row)" class="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">+ Sub-poin</button>
+                                        </div>
+                                    </div>
+                                </template>
+                                <p x-show="rows.length === 0" class="text-xs text-slate-400">Belum ada keterangan.</p>
+                            </div>
+                            <button type="button" x-show="editable" @click="addRoot()" class="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100">+ Tambah keterangan</button>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -347,5 +385,62 @@
                 });
             });
         })();
+    </script>
+@endpush
+
+@push('scripts')
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('quotationTerms', (initial, editable) => ({
+                rows: initial,
+                editable,
+                seq: 0,
+                newKey() {
+                    return 'n' + (++this.seq) + '_' + Date.now().toString(36);
+                },
+                // Nomor hierarki: 1, 2, 3 untuk poin utama dan 3.1, 3.2 untuk sub-poin.
+                label(row) {
+                    let root = 0, sub = 0;
+                    for (const r of this.rows) {
+                        if (!r.parent_key) { root++; sub = 0; } else { sub++; }
+                        if (r === row) return r.parent_key ? root + '.' + sub : root + '.';
+                    }
+                    return '';
+                },
+                addRoot() {
+                    this.rows.push({ key: this.newKey(), id: null, parent_key: null, isi: '' });
+                },
+                addChild(parent) {
+                    let at = this.rows.indexOf(parent) + 1;
+                    while (at < this.rows.length && this.rows[at].parent_key === parent.key) at++;
+                    this.rows.splice(at, 0, { key: this.newKey(), id: null, parent_key: parent.key, isi: '' });
+                },
+                // Belum permanen: baris baru benar-benar terhapus setelah form disimpan.
+                remove(row) {
+                    this.rows = this.rows.filter(r => r !== row && r.parent_key !== row.key);
+                },
+                // Geser dalam kelompok yang sama; sub-poin ikut pindah bersama poin utamanya.
+                move(row, dir) {
+                    if (row.parent_key) {
+                        const sibs = this.rows.filter(r => r.parent_key === row.parent_key);
+                        const i = sibs.indexOf(row), j = i + dir;
+                        if (j < 0 || j >= sibs.length) return;
+                        const a = this.rows.indexOf(sibs[i]), b = this.rows.indexOf(sibs[j]);
+                        const next = [...this.rows];
+                        [next[a], next[b]] = [next[b], next[a]];
+                        this.rows = next;
+                        return;
+                    }
+                    const groups = [];
+                    for (const r of this.rows) {
+                        if (!r.parent_key) groups.push([r]); else groups[groups.length - 1].push(r);
+                    }
+                    const i = groups.findIndex(g => g[0] === row), j = i + dir;
+                    if (j < 0 || j >= groups.length) return;
+                    [groups[i], groups[j]] = [groups[j], groups[i]];
+                    this.rows = groups.flat();
+                },
+            }));
+        });
     </script>
 @endpush

@@ -543,8 +543,11 @@ class PenawaranHargaController extends Controller
             'discount_type' => ['nullable', 'in:percent,fixed'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'terms' => ['nullable', 'array'],
-            'terms.*' => ['nullable', 'string', 'max:3000'],
+            'term_rows' => ['nullable', 'array', 'max:100'],
+            'term_rows.*.id' => ['nullable', 'integer'],
+            'term_rows.*.key' => ['required_with:term_rows', 'string', 'max:40'],
+            'term_rows.*.parent_key' => ['nullable', 'string', 'max:40'],
+            'term_rows.*.isi' => ['nullable', 'string', 'max:3000'],
             'signature_name' => ['required', 'string', 'max:255'],
             'signature_position' => ['nullable', 'string', 'max:255'],
             'signature_city' => ['nullable', 'string', 'max:120'],
@@ -580,10 +583,9 @@ class PenawaranHargaController extends Controller
                 $this->updateRequestQuotationItem($item, $itemPayload);
             }
 
-            foreach ($penawaran->terms as $term) {
-                if (array_key_exists($term->id, $payload['terms'] ?? [])) {
-                    $term->update(['isi' => $payload['terms'][$term->id]]);
-                }
+            // Form lama tanpa term_rows tidak boleh menghapus keterangan yang ada.
+            if (array_key_exists('term_rows', $payload)) {
+                $this->syncQuotationTerms($penawaran, $payload['term_rows'] ?? []);
             }
 
             $validUntil = $payload['valid_until'] ?? null;
@@ -1358,6 +1360,69 @@ class PenawaranHargaController extends Controller
             'year' => $year,
             'doc_no' => $docNo,
         ]);
+    }
+
+    /**
+     * Samakan keterangan penawaran dengan baris dari form: baris kosong dan baris yang
+     * tidak dikirim lagi dihapus, baris baru dibuat, sisanya diperbarui. Urutan baris
+     * di form menjadi urutan tersimpan. Hanya dua tingkat: poin utama dan sub-poin.
+     *
+     * @param  array<int, array{id?: int|null, key: string, parent_key?: string|null, isi?: string|null}>  $rows
+     */
+    private function syncQuotationTerms(Penawaran $penawaran, array $rows): void
+    {
+        $existing = $penawaran->terms()->get()->keyBy('id');
+
+        $roots = [];
+        $children = [];
+        $rootKeys = [];
+        foreach ($rows as $row) {
+            if (blank($row['parent_key'] ?? null) && trim((string) ($row['isi'] ?? '')) !== '') {
+                $rootKeys[$row['key']] = true;
+            }
+        }
+
+        foreach ($rows as $row) {
+            $isi = trim((string) ($row['isi'] ?? ''));
+            if ($isi === '') {
+                continue;
+            }
+
+            $parentKey = $row['parent_key'] ?? null;
+            if (filled($parentKey) && isset($rootKeys[$parentKey]) && $parentKey !== $row['key']) {
+                $children[$parentKey][] = ['id' => $row['id'] ?? null, 'isi' => $isi];
+            } elseif (blank($parentKey)) {
+                $roots[] = ['key' => $row['key'], 'id' => $row['id'] ?? null, 'isi' => $isi];
+            }
+            // Sub-poin yang induknya dikosongkan atau dihapus ikut hilang.
+        }
+
+        $keep = [];
+        $save = function (array $item, ?int $parentId, int $urutan) use ($penawaran, $existing, &$keep): PenawaranTerm {
+            $term = $item['id'] ? $existing->get((int) $item['id']) : null;
+            if ($term) {
+                $term->update(['isi' => $item['isi'], 'parent_id' => $parentId, 'urutan' => $urutan]);
+            } else {
+                $term = PenawaranTerm::create([
+                    'penawaran_id' => $penawaran->id,
+                    'parent_id' => $parentId,
+                    'urutan' => $urutan,
+                    'isi' => $item['isi'],
+                ]);
+            }
+            $keep[] = $term->id;
+
+            return $term;
+        };
+
+        foreach ($roots as $i => $root) {
+            $term = $save($root, null, $i + 1);
+            foreach ($children[$root['key']] ?? [] as $j => $child) {
+                $save($child, $term->id, $j + 1);
+            }
+        }
+
+        $existing->keys()->diff($keep)->each(fn ($id) => PenawaranTerm::where('id', $id)->delete());
     }
 
     private function cloneTemplateTerm(int $penawaranId, $template, ?int $parentId): void

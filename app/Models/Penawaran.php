@@ -138,6 +138,32 @@ class Penawaran extends Model
         return $this->hasMany(PenawaranTerm::class, 'penawaran_id')->orderBy('urutan')->orderBy('id');
     }
 
+    /**
+     * Keterangan dalam urutan baca: poin utama, lalu sub-poinnya tepat di bawahnya.
+     * `terms()` mengurutkan semua baris berdasarkan urutan saja, sehingga sub-poin
+     * bercampur dengan poin utama. Tiap baris diberi atribut `depth` (0 atau 1).
+     *
+     * @return \Illuminate\Support\Collection<int, PenawaranTerm>
+     */
+    public function orderedTerms()
+    {
+        $terms = $this->terms;
+        $ids = $terms->pluck('id')->all();
+        $byParent = $terms->groupBy(fn ($t) => $t->parent_id && in_array($t->parent_id, $ids, true) ? $t->parent_id : 0);
+
+        $ordered = collect();
+        foreach ($byParent->get(0, collect()) as $root) {
+            $root->setAttribute('depth', 0);
+            $ordered->push($root);
+            foreach ($byParent->get($root->id, collect()) as $child) {
+                $child->setAttribute('depth', 1);
+                $ordered->push($child);
+            }
+        }
+
+        return $ordered;
+    }
+
     public function termRoots()
     {
         return $this->hasMany(PenawaranTerm::class, 'penawaran_id')->whereNull('parent_id')->orderBy('urutan')->orderBy('id');
@@ -219,7 +245,7 @@ class Penawaran extends Model
     {
         $notes = [];
 
-        foreach ($this->terms as $term) {
+        foreach ($this->orderedTerms() as $term) {
             $notes[] = trim(($term->judul ? $term->judul . ': ' : '') . $term->isi);
         }
 

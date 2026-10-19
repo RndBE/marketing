@@ -194,6 +194,11 @@
             margin-bottom: 2px;
         }
 
+        .notes-list li.notes-sub {
+            margin-left: 14px;
+            list-style-type: circle;
+        }
+
         .signature-wrap {
             width: 270px;
             margin-top: 20px;
@@ -421,8 +426,8 @@
             @if ($penawaran->catatan)
                 <li>{{ $penawaran->catatan }}</li>
             @endif
-            @foreach ($penawaran->terms as $term)
-                <li>
+            @foreach ($penawaran->orderedTerms() as $term)
+                <li @if ($term->depth === 1) class="notes-sub" @endif>
                     @if ($term->judul)<strong>{{ $term->judul }}:</strong> @endif{{ $term->isi }}
                 </li>
             @endforeach
