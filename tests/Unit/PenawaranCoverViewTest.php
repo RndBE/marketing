@@ -48,3 +48,10 @@ test('cover shrinks a long job label to preserve the title safe area', function 
 
     expect($html)->toContain('class="cover-pill is-extra-long"');
 });
+
+test('cover anchors the job label above the client name so a wrapped client cannot overlap it', function () {
+    $html = renderPenawaranCoverForTitle('PENAWARAN PERANGKAT TELEMETRI');
+
+    expect(preg_replace('/\s+/', ' ', $html))
+        ->toMatch('/<div class="cover-client"> <div class="cover-pill-anchor"> <div class="cover-pill">Pengadaan Perangkat<\/div> <\/div> PT Contoh Indonesia <\/div>/');
+});

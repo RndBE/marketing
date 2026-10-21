@@ -170,10 +170,22 @@
         margin-top: 3mm;
     }
 
+    /* Kotak nama pekerjaan menempel di atas baris pertama nama instansi.
+       Instansi satu baris: bawah kotak tetap di 52mm dari bawah halaman seperti
+       sebelumnya (40mm + tinggi satu baris Montserrat 15pt 27.153pt + 6.863pt).
+       Instansi yang turun ke dua baris mendorong kotak ke atas, tidak menimpanya.
+       Jangkar selebar halaman supaya lebar kotak dihitung sama seperti dulu. */
+    .cover-pill-anchor {
+        position: relative;
+        width: 210mm;
+        height: 0;
+        margin-left: -12mm;
+    }
+
     .cover-pill {
         position: absolute;
         left: 12mm;
-        bottom: 52mm;
+        bottom: 6.863pt;
         display: inline-block;
         max-width: 176mm;
         text-align: center;
@@ -276,8 +288,12 @@
         <div class="cover-line"></div>
     </div>
 
-    <div class="{{ $pillClass }}">{{ $coverPill }}</div>
-    <div class="cover-client">{{ $coverClient }}</div>
+    <div class="cover-client">
+        <div class="cover-pill-anchor">
+            <div class="{{ $pillClass }}">{{ $coverPill }}</div>
+        </div>
+        {{ $coverClient }}
+    </div>
 
     <div class="cover-footer">
         <span class="footer-item"><span class="footer-icon"><img src="{{ public_path('templates/email.png') }}"
