@@ -459,8 +459,7 @@
                         </td>
 
                         <td style="text-align:center;white-space:nowrap">
-                            {{-- Mode pricelist: kolom tetap ada, isi volume/satuan tidak dicetak. --}}
-                            @if ($showItemAmount && !($pricelistMode ?? false))
+                            @if ($showItemAmount)
                                 {{ number_format($volume, 0, ',', '.') }} {{ $item->satuan ?? 'ls' }}
                             @else
                                 <span class="item-detail-empty">&nbsp;</span>
@@ -468,7 +467,8 @@
                         </td>
 
                         <td class="right" style="white-space:nowrap">
-                            @if ($showItemAmount)
+                            {{-- Mode pricelist: kolom Satuan tetap ada, isinya tidak dicetak. --}}
+                            @if ($showItemAmount && !($pricelistMode ?? false))
                                 <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
                                     <tr style="border:none">
                                         <td align="left" style="border:none">Rp</td>
@@ -538,6 +538,7 @@
                     @foreach ($item->details as $detailIndex => $d)
                         @php
                             $currentDetailUnits = $detailRowUnits($d);
+                            $detailQty = (float) ($d->qty ?? 0);
                             // Di mode pricelist_total harga yang tampil sudah termasuk markup
                             // detail dan markup item, jadi harga satuan x qty tetap sama dengan
                             // subtotal dan jumlah semua detail sama dengan harga satuan bundle.
@@ -566,22 +567,16 @@
                                 </div>
                             </td>
                             <td style="text-align:center;white-space:nowrap">
-                                {{-- Qty/satuan detail hanya pernah tampil di mode pricelist, dan di sana
-                                     sengaja tidak dicetak: kolom tetap ada, isinya kosong. --}}
-                                <span class="item-detail-empty">&nbsp;</span>
-                            </td>
-                            <td class="right item-detail-price">
-                                @if ($showDetailAmount)
-                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
-                                        <tr style="border:none">
-                                            <td align="left" style="border:none">Rp</td>
-                                            <td align="right" style="border:none">
-                                                {{ number_format($detailPrice, 0, ',', '.') }}</td>
-                                        </tr>
-                                    </table>
+                                @if ($showDetailAmount && $detailQty > 0)
+                                    {{ number_format($detailQty, 0, ',', '.') }} {{ $d->satuan ?? '' }}
                                 @else
                                     <span class="item-detail-empty">&nbsp;</span>
                                 @endif
+                            </td>
+                            <td class="right item-detail-price">
+                                {{-- Harga satuan detail hanya pernah tampil di mode pricelist, dan di
+                                     sana sengaja tidak dicetak: kolom tetap ada, isinya kosong. --}}
+                                <span class="item-detail-empty">&nbsp;</span>
                             </td>
                             @if ($hasItemDiscount)
                                 <td class="right item-detail-price">
