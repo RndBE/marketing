@@ -459,7 +459,8 @@
                         </td>
 
                         <td style="text-align:center;white-space:nowrap">
-                            @if ($showItemAmount)
+                            {{-- Mode pricelist: kolom tetap ada, isi volume/satuan tidak dicetak. --}}
+                            @if ($showItemAmount && !($pricelistMode ?? false))
                                 {{ number_format($volume, 0, ',', '.') }} {{ $item->satuan ?? 'ls' }}
                             @else
                                 <span class="item-detail-empty">&nbsp;</span>
@@ -537,7 +538,6 @@
                     @foreach ($item->details as $detailIndex => $d)
                         @php
                             $currentDetailUnits = $detailRowUnits($d);
-                            $detailQty = (float) ($d->qty ?? 0);
                             // Di mode pricelist_total harga yang tampil sudah termasuk markup
                             // detail dan markup item, jadi harga satuan x qty tetap sama dengan
                             // subtotal dan jumlah semua detail sama dengan harga satuan bundle.
@@ -566,11 +566,9 @@
                                 </div>
                             </td>
                             <td style="text-align:center;white-space:nowrap">
-                                @if ($showDetailAmount && $detailQty > 0)
-                                    {{ number_format($detailQty, 0, ',', '.') }} {{ $d->satuan ?? '' }}
-                                @else
-                                    <span class="item-detail-empty">&nbsp;</span>
-                                @endif
+                                {{-- Qty/satuan detail hanya pernah tampil di mode pricelist, dan di sana
+                                     sengaja tidak dicetak: kolom tetap ada, isinya kosong. --}}
+                                <span class="item-detail-empty">&nbsp;</span>
                             </td>
                             <td class="right item-detail-price">
                                 @if ($showDetailAmount)
