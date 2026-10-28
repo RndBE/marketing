@@ -441,6 +441,17 @@
                         }
                     @endphp
 
+                    {{-- Kalau detail pertama diperkirakan tidak muat, pemisah halaman dipasang
+                         sebelum heading item (bersama detail pertamanya), bukan di antara
+                         heading dan detail. Perkiraannya bisa meleset dari tinggi render asli;
+                         di batas antar item garisnya menyatu dengan garis item sebelumnya,
+                         sedangkan di tengah item garisnya tampak sebagai garis nyasar. --}}
+                    @if ($itemUsesManualPageBreaks && $detailCount && $itemBreakBeforeRow($itemHeadingUnits + $detailRowUnits($item->details->first())))
+                        <tr class="item-page-break-row">
+                            <td colspan="{{ $hasItemDiscount ? 6 : 5 }}">&nbsp;</td>
+                        </tr>
+                    @endif
+
                     <tr class="item-heading {{ $detailCount ? 'has-details' : '' }}">
                         <td class="right" style="text-align: center;margin-bottom:0px">{{ $i + 1 }}</td>
 
@@ -552,7 +563,7 @@
                                 : (int) $d->calcSubtotal();
                             $showDetailAmount = ($pricelistMode ?? false) && ($detailPrice > 0 || $detailSubtotal > 0);
                         @endphp
-                        @if ($itemUsesManualPageBreaks && $itemBreakBeforeRow($currentDetailUnits))
+                        @if ($itemUsesManualPageBreaks && $detailIndex > 0 && $itemBreakBeforeRow($currentDetailUnits))
                             <tr class="item-page-break-row">
                                 <td colspan="{{ $hasItemDiscount ? 6 : 5 }}">&nbsp;</td>
                             </tr>
