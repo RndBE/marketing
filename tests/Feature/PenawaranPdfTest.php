@@ -1222,4 +1222,22 @@ test('pricelist modes leave the Satuan price column empty and only pricelist_tot
     expect($pricelistTotalHtml)->not()->toContain('840.000')
         ->and($pricelistTotalHtml)->not()->toContain('700.000')
         ->and($pricelistTotalHtml)->toContain('1.680.000');
+
+    // pricelist_total: volume/satuan ada di baris detail, bukan di baris item.
+    expect($pricelistTotalHtml)->toContain('2 unit')
+        ->and($pricelistTotalHtml)->not()->toContain('1 paket');
+
+    // pricelist_volume: volume/satuan seperti mode full (baris item), harga seperti pricelist_total.
+    $pricelistVolumeHtml = view('documents.penawaran_full', $viewData + [
+        'pricelistMode' => true,
+        'showTotalSummary' => true,
+        'volumeLikeFull' => true,
+    ])->render();
+
+    expect($pricelistVolumeHtml)->toContain('1 paket')
+        ->and($pricelistVolumeHtml)->not()->toContain('2 unit')
+        ->and($pricelistVolumeHtml)->not()->toContain('840.000')
+        ->and($pricelistVolumeHtml)->toContain('1.680.000')
+        ->and($pricelistVolumeHtml)->toContain('Harga belum termasuk PPN')
+        ->and($pricelistHtml)->not()->toContain('Harga belum termasuk PPN');
 });

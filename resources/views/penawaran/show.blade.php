@@ -158,6 +158,17 @@
                         Mode Pricelist + Total
                         <span class="block text-xs font-normal text-slate-500">Dengan ringkasan total</span>
                     </a>
+                    <a href="{{ route('penawaran.pdf', ['penawaran' => $pdfRouteKey, 'mode' => 'pricelist_volume']) }}"
+                        data-download-loading
+                        data-loading-label="Menyiapkan PDF..."
+                        data-download-timeout="30000"
+                        data-penawaran-pdf-link
+                        target="_blank"
+                        rel="noopener"
+                        class="block border-t border-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        Mode Pricelist + Volume
+                        <span class="block text-xs font-normal text-slate-500">Volume seperti Full, harga seperti Pricelist, dengan ringkasan total</span>
+                    </a>
                 </div>
             </details>
 

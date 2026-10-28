@@ -459,7 +459,9 @@
                         </td>
 
                         <td style="text-align:center;white-space:nowrap">
-                            @if ($showItemAmount)
+                            {{-- Mode pricelist_volume: volume/satuan item tetap dicetak seperti mode
+                                 full walau harganya dipindah ke baris detail. --}}
+                            @if ($showItemAmount || ($volumeLikeFull ?? false))
                                 {{ number_format($volume, 0, ',', '.') }} {{ $item->satuan ?? 'ls' }}
                             @else
                                 <span class="item-detail-empty">&nbsp;</span>
@@ -567,7 +569,7 @@
                                 </div>
                             </td>
                             <td style="text-align:center;white-space:nowrap">
-                                @if ($showDetailAmount && $detailQty > 0)
+                                @if ($showDetailAmount && $detailQty > 0 && !($volumeLikeFull ?? false))
                                     {{ number_format($detailQty, 0, ',', '.') }} {{ $d->satuan ?? '' }}
                                 @else
                                     <span class="item-detail-empty">&nbsp;</span>

@@ -1203,9 +1203,12 @@ class PenawaranController extends Controller
         // mode=pricelist        : harga tampil per detail item, tanpa ringkasan total.
         // mode=pricelist_total  : layout pricelist yang sama, tapi ringkasan total tetap
         //                         dicetak di bagian paling bawah tabel item.
+        // mode=pricelist_volume : harga seperti pricelist_total (per detail + ringkasan total),
+        //                         tapi kolom volume/satuan memakai isi mode full.
         $mode = (string) $request->query('mode', '');
-        $pricelistMode = in_array($mode, ['pricelist', 'pricelist_total'], true);
+        $pricelistMode = in_array($mode, ['pricelist', 'pricelist_total', 'pricelist_volume'], true);
         $showTotalSummary = $mode !== 'pricelist';
+        $volumeLikeFull = $mode === 'pricelist_volume';
 
         $penawaran->load([
             'docNumber',
@@ -1239,6 +1242,7 @@ class PenawaranController extends Controller
             'kop' => $kop,
             'pricelistMode' => $pricelistMode,
             'showTotalSummary' => $showTotalSummary,
+            'volumeLikeFull' => $volumeLikeFull,
         ])
             ->setPaper('a4', 'portrait')
             ->setOption('isRemoteEnabled', true)
