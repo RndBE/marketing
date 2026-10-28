@@ -1113,6 +1113,43 @@ class PenawaranHargaController extends Controller
 
     private function createBlankRequestQuotationItem(UsulanPenawaran $usulan, Penawaran $penawaran): void
     {
+        // Daftar barang yang diketik di keterangan jadi satu item per baris, lengkap
+        // dengan jumlahnya, supaya penjual bisa mengisi harga per barang.
+        $textItems = $usulan->itemsFromDeskripsi();
+        if ($textItems !== []) {
+            foreach ($textItems as $index => $textItem) {
+                $item = PenawaranItem::create([
+                    'penawaran_id' => $penawaran->id,
+                    'product_id' => null,
+                    'tipe' => 'custom',
+                    'urutan' => $index + 1,
+                    'judul' => $textItem['judul'],
+                    'catatan' => null,
+                    'qty' => $textItem['qty'],
+                    'satuan' => 'unit',
+                    'subtotal' => 0,
+                    'markup' => 1,
+                ]);
+
+                PenawaranItemDetail::create([
+                    'penawaran_item_id' => $item->id,
+                    'product_detail_id' => null,
+                    'urutan' => 1,
+                    'nama' => $item->judul,
+                    'spesifikasi' => null,
+                    // Jumlah barang ada di item; detail memegang harga satu unit, sama
+                    // seperti yang disimpan editor penawaran.
+                    'qty' => 1,
+                    'satuan' => 'unit',
+                    'harga' => 0,
+                    'subtotal' => 0,
+                    'markup' => 1,
+                ]);
+            }
+
+            return;
+        }
+
         $item = PenawaranItem::create([
             'penawaran_id' => $penawaran->id,
             'product_id' => null,

@@ -608,3 +608,89 @@ test('penawaran harga links for internal proposals redirect back to usulan', fun
         ->get(route('penawaran-harga.show', $internal))
         ->assertRedirect(route('usulan.show', $internal));
 });
+
+test('daftar barang di keterangan dibaca per baris dengan jumlah di ujung baris', function () {
+    $usulan = new UsulanPenawaran([
+        'deskripsi' => "Radar Sensor RS-RAD-N01-1-EX resolusi 1mm, beam angle 8 derajat (1)\r\nModul Multiconverter (1)\r\n\r\nmppt 20A/30A (5)",
+    ]);
+
+    expect($usulan->itemsFromDeskripsi())->toBe([
+        ['judul' => 'Radar Sensor RS-RAD-N01-1-EX resolusi 1mm, beam angle 8 derajat', 'qty' => 1.0],
+        ['judul' => 'Modul Multiconverter', 'qty' => 1.0],
+        ['judul' => 'mppt 20A/30A', 'qty' => 5.0],
+    ]);
+
+    // Baris tanpa jumlah ikut jadi item berjumlah 1 selama sebagian besar baris punya jumlah.
+    $campur = new UsulanPenawaran(['deskripsi' => "Kabel power\nSensor suhu (3)"]);
+    expect($campur->itemsFromDeskripsi())->toBe([
+        ['judul' => 'Kabel power', 'qty' => 1.0],
+        ['judul' => 'Sensor suhu', 'qty' => 3.0],
+    ]);
+
+    // Paragraf biasa tetap keterangan, bukan daftar barang.
+    expect((new UsulanPenawaran(['deskripsi' => 'Mohon penawaran untuk proyek SPAM (tahap 2) segera.']))->itemsFromDeskripsi())->toBe([])
+        ->and((new UsulanPenawaran(['deskripsi' => "Kebutuhan proyek A\nMohon dikirim minggu ini\nTerima kasih"]))->itemsFromDeskripsi())->toBe([])
+        ->and((new UsulanPenawaran(['deskripsi' => null]))->itemsFromDeskripsi())->toBe([]);
+});
+
+test('permohonan tanpa baris item menampilkan daftar barang dari keterangan sebagai baris tabel', function () {
+    ['sender' => $sender, 'usulan' => $usulan] = usulanPdfFixture();
+    $usulan->items()->delete();
+    $usulan->update(['deskripsi' => "Radar Sensor RS-RAD (1)\nModul Multiconverter (2)\nmppt 20A/30A (5)"]);
+    $usulan->load(['company', 'targetCompany', 'pic', 'creator.roles', 'items']);
+
+    $html = view('penawaran_harga.pdf', [
+        'usulan' => $usulan,
+        'documentDate' => Carbon::create(2026, 8, 4, 9, 0),
+        'documentNumber' => '001/PP-AS/VIII/2026',
+        'kop' => ['logo' => public_path('images/logo_arsol.png'), 'stamp' => null, 'name' => $sender->name,
+            'address' => $sender->address, 'phone' => $sender->phone, 'email' => $sender->email],
+        'signaturePath' => null,
+    ])->render();
+
+    expect(substr_count($html, 'class="number-column">'))->toBe(4) // header + 3 baris
+        ->and($html)->toContain('Modul Multiconverter')
+        ->and($html)->toContain('<td class="quantity-column">5</td>')
+        ->and($html)->not->toContain('Keterangan kebutuhan')
+        ->and($html)->not->toContain('Radar Sensor RS-RAD (1)');
+
+    // Keterangan berupa paragraf tetap memakai satu baris dan kotak keterangan.
+    $usulan->update(['deskripsi' => 'Mohon penawaran segera.']);
+    $usulan->refresh()->load(['company', 'targetCompany', 'pic', 'creator.roles', 'items']);
+    $prose = view('penawaran_harga.pdf', [
+        'usulan' => $usulan,
+        'documentDate' => Carbon::create(2026, 8, 4, 9, 0),
+        'documentNumber' => '001/PP-AS/VIII/2026',
+        'kop' => ['logo' => public_path('images/logo_arsol.png'), 'stamp' => null, 'name' => $sender->name,
+            'address' => $sender->address, 'phone' => $sender->phone, 'email' => $sender->email],
+        'signaturePath' => null,
+    ])->render();
+
+    expect($prose)->toContain('Keterangan kebutuhan')
+        ->and($prose)->toContain('<td class="unit-column">Paket</td>');
+});
+
+test('penawaran dari permohonan tanpa item memecah keterangan jadi item per barang', function () {
+    ['recipient' => $recipient, 'usulan' => $usulan] = usulanPdfFixture();
+    $usulan->items()->delete();
+    $usulan->update(['deskripsi' => "Radar Sensor RS-RAD (1)\nModul Multiconverter (2)\nmppt 20A/30A (5)"]);
+
+    $seller = usulanPdfUser($recipient, 'Respond');
+    $permission = Permission::firstOrCreate(['slug' => 'respond-usulan'], ['name' => 'respond-usulan', 'group' => 'Usulan']);
+    $seller->roles->first()->permissions()->attach($permission->id);
+
+    $this->actingAs($seller)
+        ->post(route('penawaran-harga.tanggapi', $usulan), [
+            'tanggapan' => 'Segera dibuatkan.',
+            'status' => 'disetujui',
+            'penawaran_action' => 'empty',
+        ])
+        ->assertRedirect();
+
+    $penawaran = $usulan->refresh()->penawaran;
+    $items = $penawaran->items()->with('details')->orderBy('urutan')->get();
+
+    expect($items->pluck('judul')->all())->toBe(['Radar Sensor RS-RAD', 'Modul Multiconverter', 'mppt 20A/30A'])
+        ->and($items->map(fn ($item) => (float) $item->qty)->all())->toBe([1.0, 2.0, 5.0])
+        ->and($items->every(fn ($item) => $item->details->count() === 1 && (float) $item->details->first()->qty === 1.0))->toBeTrue();
+});

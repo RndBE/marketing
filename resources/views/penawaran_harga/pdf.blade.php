@@ -232,6 +232,7 @@
                 ? number_format($number, 0, ',', '.')
                 : rtrim(rtrim(number_format($number, 2, ',', '.'), '0'), ',');
         };
+        $textItems = $usulan->items->isEmpty() ? $usulan->itemsFromDeskripsi() : [];
         $recipientPhone = $usulan->pic?->no_hp ?: $usulan->targetCompany?->phone;
         $recipientAddress = $usulan->pic?->alamat ?: $usulan->targetCompany?->address;
         $signerName = $usulan->signature_name ?: $usulan->creator?->name ?: '-';
@@ -342,17 +343,27 @@
                     <td class="unit-column">{{ $item->satuan ?: '-' }}</td>
                 </tr>
             @empty
-                <tr>
-                    <td class="number-column">1</td>
-                    <td>{{ $usulan->judul }}</td>
-                    <td class="quantity-column">1</td>
-                    <td class="unit-column">Paket</td>
-                </tr>
+                @forelse ($textItems as $index => $textItem)
+                    <tr>
+                        <td class="number-column">{{ $index + 1 }}</td>
+                        <td>{{ $textItem['judul'] }}</td>
+                        <td class="quantity-column">{{ $formatQuantity($textItem['qty']) }}</td>
+                        <td class="unit-column">Unit</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td class="number-column">1</td>
+                        <td>{{ $usulan->judul }}</td>
+                        <td class="quantity-column">1</td>
+                        <td class="unit-column">Paket</td>
+                    </tr>
+                @endforelse
             @endforelse
         </tbody>
     </table>
 
-    @if ($usulan->deskripsi)
+    {{-- Daftar barang yang diketik di keterangan sudah menjadi baris tabel di atas. --}}
+    @if ($usulan->deskripsi && empty($textItems))
         <div class="description">
             <div class="description-title">Keterangan kebutuhan</div>
             <div>{!! nl2br(e($usulan->deskripsi)) !!}</div>

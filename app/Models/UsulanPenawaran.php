@@ -103,6 +103,39 @@ class UsulanPenawaran extends Model
         return $this->target_company_id !== null;
     }
 
+    /**
+     * Pembuat kadang menulis daftar barang sebagai teks bebas di keterangan, satu
+     * barang per baris dengan jumlah di ujung baris, mis. "Modul Multiconverter (2)".
+     * Mengembalikan baris-baris itu sebagai item [judul, qty]. Teks dianggap daftar
+     * barang bila minimal separuh barisnya berakhiran jumlah "(n)"; paragraf biasa
+     * mengembalikan array kosong supaya tetap tampil sebagai keterangan.
+     *
+     * @return array<int, array{judul: string, qty: float}>
+     */
+    public function itemsFromDeskripsi(): array
+    {
+        $lines = preg_split('/\R/', (string) $this->deskripsi, -1, PREG_SPLIT_NO_EMPTY);
+        $lines = array_values(array_filter(array_map('trim', $lines), fn ($line) => $line !== ''));
+
+        $items = [];
+        $withQty = 0;
+        foreach ($lines as $line) {
+            if (preg_match('/^(.*\S)\s*\(\s*(\d+(?:[.,]\d+)?)\s*\)$/u', $line, $m)) {
+                $qty = (float) str_replace(',', '.', $m[2]);
+                if ($qty > 0) {
+                    $items[] = ['judul' => $m[1], 'qty' => $qty];
+                    $withQty++;
+
+                    continue;
+                }
+            }
+
+            $items[] = ['judul' => $line, 'qty' => 1.0];
+        }
+
+        return $withQty > 0 && $withQty * 2 >= count($lines) ? $items : [];
+    }
+
     public function scopePenawaranHarga(Builder $query): Builder
     {
         return $query->whereNotNull($this->getTable().'.target_company_id');
