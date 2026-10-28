@@ -377,7 +377,10 @@
         <div id="aksi-transaksi" class="mb-4 flex scroll-mt-4 flex-wrap gap-2">
             <a href="{{ route('penawaran-harga.index') }}" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold">Kembali</a>
 
-            @if ($isRequester && in_array($usulan->status, ['draft', 'menunggu'], true) && !$usulan->penawaran_id)
+            {{-- Permintaan yang dikembalikan ke "menunggu" tetap membawa penawaran draft
+                 yang sudah dibuat penjual; selama penawaran itu belum terkirim, pembuat boleh
+                 mengedit permintaannya. --}}
+            @if ($isRequester && in_array($usulan->status, ['draft', 'menunggu'], true) && (!$usulan->penawaran_id || $usulan->penawaran_status === 'draft'))
                 <a href="{{ route('penawaran-harga.edit', $usulan) }}" class="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white">Edit Permintaan</a>
             @endif
 
