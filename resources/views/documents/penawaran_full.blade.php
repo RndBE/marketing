@@ -709,9 +709,7 @@
                         @if ($penawaran->tax_enabled && $taxAmount > 0)
                             <tr>
                                 <td style="text-align:right">
-                                    <strong>Pajak
-                                        ({{ number_format((float) ($penawaran->tax_rate ?? 11), 2, ',', '.') }}
-                                        %)</strong>
+                                    <strong>Pajak</strong>
                                 </td>
                                 <td class="right" style="white-space:nowrap">
                                     <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
