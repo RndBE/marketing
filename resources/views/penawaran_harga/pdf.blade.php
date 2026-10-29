@@ -159,16 +159,23 @@
             margin-bottom: 1px;
         }
 
-        .description {
-            margin-top: 10px;
-            padding: 8px 10px;
-            border: 1px solid #d1d5db;
+        .notes-section {
+            margin-top: 12px;
             page-break-inside: avoid;
         }
 
-        .description-title {
+        .notes-title {
             margin-bottom: 3px;
             font-weight: 700;
+        }
+
+        .notes-list {
+            margin: 0;
+            padding-left: 15px;
+        }
+
+        .notes-list li {
+            margin-bottom: 2px;
         }
 
         .signature-wrap {
@@ -232,7 +239,10 @@
                 ? number_format($number, 0, ',', '.')
                 : rtrim(rtrim(number_format($number, 2, ',', '.'), '0'), ',');
         };
-        $textItems = $usulan->items->isEmpty() ? $usulan->itemsFromDeskripsi() : [];
+        $noteLines = array_values(array_filter(
+            array_map('trim', preg_split('/\R/', (string) $usulan->deskripsi) ?: []),
+            fn ($line) => $line !== ''
+        ));
         $recipientPhone = $usulan->pic?->no_hp ?: $usulan->targetCompany?->phone;
         $recipientAddress = $usulan->pic?->alamat ?: $usulan->targetCompany?->address;
         $signerName = $usulan->signature_name ?: $usulan->creator?->name ?: '-';
@@ -343,30 +353,26 @@
                     <td class="unit-column">{{ $item->satuan ?: '-' }}</td>
                 </tr>
             @empty
-                @forelse ($textItems as $index => $textItem)
-                    <tr>
-                        <td class="number-column">{{ $index + 1 }}</td>
-                        <td>{{ $textItem['judul'] }}</td>
-                        <td class="quantity-column">{{ $formatQuantity($textItem['qty']) }}</td>
-                        <td class="unit-column">Unit</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td class="number-column">1</td>
-                        <td>{{ $usulan->judul }}</td>
-                        <td class="quantity-column">1</td>
-                        <td class="unit-column">Paket</td>
-                    </tr>
-                @endforelse
+                <tr>
+                    <td class="number-column">1</td>
+                    <td>{{ $usulan->judul }}</td>
+                    <td class="quantity-column">1</td>
+                    <td class="unit-column">Paket</td>
+                </tr>
             @endforelse
         </tbody>
     </table>
 
-    {{-- Daftar barang yang diketik di keterangan sudah menjadi baris tabel di atas. --}}
-    @if ($usulan->deskripsi && empty($textItems))
-        <div class="description">
-            <div class="description-title">Keterangan kebutuhan</div>
-            <div>{!! nl2br(e($usulan->deskripsi)) !!}</div>
+    {{-- Keterangan kebutuhan memakai tampilan yang sama dengan Keterangan di PDF Penawaran
+         Harga: judul tebal dan daftar poin, satu poin per baris teks. --}}
+    @if (count($noteLines))
+        <div class="notes-section">
+            <div class="notes-title">Keterangan kebutuhan:</div>
+            <ul class="notes-list">
+                @foreach ($noteLines as $noteLine)
+                    <li>{{ $noteLine }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 

@@ -633,10 +633,10 @@ test('daftar barang di keterangan dibaca per baris dengan jumlah di ujung baris'
         ->and((new UsulanPenawaran(['deskripsi' => null]))->itemsFromDeskripsi())->toBe([]);
 });
 
-test('permohonan tanpa baris item menampilkan daftar barang dari keterangan sebagai baris tabel', function () {
+test('keterangan kebutuhan permohonan tampil sebagai daftar poin seperti keterangan penawaran, bukan baris tabel', function () {
     ['sender' => $sender, 'usulan' => $usulan] = usulanPdfFixture();
     $usulan->items()->delete();
-    $usulan->update(['deskripsi' => "Radar Sensor RS-RAD (1)\nModul Multiconverter (2)\nmppt 20A/30A (5)"]);
+    $usulan->update(['deskripsi' => "Radar Sensor RS-RAD (1)\nModul Multiconverter (2)\n\nmppt 20A/30A (5)"]);
     $usulan->load(['company', 'targetCompany', 'pic', 'creator.roles', 'items']);
 
     $html = view('penawaran_harga.pdf', [
@@ -648,16 +648,19 @@ test('permohonan tanpa baris item menampilkan daftar barang dari keterangan seba
         'signaturePath' => null,
     ])->render();
 
-    expect(substr_count($html, 'class="number-column">'))->toBe(4) // header + 3 baris
-        ->and($html)->toContain('Modul Multiconverter')
-        ->and($html)->toContain('<td class="quantity-column">5</td>')
-        ->and($html)->not->toContain('Keterangan kebutuhan')
-        ->and($html)->not->toContain('Radar Sensor RS-RAD (1)');
+    // Tabel tetap satu baris; tiap baris teks jadi satu poin, baris kosong dilewati.
+    expect(substr_count($html, 'class="number-column">'))->toBe(2) // header + 1 baris
+        ->and($html)->toContain('<td class="unit-column">Paket</td>')
+        ->and($html)->toContain('<div class="notes-title">Keterangan kebutuhan:</div>')
+        ->and(substr_count($html, '<li>Radar Sensor RS-RAD (1)</li>'))->toBe(1)
+        ->and($html)->toContain('<li>Modul Multiconverter (2)</li>')
+        ->and($html)->toContain('<li>mppt 20A/30A (5)</li>')
+        ->and(substr_count($html, '<ul class="notes-list">'))->toBe(1);
 
-    // Keterangan berupa paragraf tetap memakai satu baris dan kotak keterangan.
-    $usulan->update(['deskripsi' => 'Mohon penawaran segera.']);
+    // Tanpa keterangan, bagian itu tidak dicetak.
+    $usulan->update(['deskripsi' => null]);
     $usulan->refresh()->load(['company', 'targetCompany', 'pic', 'creator.roles', 'items']);
-    $prose = view('penawaran_harga.pdf', [
+    $empty = view('penawaran_harga.pdf', [
         'usulan' => $usulan,
         'documentDate' => Carbon::create(2026, 8, 4, 9, 0),
         'documentNumber' => '001/PP-AS/VIII/2026',
@@ -666,8 +669,7 @@ test('permohonan tanpa baris item menampilkan daftar barang dari keterangan seba
         'signaturePath' => null,
     ])->render();
 
-    expect($prose)->toContain('Keterangan kebutuhan')
-        ->and($prose)->toContain('<td class="unit-column">Paket</td>');
+    expect($empty)->not->toContain('Keterangan kebutuhan:');
 });
 
 test('penawaran dari permohonan tanpa item memecah keterangan jadi item per barang', function () {
