@@ -1129,7 +1129,7 @@ test('penawaran pdf pricelist_total mode shows detail prices and the total summa
     expect(penawaranPdfTestResponseContent($response))->toStartWith('%PDF');
 });
 
-test('pricelist modes leave the Satuan price column empty and only pricelist_total marks up the subtotal', function () {
+test('pricelist modes print the detail unit price and only pricelist_total marks it up', function () {
     config(['app.key' => 'base64:' . base64_encode(str_repeat('a', 32))]);
 
     $company = Company::firstOrCreate(
@@ -1213,13 +1213,13 @@ test('pricelist modes leave the Satuan price column empty and only pricelist_tot
         'showTotalSummary' => true,
     ])->render();
 
-    // Kolom Satuan dikosongkan di kedua mode pricelist, jadi harga per unit tidak tercetak.
-    expect($pricelistHtml)->not()->toContain('700.000')
+    // Mode pricelist murni: harga satuan detail apa adanya (harga modal), tanpa markup.
+    expect($pricelistHtml)->toContain('700.000')
         ->and($pricelistHtml)->not()->toContain('840.000')
         ->and($pricelistHtml)->toContain('1.680.000');
 
-    // Mode pricelist_total: subtotal tetap memakai markup 1,2 (2 x 840.000).
-    expect($pricelistTotalHtml)->not()->toContain('840.000')
+    // Mode pricelist_total: harga satuan sudah bermarkup 1,2 (840.000), subtotal 2 x 840.000.
+    expect($pricelistTotalHtml)->toContain('840.000')
         ->and($pricelistTotalHtml)->not()->toContain('700.000')
         ->and($pricelistTotalHtml)->toContain('1.680.000');
 
@@ -1236,7 +1236,7 @@ test('pricelist modes leave the Satuan price column empty and only pricelist_tot
 
     expect($pricelistVolumeHtml)->toContain('1 paket')
         ->and($pricelistVolumeHtml)->not()->toContain('2 unit')
-        ->and($pricelistVolumeHtml)->not()->toContain('840.000')
+        ->and($pricelistVolumeHtml)->toContain('840.000')
         ->and($pricelistVolumeHtml)->toContain('1.680.000')
         ->and($pricelistVolumeHtml)->toContain('Harga belum termasuk PPN')
         ->and($pricelistHtml)->not()->toContain('Harga belum termasuk PPN');

@@ -587,9 +587,17 @@
                                 @endif
                             </td>
                             <td class="right item-detail-price">
-                                {{-- Harga satuan detail hanya pernah tampil di mode pricelist, dan di
-                                     sana sengaja tidak dicetak: kolom tetap ada, isinya kosong. --}}
-                                <span class="item-detail-empty">&nbsp;</span>
+                                @if ($showDetailAmount)
+                                    <table class="price-inline" width="100%" cellpadding="0" cellspacing="0" style="border:none">
+                                        <tr style="border:none">
+                                            <td align="left" style="border:none">Rp</td>
+                                            <td align="right" style="border:none">
+                                                {{ number_format($detailPrice, 0, ',', '.') }}</td>
+                                        </tr>
+                                    </table>
+                                @else
+                                    <span class="item-detail-empty">&nbsp;</span>
+                                @endif
                             </td>
                             @if ($hasItemDiscount)
                                 <td class="right item-detail-price">
